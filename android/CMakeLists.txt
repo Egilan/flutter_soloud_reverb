@@ -53,6 +53,8 @@ list(APPEND PLUGIN_SOURCES
   "${SRC_DIR}/filters/smbPitchShift.cpp"
   "${SRC_DIR}/filters/limiter.cpp"
   "${SRC_DIR}/filters/compressor.cpp"
+  "${SRC_DIR}/filters/dattorro.cpp"
+  "${SRC_DIR}/filters/soloud_reverbsc.cpp"
   ${TARGET_SOURCES}
 )
 

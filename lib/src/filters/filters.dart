@@ -14,6 +14,7 @@ import 'package:flutter_soloud/src/filters/freeverb_filter.dart';
 import 'package:flutter_soloud/src/filters/limiter.dart';
 import 'package:flutter_soloud/src/filters/lofi_filter.dart';
 import 'package:flutter_soloud/src/filters/pitchshift_filter.dart';
+import 'package:flutter_soloud/src/filters/reverbsc_filter.dart';
 import 'package:flutter_soloud/src/filters/robotize_filter.dart';
 import 'package:flutter_soloud/src/filters/wave_shaper_filter.dart';
 import 'package:flutter_soloud/src/soloud.dart';
@@ -184,6 +185,17 @@ final class FiltersSingle {
   /// experimental and can be found
   /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/filters/compressor.cpp#L24)
   CompressorSingle get compressorFilter => CompressorSingle(soundHash);
+
+  /// The `ReverbSc` (Costello) filter for this sound.
+  ///
+  /// A lush, high-quality FDN reverb.
+  ///
+  /// **Parameters**:
+  /// - `feedback`: Controls the decay time. Higher = longer tail. (0.0 to 1.0)
+  /// - `lpFreq`: Low-pass filter frequency in Hz. dampens the high end.
+  /// - `wet`: Volume of the reverb tail.
+  /// - `dry`: Volume of the original sound.
+  ReverbScSingle get reverbScFilter => ReverbScSingle(soundHash);
 }
 
 /// Filters instance used in [SoLoud.filters]. This differentiate from the
@@ -311,6 +323,9 @@ final class FiltersGlobal {
   /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/filters/compressor.cpp#L24)
   @experimental
   CompressorGlobal get compressorFilter => const CompressorGlobal();
+
+  /// The `ReverbSc` (Costello) filter used globally.
+  ReverbScGlobal get reverbScFilter => const ReverbScGlobal();
 }
 
 /// Common class for single and global filters.
@@ -443,7 +458,10 @@ enum FilterType {
   limiterFilter,
 
   /// A compressor filter.
-  compressorFilter;
+  compressorFilter,
+
+  /// ReverbSc (Costello) filter
+  reverbScFilter; // <--- Add this
 
   @override
   String toString() => switch (this) {
@@ -459,6 +477,7 @@ enum FilterType {
         FilterType.pitchShiftFilter => 'Pitchshift',
         FilterType.limiterFilter => 'Limiter',
         FilterType.compressorFilter => 'Compressor',
+        FilterType.reverbScFilter => 'ReverbSc',
       };
 
   /// The number of parameter this filter owns.
@@ -475,6 +494,7 @@ enum FilterType {
         FilterType.pitchShiftFilter => 3,
         FilterType.limiterFilter => 5,
         FilterType.compressorFilter => 8,
+        FilterType.reverbScFilter => 4,
       };
 
   /// Activate this filter. If [soundHash] is null this filter is applied
