@@ -12,6 +12,11 @@
 #include <string>
 #include <memory>
 
+namespace SoLoud
+{
+    class Bus;
+}
+
 struct FilterObject
 {
     FilterType type;
@@ -34,6 +39,7 @@ class Filters
     /// can be changed in a global constant in soloud.h (and rebuilding SoLoud).
 public:
     Filters(SoLoud::Soloud *soloud, ActiveSound *sound);
+    Filters(SoLoud::Soloud *soloud, SoLoud::Bus *bus);
     ~Filters() {}
 
     int isFilterActive(FilterType filter);
@@ -41,6 +47,8 @@ public:
     PlayerErrors addFilter(FilterType filterType);
     
     bool removeFilter(FilterType filterType);
+
+    SoLoud::Filter* getFilter(FilterType filterType);
     
     std::vector<std::string> getFilterParamNames(FilterType filterType);
     
@@ -68,6 +76,9 @@ private:
 
     /// The sound to manage filters for. If null the filters are managed globally.
     const ActiveSound *mSound;
+
+    /// The bus to manage filters for.
+    SoLoud::Bus *mBus;
 
     std::vector<std::unique_ptr<FilterObject>> filters;
 };

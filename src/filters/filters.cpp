@@ -21,10 +21,14 @@
 #include "limiter.h"
 #include "compressor.h"
 #include "soloud_reverbsc.h"
+#include "soloud_convolutionfilter.h"
 
 
 Filters::Filters(SoLoud::Soloud *soloud, ActiveSound *sound)
-    : mSoloud(soloud), mSound(sound) {}
+    : mSoloud(soloud), mSound(sound), mBus(nullptr) {}
+
+Filters::Filters(SoLoud::Soloud *soloud, SoLoud::Bus *bus)
+    : mSoloud(soloud), mSound(nullptr), mBus(bus) {}
 
 int Filters::isFilterActive(FilterType filter)
 {
@@ -34,6 +38,14 @@ int Filters::isFilterActive(FilterType filter)
             return i;
     }
     return -1;
+}
+
+SoLoud::Filter* Filters::getFilter(FilterType filter)
+{
+    int index = isFilterActive(filter);
+    if (index >= 0)
+        return filters[index].get()->filter.get();
+    return nullptr;
 }
 
 std::vector<std::string> Filters::getFilterParamNames(FilterType filterType)
@@ -171,6 +183,16 @@ std::vector<std::string> Filters::getFilterParamNames(FilterType filterType)
         }
     }
     break;
+    case ConvolutionFilter:
+    {
+        SoLoud::ConvolutionFilter f;
+        int nParams = f.getParamCount();
+        for (int i = 0; i < nParams; i++)
+        {
+            ret.push_back(f.getParamName(i));
+        }
+    }
+    break;
     }
 
     return ret;
@@ -230,11 +252,18 @@ PlayerErrors Filters::addFilter(FilterType filterType)
     case ReverbScFilter:
         newFilter = new SoLoud::ReverbScFilter();
         break;
+    case ConvolutionFilter:
+        newFilter = new SoLoud::ConvolutionFilter();
+        break;
     default:
         return filterNotFound;
     }
 
-    if (mSound == nullptr)
+    if (mBus != nullptr)
+    {
+        mBus->setFilter(filtersSize, newFilter);
+    }
+    else if (mSound == nullptr)
     {
         mSoloud->setGlobalFilter(filtersSize, newFilter);
     }
@@ -257,7 +286,11 @@ bool Filters::removeFilter(FilterType filterType)
     if (index < 0)
         return false;
 
-    if (mSound == nullptr)
+    if (mBus != nullptr)
+    {
+        mBus->setFilter(index, 0);
+    }
+    else if (mSound == nullptr)
     {
         mSoloud->setGlobalFilter(index, 0);
     }
@@ -271,14 +304,21 @@ bool Filters::removeFilter(FilterType filterType)
     /// shift filters down by 1 from [index]
     for (int i = index; i < filters.size() - 1; i++)
     {
-        if (mSound == nullptr)
+        if (mBus != nullptr)
+        {
+            mBus->setFilter(i + 1, 0);
+            mBus->setFilter(i, filters[i + 1].get()->filter.get());
+        }
+        else if (mSound == nullptr)
+        {
             mSoloud->setGlobalFilter(i + 1, 0);
-        else
-            mSound->sound.get()->setFilter(i + 1, 0);
-        if (mSound == nullptr)
             mSoloud->setGlobalFilter(i, filters[i + 1].get()->filter.get());
+        }
         else
+        {
+            mSound->sound.get()->setFilter(i + 1, 0);
             mSound->sound.get()->setFilter(i, filters[i + 1].get()->filter.get());
+        }
     }
     /// remove the filter from the list
     filters.erase(filters.begin() + index);

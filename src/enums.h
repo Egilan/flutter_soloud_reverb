@@ -126,7 +126,8 @@ typedef enum FilterType
     PitchShiftFilter,
     LimiterFilter,
     CompressorFilter,
-    ReverbScFilter
+    ReverbScFilter,
+    ConvolutionFilter
 } FilterType_t;
 
 /// WARNING: Keep these in sync with `lib/src/enums.dart`.
