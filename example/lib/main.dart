@@ -2,11 +2,11 @@ import 'dart:developer' as dev;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:logging/logging.dart';
 
 void main() async {
-  // Standard logging setup
   Logger.root.level = kDebugMode ? Level.FINE : Level.INFO;
   Logger.root.onRecord.listen((record) {
     dev.log(
@@ -22,35 +22,97 @@ void main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
 
-  /// Initialize the player.
   await SoLoud.instance.init();
 
   runApp(
-    const MaterialApp(
-      home: HelloFlutterSoLoud(),
+    MaterialApp(
+      theme: ThemeData.dark(useMaterial3: true),
+      home: const MultiBusDemo(),
     ),
   );
 }
 
-class HelloFlutterSoLoud extends StatefulWidget {
-  const HelloFlutterSoLoud({super.key});
+class MultiBusDemo extends StatefulWidget {
+  const MultiBusDemo({super.key});
 
   @override
-  State<HelloFlutterSoLoud> createState() => _HelloFlutterSoLoudState();
+  State<MultiBusDemo> createState() => _MultiBusDemoState();
 }
 
-class _HelloFlutterSoLoudState extends State<HelloFlutterSoLoud> {
-  // The asset to load
-  AudioSource? currentSound;
+class _MultiBusDemoState extends State<MultiBusDemo> {
+  AudioSource? speech;
+  AudioSource? music;
+  SoundHandle? speechHandle;
+  SoundHandle? musicHandle;
 
-  // The specific instance of the playing sound (needed to tweak params live)
-  SoundHandle? currentHandle;
+  BusHandle? busA;
+  BusHandle? busB;
 
-  // Reverb Parameters
-  double feedback = 0.20; // Default for ReverbSc
-  double wet = 1.0;       // Fully wet
-  double dry = 0.7;       // Mix in some dry signal
-  bool enableReverb = true;
+  List<String> _irAssets = [];
+  String irA = '';
+  String irB = '';
+
+  double volA = 1.0;
+  double volB = 1.0;
+  
+  bool isBusAActive = false;
+  bool isBusBActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDemo();
+  }
+
+  Future<void> _initDemo() async {
+    // 1. Discover IRs
+    final AssetManifest manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final assets = manifest
+        .listAssets()
+        .where((String path) => path.startsWith('assets/audio/IR/') && path.endsWith('.wav'))
+        .toList();
+    
+    setState(() {
+      _irAssets = assets;
+      if (_irAssets.length >= 2) {
+        irA = _irAssets[0];
+        irB = _irAssets[1];
+      } else if (_irAssets.isNotEmpty) {
+        irA = irB = _irAssets.first;
+      }
+    });
+
+    // 2. Load sounds
+    speech = await SoLoud.instance.loadAsset('assets/audio/speech_20250803074809927_01.mp3');
+    music = await SoLoud.instance.loadAsset('assets/audio/8_bit_mentality.mp3');
+    
+    // 3. Create buses
+    busA = SoLoud.instance.createBus();
+    busB = SoLoud.instance.createBus();
+
+    // 4. Setup initial IRs on buses
+    if (irA.isNotEmpty) {
+      SoLoud.instance.addBusFilter(busA!, FilterType.convolutionFilter);
+      await _loadIrToBus(busA!, irA);
+    }
+    if (irB.isNotEmpty) {
+      SoLoud.instance.addBusFilter(busB!, FilterType.convolutionFilter);
+      await _loadIrToBus(busB!, irB);
+    }
+
+    setState(() {
+      isBusAActive = true;
+      isBusBActive = true;
+    });
+  }
+
+  Future<void> _loadIrToBus(BusHandle bus, String assetPath) async {
+    final irSource = await SoLoud.instance.loadAsset(assetPath);
+    if (irSource.path != null) {
+      SoLoud.instance.loadBusConvolutionIR(bus, irSource.path!);
+    }
+    await SoLoud.instance.disposeSource(irSource);
+  }
 
   @override
   void dispose() {
@@ -58,178 +120,119 @@ class _HelloFlutterSoLoudState extends State<HelloFlutterSoLoud> {
     super.dispose();
   }
 
-  /// Loads the asset and sets up the filter
-  Future<void> _setupSound() async {
-    // 1. Cleanup previous
-    await SoLoud.instance.disposeAllSources();
-
-    // 2. Load the file
-    if (kIsWeb) {
-      currentSound = await SoLoud.instance.loadAsset(
-        'assets/audio/8_bit_mentality.mp3',
-        mode: LoadMode.disk,
-      );
+  void _playSpeech(BusHandle? bus) async {
+    if (bus == null) {
+      await SoLoud.instance.play(speech!, looping: true);
     } else {
-      currentSound = await SoLoud.instance
-          .loadAsset('assets/audio/speech_20250803074809927_01.mp3');
+      await SoLoud.instance.playOnBus(bus, speech!, looping: true);
     }
-
-    // 3. IMPORTANT: Add the ReverbSc filter to this sound source.
-    // We do this *before* playing.
-    if (currentSound != null) {
-      currentSound!.filters.reverbScFilter.activate();
-
-      // Apply initial values
-      _applyReverbParams(null); // null handle = apply to Source defaults
-    }
+    setState(() {});
   }
 
-  /// Plays the sound
-  Future<void> _play() async {
-    // 1. If something is already playing, stop it first!
-    if (currentHandle != null) {
-      await SoLoud.instance.stop(currentHandle!);
+  void _playMusic(BusHandle? bus) async {
+    if (bus == null) {
+      await SoLoud.instance.play(music!, looping: true);
+    } else {
+      await SoLoud.instance.playOnBus(bus, music!, looping: true);
     }
-
-    if (currentSound == null) await _setupSound();
-
-    if (currentSound != null) {
-      // 2. Play the new sound
-      currentHandle = await SoLoud.instance.play(currentSound!);
-
-      // 3. Immediately sync the sliders to this new handle
-      // (Otherwise it starts with defaults until you touch a slider)
-      _applyReverbParams(currentHandle);
-
-      setState(() {});
-    }
-  }
-
-  /// Stop playback
-  Future<void> _stop() async {
-    if (currentHandle != null) {
-      await SoLoud.instance.stop(currentHandle!);
-      currentHandle = null;
-      setState(() {});
-    }
-  }
-
-  /// Updates parameters on the live sound
-  void _applyReverbParams(SoundHandle? handle) {
-    if (currentSound == null) return;
-
-    // We can verify the filter is active first
-    final int index = currentSound!.filters.reverbScFilter.index;
-    if (index == -1) return; // Filter not active
-
-    // Update Feedback
-    currentSound!.filters.reverbScFilter.feedback(soundHandle: handle).value = feedback;
-
-    // Update Wet/Dry
-    currentSound!.filters.reverbScFilter.wet(soundHandle: handle).value = wet;
-    currentSound!.filters.reverbScFilter.dry(soundHandle: handle).value = dry;
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!SoLoud.instance.isInitialized) return const SizedBox.shrink();
-
     return Scaffold(
-      appBar: AppBar(title: const Text("ReverbSc Test")),
-      body: Center(
+      appBar: AppBar(title: const Text("SoLoud Multi-Bus Demo")),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Controls ---
+            _buildBusControl("Bus A", busA, irA, volA, (val) {
+              setState(() => volA = val);
+              SoLoud.instance.setBusVolume(busA!, val);
+            }, (asset) async {
+              setState(() => irA = asset);
+              await _loadIrToBus(busA!, asset);
+            }),
+            const SizedBox(height: 24),
+            _buildBusControl("Bus B", busB, irB, volB, (val) {
+              setState(() => volB = val);
+              SoLoud.instance.setBusVolume(busB!, val);
+            }, (asset) async {
+              setState(() => irB = asset);
+              await _loadIrToBus(busB!, asset);
+            }),
+            const Divider(height: 48),
+            _buildSoundControl("Speech", speech, () => _playSpeech(null), () => _playSpeech(busA), () => _playSpeech(busB)),
+            const SizedBox(height: 24),
+            _buildSoundControl("Music", music, () => _playMusic(null), () => _playMusic(busA), () => _playMusic(busB)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBusControl(String name, BusHandle? handle, String currentIr, double vol, ValueChanged<double> onVolChanged, ValueChanged<String> onIrChanged) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton.icon(
-                  onPressed: _play,
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Play'),
+                const Text("Volume"),
+                Expanded(
+                  child: Slider(value: vol, onChanged: onVolChanged),
                 ),
-                const SizedBox(width: 20),
-                ElevatedButton.icon(
-                  onPressed: _stop,
-                  icon: const Icon(Icons.stop),
-                  label: const Text('Stop'),
-                ),
+                Text(vol.toStringAsFixed(2)),
               ],
             ),
-
-            const SizedBox(height: 40),
-            const Divider(),
-            const Text("Reverb Parameters (Tweaking Live)", style: TextStyle(fontWeight: FontWeight.bold)),
-
-            // --- Feedback Slider ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  const Text("Feedback (Tail)"),
-                  Expanded(
-                    child: Slider(
-                      value: feedback,
-                      min: 0.0,
-                      max: 0.8, // Don't go to 1.0 or it might self-oscillate forever
-                      onChanged: (val) {
-                        setState(() => feedback = val);
-                        _applyReverbParams(currentHandle);
-                      },
-                    ),
+            Row(
+              children: [
+                const Text("IR"),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: DropdownButton<String>(
+                    value: currentIr,
+                    isExpanded: true,
+                    items: _irAssets.map((asset) => DropdownMenuItem(value: asset, child: Text(asset.split('/').last))).toList(),
+                    onChanged: (val) => val != null ? onIrChanged(val) : null,
                   ),
-                  Text(feedback.toStringAsFixed(2)),
-                ],
-              ),
-            ),
-
-            // --- Wet Slider ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  const Text("Wet (Reverb Vol)"),
-                  Expanded(
-                    child: Slider(
-                      value: wet,
-                      min: 0.0,
-                      max: 1.0,
-                      onChanged: (val) {
-                        setState(() => wet = val);
-                        _applyReverbParams(currentHandle);
-                      },
-                    ),
-                  ),
-                  Text(wet.toStringAsFixed(2)),
-                ],
-              ),
-            ),
-
-            // --- Dry Slider ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  const Text("Dry (Original Vol)"),
-                  Expanded(
-                    child: Slider(
-                      value: dry,
-                      min: 0.0,
-                      max: 1.0,
-                      onChanged: (val) {
-                        setState(() => dry = val);
-                        _applyReverbParams(currentHandle);
-                      },
-                    ),
-                  ),
-                  Text(dry.toStringAsFixed(2)),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSoundControl(String name, AudioSource? source, VoidCallback onMain, VoidCallback onBusA, VoidCallback onBusB) {
+    final isPlaying = source != null && source.handles.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            ElevatedButton(onPressed: onMain, child: const Text("Play Main")),
+            ElevatedButton(onPressed: onBusA, child: const Text("Play on Bus A")),
+            ElevatedButton(onPressed: onBusB, child: const Text("Play on Bus B")),
+            if (isPlaying)
+              IconButton(onPressed: () {
+                for (final h in source.handles.toList()) {
+                  SoLoud.instance.stop(h);
+                }
+                setState(() {});
+              }, icon: const Icon(Icons.stop, color: Colors.red)),
+          ],
+        ),
+      ],
     );
   }
 }
