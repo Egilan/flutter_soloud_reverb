@@ -15,6 +15,7 @@ import 'package:flutter_soloud/src/filters/limiter.dart';
 import 'package:flutter_soloud/src/filters/lofi_filter.dart';
 import 'package:flutter_soloud/src/filters/pitchshift_filter.dart';
 import 'package:flutter_soloud/src/filters/reverbsc_filter.dart';
+import 'package:flutter_soloud/src/filters/convolution_filter.dart';
 import 'package:flutter_soloud/src/filters/robotize_filter.dart';
 import 'package:flutter_soloud/src/filters/wave_shaper_filter.dart';
 import 'package:flutter_soloud/src/soloud.dart';
@@ -196,6 +197,15 @@ final class FiltersSingle {
   /// - `wet`: Volume of the reverb tail.
   /// - `dry`: Volume of the original sound.
   ReverbScSingle get reverbScFilter => ReverbScSingle(soundHash);
+
+  /// The `Convolution` Reverb filter for this sound.
+  ///
+  /// IR-based Convolution Reverb using FFT convolution.
+  ///
+  /// **Parameters**:
+  /// - `wet`: Volume of the reverb tail.
+  /// - `dry`: Volume of the original sound.
+  ConvolutionSingle get convolutionFilter => ConvolutionSingle(soundHash);
 }
 
 /// Filters instance used in [SoLoud.filters]. This differentiate from the
@@ -326,6 +336,9 @@ final class FiltersGlobal {
 
   /// The `ReverbSc` (Costello) filter used globally.
   ReverbScGlobal get reverbScFilter => const ReverbScGlobal();
+
+  /// The `Convolution` Reverb filter used globally.
+  ConvolutionGlobal get convolutionFilter => const ConvolutionGlobal();
 }
 
 /// Common class for single and global filters.
@@ -461,7 +474,10 @@ enum FilterType {
   compressorFilter,
 
   /// ReverbSc (Costello) filter
-  reverbScFilter; // <--- Add this
+  reverbScFilter,
+  
+  /// Convolution Filter
+  convolutionFilter;
 
   @override
   String toString() => switch (this) {
@@ -478,6 +494,7 @@ enum FilterType {
         FilterType.limiterFilter => 'Limiter',
         FilterType.compressorFilter => 'Compressor',
         FilterType.reverbScFilter => 'ReverbSc',
+        FilterType.convolutionFilter => 'Convolution',
       };
 
   /// The number of parameter this filter owns.
@@ -495,6 +512,7 @@ enum FilterType {
         FilterType.limiterFilter => 5,
         FilterType.compressorFilter => 8,
         FilterType.reverbScFilter => 4,
+        FilterType.convolutionFilter => 2,
       };
 
   /// Activate this filter. If [soundHash] is null this filter is applied

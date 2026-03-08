@@ -11,4 +11,5 @@ export 'src/metadata.dart';
 export 'src/soloud.dart';
 export 'src/sound_handle.dart';
 export 'src/sound_hash.dart';
+export 'src/bus_handle.dart';
 export 'src/tools/soloud_tools.dart';

@@ -16,6 +16,7 @@ import 'package:flutter_soloud/src/helpers/playback_device.dart';
 import 'package:flutter_soloud/src/metadata.dart';
 import 'package:flutter_soloud/src/sound_handle.dart';
 import 'package:flutter_soloud/src/sound_hash.dart';
+import 'package:flutter_soloud/src/bus_handle.dart';
 import 'package:flutter_soloud/src/utils/loader.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
@@ -436,7 +437,7 @@ interface class SoLoud {
             return;
           }
 
-          final newSound = AudioSource(SoundHash(hash));
+          final newSound = AudioSource(SoundHash(hash), completeFileName);
           final alreadyLoaded = _activeSounds
                   .where((sound) => sound.soundHash == newSound.soundHash)
                   .length ==
@@ -487,7 +488,7 @@ interface class SoLoud {
     String completeFileName,
     int hash,
   ) {
-    final newSound = AudioSource(SoundHash(hash));
+    final newSound = AudioSource(SoundHash(hash), completeFileName);
     final alreadyLoaded = _activeSounds
             .where((sound) => sound.soundHash == newSound.soundHash)
             .length ==
@@ -2847,6 +2848,158 @@ interface class SoLoud {
   /// ```
   ///
   /// The code above may produce a log record such as:
+  /// Annex an already playing voice to the bus.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void annexSoundToBus(BusHandle busHandle, SoundHandle voiceHandle) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.annexSoundToBus(busHandle, voiceHandle);
+  }
+
+  /////////////////////////////////////////
+  /// Bus methods
+  /////////////////////////////////////////
+
+  /// Create a new bus.
+  ///
+  /// Returns the new bus as [BusHandle].
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] if the bus could not be created.
+  BusHandle createBus() {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final ret = _controller.soLoudFFI.createBus();
+    if (ret.error != PlayerErrors.noError) {
+      _logPlayerError(ret.error, from: 'createBus() result');
+      throw SoLoudCppException.fromPlayerError(ret.error);
+    }
+    return ret.busHandle;
+  }
+
+  /// Destroy the bus identified by [busHandle].
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void destroyBus(BusHandle busHandle) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.destroyBus(busHandle);
+  }
+
+  /// Play already loaded sound identified by [sound] through the bus.
+  ///
+  /// [busHandle] the bus to play the sound on.
+  /// [sound] the sound to play.
+  /// [volume] 1.0 full volume.
+  /// [pan] 0.0 centered.
+  /// [paused] false not paused.
+  /// [looping] whether to start the sound in looping state.
+  /// [loopingStartAt] If looping is enabled, the loop point is, by default,
+  /// the start of the stream.
+  ///
+  /// Return the error if any and a new [SoundHandle] of this sound.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] if the sound could not be played.
+  Future<SoundHandle> playOnBus(
+    BusHandle busHandle,
+    AudioSource sound, {
+    double volume = 1,
+    double pan = 0,
+    bool paused = false,
+    bool looping = false,
+    Duration loopingStartAt = Duration.zero,
+  }) async {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final ret = _controller.soLoudFFI.playOnBus(
+      busHandle,
+      sound.soundHash,
+      volume: volume,
+      pan: pan,
+      paused: paused,
+      looping: looping,
+      loopingStartAt: loopingStartAt,
+    );
+    if (ret.error != PlayerErrors.noError) {
+      _logPlayerError(ret.error, from: 'playOnBus() result');
+      throw SoLoudCppException.fromPlayerError(ret.error);
+    }
+
+    // Add the new handle to the sound's list of handles
+    sound.handlesInternal.add(ret.newHandle);
+
+    return ret.newHandle;
+  }
+
+  /// Set the [busHandle] volume.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setBusVolume(BusHandle busHandle, double volume) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setBusVolume(busHandle, volume);
+  }
+
+  /// Add a filter to the bus.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] if the filter could not be added.
+  void addBusFilter(BusHandle busHandle, FilterType filterType) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final error = _controller.soLoudFFI.addBusFilter(busHandle, filterType);
+    if (error != PlayerErrors.noError) {
+      _logPlayerError(error, from: 'addBusFilter() result');
+      throw SoLoudCppException.fromPlayerError(error);
+    }
+  }
+
+  /// Remove a filter from the bus.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] if the filter could not be removed.
+  void removeBusFilter(BusHandle busHandle, FilterType filterType) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final error = _controller.soLoudFFI.removeBusFilter(busHandle, filterType);
+    if (error != PlayerErrors.noError) {
+      _logPlayerError(error, from: 'removeBusFilter() result');
+      throw SoLoudCppException.fromPlayerError(error);
+    }
+  }
+
+  /// Load a Convolution Reverb Impulse Response (IR) for a bus.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] if the IR could not be loaded.
+  void loadBusConvolutionIR(BusHandle busHandle, String irPath) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final error = _controller.soLoudFFI.loadBusConvolutionIR(
+      busHandle: busHandle,
+      irPath: irPath,
+    );
+    if (error != PlayerErrors.noError) {
+      _logPlayerError(error, from: 'loadBusConvolutionIR() result');
+      throw SoLoudCppException.fromPlayerError(error);
+    }
+  }
+
   ///
   /// ```text
   /// [SoLoud] play(): PlayerError.invalidParameter
