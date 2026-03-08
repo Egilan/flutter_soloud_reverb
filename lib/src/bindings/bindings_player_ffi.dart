@@ -17,6 +17,7 @@ import 'package:flutter_soloud/src/filters/filters.dart';
 import 'package:flutter_soloud/src/helpers/playback_device.dart';
 import 'package:flutter_soloud/src/sound_handle.dart';
 import 'package:flutter_soloud/src/sound_hash.dart';
+import 'package:flutter_soloud/src/bus_handle.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
@@ -505,6 +506,26 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
           'resetBufferStream');
   late final _resetBufferStream =
       _resetBufferStreamPtr.asFunction<int Function(int)>();
+
+  @override
+  PlayerErrors loadConvolutionIR({
+    required int soundHash,
+    required String irPath,
+  }) {
+    final ffi.Pointer<Utf8> cString = irPath.toNativeUtf8();
+    final e = _loadConvolutionIR(soundHash, cString);
+    calloc.free(cString);
+    return PlayerErrors.values[e];
+  }
+
+  late final _loadConvolutionIRPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.Pointer<Utf8>,
+          )>>('loadConvolutionIR');
+  late final _loadConvolutionIR = _loadConvolutionIRPtr
+      .asFunction<int Function(int, ffi.Pointer<Utf8>)>();
 
   @override
   ({PlayerErrors error, double value}) getStreamTimeConsumed(
@@ -2045,4 +2066,152 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   late final _readSamplesFromMem = _readSamplesFromMemPtr.asFunction<
       int Function(ffi.Pointer<ffi.Uint8>, int, double, double, int, bool,
           ffi.Pointer<ffi.Float>)>();
+
+  @override
+  ({PlayerErrors error, BusHandle busHandle}) createBus() {
+    final ffi.Pointer<ffi.UnsignedInt> handle = calloc();
+    final e = _createBus(handle);
+    final ret = (
+      error: PlayerErrors.values[e],
+      busHandle: BusHandle(handle.value),
+    );
+    calloc.free(handle);
+    return ret;
+  }
+
+  late final _createBusPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(ffi.Pointer<ffi.UnsignedInt>)>>('createBus');
+  late final _createBus =
+      _createBusPtr.asFunction<int Function(ffi.Pointer<ffi.UnsignedInt>)>();
+
+  @override
+  void destroyBus(BusHandle busHandle) {
+    _destroyBus(busHandle.id);
+  }
+
+  late final _destroyBusPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt)>>(
+          'destroyBus');
+  late final _destroyBus = _destroyBusPtr.asFunction<void Function(int)>();
+
+  @override
+  ({PlayerErrors error, SoundHandle newHandle}) playOnBus(
+    BusHandle busHandle,
+    SoundHash soundHash, {
+    double volume = 1,
+    double pan = 0,
+    bool paused = false,
+    bool looping = false,
+    Duration loopingStartAt = Duration.zero,
+  }) {
+    final ffi.Pointer<ffi.UnsignedInt> handle = calloc();
+    final e = _playOnBus(
+      busHandle.id,
+      soundHash.hash,
+      volume,
+      pan,
+      paused ? 1 : 0,
+      looping ? 1 : 0,
+      loopingStartAt.inMicroseconds.toDouble() / Duration.microsecondsPerSecond,
+      handle,
+    );
+    final ret = (
+      error: PlayerErrors.values[e],
+      newHandle: SoundHandle(handle.value),
+    );
+    calloc.free(handle);
+    return ret;
+  }
+
+  late final _playOnBusPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Float,
+            ffi.Float,
+            ffi.Int,
+            ffi.Int,
+            ffi.Double,
+            ffi.Pointer<ffi.UnsignedInt>,
+          )>>('playOnBus');
+  late final _playOnBus = _playOnBusPtr.asFunction<
+      int Function(
+        int,
+        int,
+        double,
+        double,
+        int,
+        int,
+        double,
+        ffi.Pointer<ffi.UnsignedInt>,
+      )>();
+
+  @override
+  PlayerErrors setBusVolume(BusHandle busHandle, double volume) {
+    _setBusVolume(busHandle.id, volume);
+    return PlayerErrors.noError;
+  }
+
+  late final _setBusVolumePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.UnsignedInt, ffi.Float)>>('setBusVolume');
+  late final _setBusVolume =
+      _setBusVolumePtr.asFunction<void Function(int, double)>();
+
+  @override
+  PlayerErrors addBusFilter(BusHandle busHandle, FilterType filterType) {
+    final e = _addBusFilter(busHandle.id, filterType.index);
+    return PlayerErrors.values[e];
+  }
+
+  late final _addBusFilterPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.Int)>>('addBusFilter');
+  late final _addBusFilter =
+      _addBusFilterPtr.asFunction<int Function(int, int)>();
+
+  @override
+  PlayerErrors removeBusFilter(BusHandle busHandle, FilterType filterType) {
+    final e = _removeBusFilter(busHandle.id, filterType.index);
+    return PlayerErrors.values[e];
+  }
+
+  late final _removeBusFilterPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.Int)>>('removeBusFilter');
+  late final _removeBusFilter =
+      _removeBusFilterPtr.asFunction<int Function(int, int)>();
+
+  @override
+  PlayerErrors loadBusConvolutionIR({
+    required BusHandle busHandle,
+    required String irPath,
+  }) {
+    final ffi.Pointer<Utf8> cString = irPath.toNativeUtf8();
+    final e = _loadBusConvolutionIR(busHandle.id, cString);
+    calloc.free(cString);
+    return PlayerErrors.values[e];
+  }
+
+  late final _loadBusConvolutionIRPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.Pointer<Utf8>,
+          )>>('loadBusConvolutionIR');
+  late final _loadBusConvolutionIR = _loadBusConvolutionIRPtr
+      .asFunction<int Function(int, ffi.Pointer<Utf8>)>();
+
+  @override
+  void annexSoundToBus(BusHandle busHandle, SoundHandle voiceHandle) {
+    _annexSoundToBus(busHandle.id, voiceHandle.id);
+  }
+
+  late final _annexSoundToBusPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.UnsignedInt, ffi.UnsignedInt)>>('annexSoundToBus');
+  late final _annexSoundToBus =
+      _annexSoundToBusPtr.asFunction<void Function(int, int)>();
 }

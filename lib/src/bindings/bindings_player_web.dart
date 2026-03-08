@@ -14,6 +14,7 @@ import 'package:flutter_soloud/src/filters/filters.dart';
 import 'package:flutter_soloud/src/helpers/playback_device.dart';
 import 'package:flutter_soloud/src/sound_handle.dart';
 import 'package:flutter_soloud/src/sound_hash.dart';
+import 'package:flutter_soloud/src/bus_handle.dart';
 import 'package:flutter_soloud/src/worker/worker.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
@@ -282,6 +283,14 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   PlayerErrors resetBufferStream(SoundHash soundHash) {
     final result = wasmResetBufferStream(soundHash.hash);
     return PlayerErrors.values[result];
+  }
+
+  @override
+  PlayerErrors loadConvolutionIR({
+    required int soundHash,
+    required String irPath,
+  }) {
+    return PlayerErrors.notImplemented;
   }
 
   @override
@@ -1150,4 +1159,51 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     }
     return samples;
   }
+
+  @override
+  ({PlayerErrors error, BusHandle busHandle}) createBus() {
+    throw UnsupportedError('Buses are not supported on the web.');
+  }
+
+  @override
+  void destroyBus(BusHandle busHandle) {}
+
+  @override
+  ({PlayerErrors error, SoundHandle newHandle}) playOnBus(
+    BusHandle busHandle,
+    SoundHash soundHash, {
+    double volume = 1,
+    double pan = 0,
+    bool paused = false,
+    bool looping = false,
+    Duration loopingStartAt = Duration.zero,
+  }) {
+    throw UnsupportedError('Buses are not supported on the web.');
+  }
+
+  @override
+  PlayerErrors setBusVolume(BusHandle busHandle, double volume) {
+    return PlayerErrors.noError;
+  }
+
+  @override
+  PlayerErrors addBusFilter(BusHandle busHandle, FilterType filterType) {
+    return PlayerErrors.notImplemented;
+  }
+
+  @override
+  PlayerErrors removeBusFilter(BusHandle busHandle, FilterType filterType) {
+    return PlayerErrors.notImplemented;
+  }
+
+  @override
+  PlayerErrors loadBusConvolutionIR({
+    required BusHandle busHandle,
+    required String irPath,
+  }) {
+    return PlayerErrors.notImplemented;
+  }
+
+  @override
+  void annexSoundToBus(BusHandle busHandle, SoundHandle voiceHandle) {}
 }

@@ -9,6 +9,7 @@ import 'package:flutter_soloud/src/filters/filters.dart';
 import 'package:flutter_soloud/src/helpers/playback_device.dart';
 import 'package:flutter_soloud/src/sound_handle.dart';
 import 'package:flutter_soloud/src/sound_hash.dart';
+import 'package:flutter_soloud/src/bus_handle.dart';
 import 'package:meta/meta.dart';
 
 /// Callback set in `setBufferStream` for the `onBuffering` closure.
@@ -171,6 +172,12 @@ abstract class FlutterSoLoud {
   /// Returns [PlayerErrors.noError] if success.
   @mustBeOverridden
   PlayerErrors resetBufferStream(SoundHash soundHash);
+
+  /// Load a Convolution Reverb Impulse Response (IR).
+  PlayerErrors loadConvolutionIR({
+    required int soundHash,
+    required String irPath,
+  });
 
   /// Get the current stream time consumed in seconds of this sound of
   /// type `BufferingType.RELEASED` with hash [hash].
@@ -792,6 +799,54 @@ abstract class FlutterSoLoud {
   /// applyed to the global filter.
   /// [filterType] filter to modify a param.
   /// Returns [PlayerErrors.noError] if no errors.
+
+
+  /////////////////////////////////////////
+  /// Bus methods
+  /////////////////////////////////////////
+
+  /// Create a new bus.
+  @mustBeOverridden
+  ({PlayerErrors error, BusHandle busHandle}) createBus();
+
+  /// Destroy the bus identified by [busHandle].
+  @mustBeOverridden
+  void destroyBus(BusHandle busHandle);
+
+  /// Play already loaded sound identified by [soundHash] through the bus.
+  @mustBeOverridden
+  ({PlayerErrors error, SoundHandle newHandle}) playOnBus(
+    BusHandle busHandle,
+    SoundHash soundHash, {
+    double volume = 1,
+    double pan = 0,
+    bool paused = false,
+    bool looping = false,
+    Duration loopingStartAt = Duration.zero,
+  });
+
+  /// Set the [busHandle] volume.
+  @mustBeOverridden
+  PlayerErrors setBusVolume(BusHandle busHandle, double volume);
+
+  /// Add a filter to the bus.
+  @mustBeOverridden
+  PlayerErrors addBusFilter(BusHandle busHandle, FilterType filterType);
+
+  /// Remove a filter from the bus.
+  @mustBeOverridden
+  PlayerErrors removeBusFilter(BusHandle busHandle, FilterType filterType);
+
+  /// Load a Convolution Reverb Impulse Response (IR) for a bus.
+  @mustBeOverridden
+  PlayerErrors loadBusConvolutionIR({
+    required BusHandle busHandle,
+    required String irPath,
+  });
+
+  /// Annex an already playing voice to the bus.
+  @mustBeOverridden
+  void annexSoundToBus(BusHandle busHandle, SoundHandle voiceHandle);
   @mustBeOverridden
   PlayerErrors setFilterParams(
     FilterType filterType,
