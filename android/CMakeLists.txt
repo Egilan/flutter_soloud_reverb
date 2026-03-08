@@ -55,6 +55,10 @@ list(APPEND PLUGIN_SOURCES
   "${SRC_DIR}/filters/compressor.cpp"
   "${SRC_DIR}/filters/dattorro.cpp"
   "${SRC_DIR}/filters/soloud_reverbsc.cpp"
+  "${SRC_DIR}/filters/soloud_convolutionfilter.cpp"
+  "${SRC_DIR}/filters/fftconvolver/AudioFFT.cpp"
+  "${SRC_DIR}/filters/fftconvolver/Utilities.cpp"
+  "${SRC_DIR}/filters/fftconvolver/FFTConvolver.cpp"
   ${TARGET_SOURCES}
 )
 

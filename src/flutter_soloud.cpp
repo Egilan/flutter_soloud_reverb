@@ -114,3 +114,7 @@
 #include "filters/smbPitchShift.cpp"
 #include "filters/limiter.cpp"
 #include "filters/compressor.cpp"
+#include "filters/soloud_convolutionfilter.cpp"
+#include "filters/fftconvolver/AudioFFT.cpp"
+#include "filters/fftconvolver/Utilities.cpp"
+#include "filters/fftconvolver/FFTConvolver.cpp"
