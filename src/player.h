@@ -12,6 +12,7 @@
 #include "active_sound.h"
 #include "audiobuffer/audiobuffer.h"
 #include "soloud/src/backend/miniaudio/miniaudio.h"
+#include "soloud_bus.h"
 
 #include <iostream>
 #include <vector>
@@ -423,6 +424,54 @@ public:
     void debug();
 
     /////////////////////////////////////////
+    /// bus methods
+    /////////////////////////////////////////
+
+    /// @brief Create a new bus.
+    /// @param busHandle the handle of the new bus.
+    /// @return Returns [PlayerErrors.SO_NO_ERROR] if success.
+    PlayerErrors createBus(unsigned int &busHandle);
+
+    /// @brief Destroy the bus identified by [busHandle].
+    /// @param busHandle the bus handle.
+    void destroyBus(unsigned int busHandle);
+
+    /// @brief Play already loaded sound identified by [soundHash] through the bus identified by [busHandle].
+    /// @param busHandle the bus handle.
+    /// @param soundHash the unique hash of the sound to play.
+    /// @param handle the handle of the sound, 0 if error.
+    /// @return the handle of the sound, 0 if error.
+    PlayerErrors playOnBus(
+        unsigned int busHandle,
+        unsigned int soundHash,
+        unsigned int &handle,
+        float volume = 1.0f,
+        float pan = 0.0f,
+        bool paused = false,
+        bool looping = false,
+        double loopingStartAt = 0.0);
+
+    /// @brief Set the [busHandle] volume.
+    /// @param busHandle the bus handle.
+    /// @param volume the new volume to set.
+    void setBusVolume(unsigned int busHandle, float volume);
+
+    /// @brief Add a filter to the bus.
+    /// @param busHandle the bus handle.
+    /// @param filterType the filter type.
+    PlayerErrors addBusFilter(unsigned int busHandle, FilterType filterType);
+
+    /// @brief Remove a filter from the bus.
+    /// @param busHandle the bus handle.
+    /// @param filterType the filter type.
+    PlayerErrors removeBusFilter(unsigned int busHandle, FilterType filterType);
+
+    /// @brief Annex an already playing voice to the bus.
+    /// @param busHandle the bus handle.
+    /// @param voiceHandle the voice handle.
+    void annexSoundToBus(unsigned int busHandle, unsigned int voiceHandle);
+
+    /////////////////////////////////////////
     /// voice groups
     /////////////////////////////////////////
 
@@ -617,6 +666,11 @@ public:
     unsigned int mSampleRate;
 
     unsigned int mChannels;
+
+    /// all the buses
+    std::map<unsigned int, std::unique_ptr<SoLoud::Bus>> mBuses;
+    /// all the bus filters
+    std::map<unsigned int, std::unique_ptr<Filters>> mBusFilters;
 
 private:
     ma_device_info *pPlaybackInfos;
