@@ -1,6 +1,8 @@
-#include "soloud/include/soloud_fft.h"
+#include "audiobuffer/audiobuffer.h"
 #include "soloud_thread.h"
 #include "player.h"
+#include "filters/soloud_convolutionfilter.h"
+#include <algorithm>
 #include "analyzer.h"
 #include "synth/basic_wave.h"
 #include "waveform/waveform.h"
@@ -1893,6 +1895,122 @@ extern "C"
         float *pSamples)
     {
         return Waveform::readSamples(nullptr, buffer, dataSize, startTime, endTime, numSamplesNeeded, average, pSamples);
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors loadConvolutionIR(
+        unsigned int soundHash,
+        const char *irPath)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+            
+        // Find the ConvolutionFilter in the filters list
+        SoLoud::ConvolutionFilter* convFilter = nullptr;
+        
+        if (soundHash != 0) {
+            ActiveSound *sound = player.get()->findByHash(soundHash);
+            if (sound == nullptr)
+                return soundHashNotFound;
+            if (sound->filters) {
+                convFilter = static_cast<SoLoud::ConvolutionFilter*>(
+                    sound->filters->getFilter(ConvolutionFilter)
+                );
+            }
+        } else {
+            convFilter = static_cast<SoLoud::ConvolutionFilter*>(
+                player.get()->mFilters.getFilter(ConvolutionFilter)
+            );
+        }
+
+        if (convFilter == nullptr)
+            return filterNotFound;
+            
+        if (convFilter->loadIR(irPath) != SoLoud::SO_NO_ERROR)
+            return fileLoadFailed;
+
+        return noError;
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors createBus(unsigned int *busHandle)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+        return player.get()->createBus(*busHandle);
+    }
+
+    FFI_PLUGIN_EXPORT void destroyBus(unsigned int busHandle)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return;
+        player.get()->destroyBus(busHandle);
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors playOnBus(
+        unsigned int busHandle,
+        unsigned int soundHash,
+        float volume,
+        float pan,
+        int paused,
+        int looping,
+        double loopingStartAt,
+        unsigned int *voiceHandle)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+        return (PlayerErrors)player.get()->playOnBus(
+            busHandle, soundHash, *voiceHandle, volume, pan, (bool)paused, (bool)looping, loopingStartAt);
+    }
+
+    FFI_PLUGIN_EXPORT void setBusVolume(unsigned int busHandle, float volume)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return;
+        player.get()->setBusVolume(busHandle, volume);
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors addBusFilter(unsigned int busHandle, int filterType)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+        return player.get()->addBusFilter(busHandle, (FilterType)filterType);
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors removeBusFilter(unsigned int busHandle, int filterType)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+        return player.get()->removeBusFilter(busHandle, (FilterType)filterType);
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors loadBusConvolutionIR(
+        unsigned int busHandle,
+        const char *irPath)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+
+        auto it = player.get()->mBusFilters.find(busHandle);
+        if (it == player.get()->mBusFilters.end())
+            return unknownError;
+
+        SoLoud::ConvolutionFilter* convFilter = static_cast<SoLoud::ConvolutionFilter*>(
+            it->second->getFilter(ConvolutionFilter)
+        );
+
+        if (convFilter == nullptr)
+            return filterNotFound;
+
+        if (convFilter->loadIR(irPath) != SoLoud::SO_NO_ERROR)
+            return fileLoadFailed;
+
+        return noError;
+    }
+
+    FFI_PLUGIN_EXPORT void annexSoundToBus(unsigned int busHandle, unsigned int voiceHandle)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return;
+        player.get()->annexSoundToBus(busHandle, voiceHandle);
     }
 
 #ifdef __cplusplus

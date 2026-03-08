@@ -31,3 +31,24 @@
         int format,
         dartOnBufferingCallback_t onBufferingCallback,
         dartOnMetadataCallback_t onMetadataCallback);
+
+ FFI_PLUGIN_EXPORT enum PlayerErrors loadConvolutionIR(
+        unsigned int soundHash,
+        const char *irPath);
+
+ FFI_PLUGIN_EXPORT enum PlayerErrors createBus(unsigned int *busHandle);
+ FFI_PLUGIN_EXPORT void destroyBus(unsigned int busHandle);
+ FFI_PLUGIN_EXPORT enum PlayerErrors playOnBus(
+    unsigned int busHandle,
+    unsigned int soundHash,
+    float volume,
+    float pan,
+    bool paused,
+    bool looping,
+    double loopingStartAt,
+    unsigned int *voiceHandle);
+ FFI_PLUGIN_EXPORT void setBusVolume(unsigned int busHandle, float volume);
+ FFI_PLUGIN_EXPORT enum PlayerErrors addBusFilter(unsigned int busHandle, int filterType);
+ FFI_PLUGIN_EXPORT enum PlayerErrors removeBusFilter(unsigned int busHandle, int filterType);
+ FFI_PLUGIN_EXPORT enum PlayerErrors loadBusConvolutionIR(unsigned int busHandle, const char *irPath);
+ FFI_PLUGIN_EXPORT void annexSoundToBus(unsigned int busHandle, unsigned int voiceHandle);
