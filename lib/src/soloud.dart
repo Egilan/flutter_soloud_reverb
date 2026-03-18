@@ -1141,6 +1141,38 @@ interface class SoLoud {
     throw SoLoudCppException.fromPlayerError(ret.error);
   }
 
+  /// Load a LibPD audio source for real-time DSP processing.
+  ///
+  /// LibPD's processFloat() is called directly inside SoLoud's audio callback
+  /// on the native audio thread. This is real-time safe provided no messages
+  /// are sent to PD during playback.
+  ///
+  /// [sampleRate] must match SoLoud's initialized sample rate.
+  /// [channels] number of channels (1=mono, 2=stereo).
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Returns the new sound as [AudioSource].
+  Future<AudioSource> loadLibPDSource({
+    required int sampleRate,
+    required int channels,
+  }) async {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final ret = _controller.soLoudFFI.loadLibPDSource(
+      sampleRate: sampleRate,
+      channels: channels,
+    );
+    if (ret.error == PlayerErrors.noError) {
+      final newSound = AudioSource(ret.soundHash);
+      _activeSounds.add(newSound);
+      return newSound;
+    }
+    _logPlayerError(ret.error, from: 'loadLibPDSource() result');
+    throw SoLoudCppException.fromPlayerError(ret.error);
+  }
+
   /// Set a waveform type to the given sound: see [WaveForm] enum.
   ///
   /// Provide the [sound] for which to change the waveform type,
