@@ -374,6 +374,17 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
+  ({PlayerErrors error, SoundHash soundHash}) loadLibPDSource({
+    required int sampleRate,
+    required int channels,
+  }) {
+    return (
+      error: PlayerErrors.notImplemented,
+      soundHash: const SoundHash.invalid(),
+    );
+  }
+
+  @override
   void setWaveformScale(SoundHash hash, double newScale) {
     return wasmSetWaveformScale(hash.hash, newScale);
   }

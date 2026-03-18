@@ -233,6 +233,19 @@ abstract class FlutterSoLoud {
     double detune,
   );
 
+  /// Load a LibPD audio source for real-time DSP processing.
+  ///
+  /// LibPD's processFloat() is called directly inside SoLoud's audio callback.
+  /// [sampleRate] must match SoLoud's initialized sample rate.
+  /// [channels] 1=mono, 2=stereo.
+  /// `soundHash` return hash of the sound.
+  /// Returns [PlayerErrors.noError] if success.
+  @mustBeOverridden
+  ({PlayerErrors error, SoundHash soundHash}) loadLibPDSource({
+    required int sampleRate,
+    required int channels,
+  });
+
   /// Set the scale of an already loaded waveform identified by [hash].
   ///
   /// [hash] the unique sound hash of a waveform sound.
