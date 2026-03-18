@@ -63,6 +63,23 @@ list(APPEND PLUGIN_SOURCES
   ${TARGET_SOURCES}
 )
 
+# Build libpd from source
+set(LIBPD_STATIC ON CACHE BOOL "" FORCE)
+set(LIBPD_SHARED OFF CACHE BOOL "" FORCE)
+set(PD_UTILS ON CACHE BOOL "" FORCE)
+set(PD_EXTRA ON CACHE BOOL "" FORCE)
+set(PD_MULTI OFF CACHE BOOL "" FORCE)
+set(PD_LOCALE ON CACHE BOOL "" FORCE)
+add_subdirectory(
+  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libpd"
+  "${CMAKE_CURRENT_BINARY_DIR}/libpd_build"
+  EXCLUDE_FROM_ALL
+)
+# Inject Android compatibility headers (e.g. glob.h stub for API < 28)
+target_include_directories(libpd_static BEFORE PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
 add_library(${PLUGIN_NAME} SHARED
   ${PLUGIN_SOURCES}
 )
@@ -80,7 +97,7 @@ find_library( # Sets the name of the path variable.
   
 target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 target_include_directories(${PLUGIN_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(${PLUGIN_NAME} PRIVATE ${log-lib} android)
+target_link_libraries(${PLUGIN_NAME} PRIVATE ${log-lib} android libpd_static)
 
 
 if(NOT DEFINED NO_OPUS_OGG_LIBS AND NOT DEFINED ENV{NO_OPUS_OGG_LIBS})
