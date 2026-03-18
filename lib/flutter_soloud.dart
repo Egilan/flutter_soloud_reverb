@@ -12,4 +12,5 @@ export 'src/soloud.dart';
 export 'src/sound_handle.dart';
 export 'src/sound_hash.dart';
 export 'src/bus_handle.dart';
+export 'src/pd_bridge.dart';
 export 'src/tools/soloud_tools.dart';
