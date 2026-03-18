@@ -40,6 +40,7 @@ list(APPEND PLUGIN_SOURCES
   "${SRC_DIR}/player.cpp"
   "${SRC_DIR}/analyzer.cpp"
   "${SRC_DIR}/synth/basic_wave.cpp"
+  "${SRC_DIR}/synth/soloud_libpd.cpp"
   "${SRC_DIR}/waveform/waveform.cpp"
   "${SRC_DIR}/waveform/miniaudio_libvorbis.cpp"
   "${SRC_DIR}/audiobuffer/audiobuffer.cpp"
