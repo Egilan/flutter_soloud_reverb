@@ -6,6 +6,7 @@
 #include "soloud_wavstream.h"
 #include "soloud_bus.h"
 #include "synth/basic_wave.h"
+#include "synth/soloud_libpd.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -490,6 +491,32 @@ PlayerErrors Player::loadWaveform(
     return noError;
 }
 
+PlayerErrors Player::loadLibPDSource(
+    unsigned int sampleRate,
+    unsigned int channels,
+    unsigned int &hash)
+{
+    if (!mInited)
+        return backendNotInited;
+
+    hash = 0;
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::uniform_int_distribution<unsigned int> dist(0, INT32_MAX);
+
+    hash = dist(g);
+
+    sounds.push_back(std::make_unique<ActiveSound>());
+    sounds.back().get()->completeFileName = "";
+    sounds.back().get()->soundHash = hash;
+    sounds.back().get()->sound = std::make_unique<LibPDAudioSource>(sampleRate, channels);
+    sounds.back().get()->soundType = TYPE_LIBPD;
+    sounds.back().get()->filters = std::make_unique<Filters>(&soloud, sounds.back().get());
+
+    return noError;
+}
+
 void Player::setWaveformScale(unsigned int soundHash, float newScale)
 {
     auto const s = findByHash(soundHash);
@@ -903,6 +930,7 @@ int Player::countAudioSource(unsigned int soundHash)
     switch (s->soundType)
     {
     case TYPE_SYNTH:
+    case TYPE_LIBPD:
         return 0;
     case TYPE_WAV:
         as = static_cast<SoLoud::Wav *>(s->sound.get());

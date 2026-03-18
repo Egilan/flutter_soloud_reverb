@@ -168,6 +168,17 @@ public:
         float detune,
         unsigned int &hash);
 
+    /// @brief Load a LibPD audio source for real-time DSP processing.
+    /// LibPD's processFloat() is called directly inside SoLoud's audio callback.
+    /// @param sampleRate must match SoLoud's initialized sample rate.
+    /// @param channels 1=mono, 2=stereo.
+    /// @param hash the hash code of the new source.
+    /// @return Returns [PlayerErrors.SO_NO_ERROR] if success.
+    PlayerErrors loadLibPDSource(
+        unsigned int sampleRate,
+        unsigned int channels,
+        unsigned int &hash);
+
     /// @brief If this sound is you can change the scale at runtime.
     /// @param soundHash the sound hash to change the scale to.
     /// @param newScale the new scale.

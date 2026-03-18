@@ -5,6 +5,7 @@
 #include <algorithm>
 #include "analyzer.h"
 #include "synth/basic_wave.h"
+#include "synth/soloud_libpd.h"
 #include "waveform/waveform.h"
 
 #ifndef COMMON_H
@@ -606,6 +607,22 @@ extern "C"
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
         return (PlayerErrors)player.get()->loadWaveform(waveform, superWave, scale, detune, *hash);
+    }
+
+    /// Load a LibPD audio source for real-time DSP processing.
+    ///
+    /// [sampleRate] must match SoLoud's initialized sample rate.
+    /// [channels] 1=mono, 2=stereo.
+    /// [hash] return the hash of the sound.
+    /// Returns [PlayerErrors.noError] if success.
+    FFI_PLUGIN_EXPORT enum PlayerErrors loadLibPDSource(
+        unsigned int sampleRate,
+        unsigned int channels,
+        unsigned int *hash)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+        return (PlayerErrors)player.get()->loadLibPDSource(sampleRate, channels, *hash);
     }
 
     /// Set the scale of an already loaded waveform identified by [hash]
