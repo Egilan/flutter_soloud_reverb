@@ -6,6 +6,8 @@
 
 #include <cstring>
 #include <mutex>
+#include <string>
+#include <unordered_map>
 #include "z_libpd.h"
 
 #define EXPORT extern "C" __attribute__((visibility("default")))
@@ -13,7 +15,7 @@
 // ── Global state ─────────────────────────────────────────────────────────────
 
 static std::once_flag g_init_flag;
-static void* g_patch = nullptr;
+static std::unordered_map<std::string, void*> g_patches;
 static std::mutex g_patch_mutex;
 
 // Dart-registered callbacks (set via pd_set_*_hook)
@@ -32,8 +34,7 @@ static void on_bang(const char* recv) {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
-// Called once by SoLoud's LibPDAudioSource constructor.
-// Returns 0 on success, non-zero on failure.
+// Called once to initialize libpd. Returns 0 on success, non-zero on failure.
 EXPORT int pd_bridge_init(int sample_rate, int channels) {
     int result = 0;
     std::call_once(g_init_flag, [&]() {
@@ -48,48 +49,60 @@ EXPORT int pd_bridge_init(int sample_rate, int channels) {
 
 // ── Patch lifecycle ───────────────────────────────────────────────────────────
 
-// Opens a .pd patch file. path = full path to the file, including filename.
-// Returns 1 on success, 0 on failure.
-EXPORT int pd_open_patch(const char* dir, const char* filename) {
+// Opens a .pd patch file, tracked by patch_id.
+// Returns 0 on success, 1 if already open with that ID, -1 on failure.
+EXPORT int pd_open_patch(const char* patch_id, const char* dir, const char* filename) {
     std::lock_guard<std::mutex> lock(g_patch_mutex);
-    if (g_patch) {
-        libpd_closefile(g_patch);
-        g_patch = nullptr;
-    }
-    g_patch = libpd_openfile(filename, dir);
-    return g_patch != nullptr ? 1 : 0;
+    std::string id(patch_id);
+    if (g_patches.count(id)) return 1;
+    void* handle = libpd_openfile(filename, dir);
+    if (!handle) return -1;
+    g_patches[id] = handle;
+    return 0;
 }
 
-EXPORT void pd_close_patch() {
+// Closes the patch identified by patch_id. No-op if not found.
+EXPORT void pd_close_patch(const char* patch_id) {
     std::lock_guard<std::mutex> lock(g_patch_mutex);
-    if (g_patch) {
-        libpd_closefile(g_patch);
-        g_patch = nullptr;
+    auto it = g_patches.find(std::string(patch_id));
+    if (it != g_patches.end()) {
+        libpd_closefile(it->second);
+        g_patches.erase(it);
     }
+}
+
+// Closes all open patches.
+EXPORT void pd_close_all_patches() {
+    std::lock_guard<std::mutex> lock(g_patch_mutex);
+    for (auto& kv : g_patches) {
+        libpd_closefile(kv.second);
+    }
+    g_patches.clear();
 }
 
 // ── Messaging: Dart → PD ─────────────────────────────────────────────────────
+// Note: PD receivers are global across ALL loaded patches.
+// There is no per-patch targeting — the receiver name determines which
+// [receive] objects in which patches respond.
 
-// Send a float value to a named receiver in the patch.
-// Returns 0 on success.
+// Send a float value to a named receiver. Returns 0 on success.
 EXPORT int pd_send_float(const char* receiver, float value) {
     return libpd_float(receiver, value);
 }
 
-// Send a bang to a named receiver in the patch.
-// Returns 0 on success.
+// Send a bang to a named receiver. Returns 0 on success.
 EXPORT int pd_send_bang(const char* receiver) {
     return libpd_bang(receiver);
 }
 
 // ── Callbacks: PD → Dart ─────────────────────────────────────────────────────
 
-// Register a Dart NativeCallable to receive float outputs from the patch.
+// Register a Dart NativeCallable to receive float outputs from patches.
 EXPORT void pd_set_float_hook(void (*callback)(const char* recv, float val)) {
     g_float_callback = callback;
 }
 
-// Register a Dart NativeCallable to receive bang outputs from the patch.
+// Register a Dart NativeCallable to receive bang outputs from patches.
 EXPORT void pd_set_bang_hook(void (*callback)(const char* recv)) {
     g_bang_callback = callback;
 }
