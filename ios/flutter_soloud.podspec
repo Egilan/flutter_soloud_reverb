@@ -18,6 +18,8 @@ Flutter audio plugin using SoLoud library and FFI
   # paths, so Classes contains a forwarder C file that relatively imports
   # `../src/*` so that the C sources can be shared among all target platforms.
   s.source           = { :path => '.' }
+  # Initialize libpd submodule if not already present (e.g. when installed from pub cache)
+  s.prepare_command = 'if [ ! -f "../third_party/libpd/CMakeLists.txt" ]; then cd .. && git submodule update --init --recursive; fi'
   s.source_files = 'Classes/**/*',
                      '../third_party/libpd/pure-data/src/**/*.{h,c}',
                      '../third_party/libpd/pure-data/extra/bob~/*.{h,c}',

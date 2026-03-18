@@ -70,11 +70,25 @@ set(PD_UTILS ON CACHE BOOL "" FORCE)
 set(PD_EXTRA ON CACHE BOOL "" FORCE)
 set(PD_MULTI OFF CACHE BOOL "" FORCE)
 set(PD_LOCALE ON CACHE BOOL "" FORCE)
-add_subdirectory(
-  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libpd"
-  "${CMAKE_CURRENT_BINARY_DIR}/libpd_build"
-  EXCLUDE_FROM_ALL
-)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libpd/CMakeLists.txt")
+  # Submodule is initialized — use it directly
+  add_subdirectory(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libpd"
+    "${CMAKE_CURRENT_BINARY_DIR}/libpd_build"
+    EXCLUDE_FROM_ALL
+  )
+else()
+  # Submodule not available (e.g. pub cache) — download via FetchContent
+  include(FetchContent)
+  FetchContent_Declare(libpd
+    GIT_REPOSITORY https://github.com/libpd/libpd.git
+    GIT_TAG 3636048697e5906d75bb61ec8c3180d617dae5b2
+    GIT_SUBMODULES pure-data
+  )
+  FetchContent_MakeAvailable(libpd)
+endif()
+
 # Inject Android compatibility headers (e.g. glob.h stub for API < 28)
 target_include_directories(libpd_static BEFORE PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
