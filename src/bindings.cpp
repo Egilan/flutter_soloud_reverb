@@ -1,4 +1,5 @@
 #include "audiobuffer/audiobuffer.h"
+#include "soloud/include/soloud_internal.h"
 #include "soloud_thread.h"
 #include "player.h"
 #include "filters/soloud_convolutionfilter.h"
@@ -90,7 +91,7 @@ extern "C"
                     message : UTF8ToString($0),
                     value : $1,
                 });
-                // console.log("EM_ASM posting message " + UTF8ToString($0) + 
+                // console.log("EM_ASM posting message " + UTF8ToString($0) +
                 //     " with value " + $1);
             }
             else
@@ -140,7 +141,7 @@ extern "C"
         if (dartVoiceEndedCallback == nullptr)
             return;
         // So, if the handle was already found before (henche the handle is not found), the
-        // callback to Dart has been already called. If this is the fist time this handle 
+        // callback to Dart has been already called. If this is the fist time this handle
         // is found, the callback to Dart must be called.
         if (!isHandleFound)
             return;
@@ -238,7 +239,14 @@ extern "C"
         // Set the callback for when a voice is ended/stopped
         player.get()->setVoiceEndedCallback(voiceEndedCallback);
 
-        return (PlayerErrors)noError;
+        // On Windows, start the audio device initialization in background.
+        // This ensures the device is ready by the time play() is called,
+        // without blocking the main thread's message pump.
+#ifdef _WIN32
+        SoLoud::miniaudio_ensure_device_started();
+#endif
+
+        return PlayerErrors::noError;
     }
 
     /// Change the playback device.
@@ -973,13 +981,13 @@ extern "C"
         }
         float *wave = player.get()->getWave(isTheSameAsBefore);
         float *fft = analyzer.get()->calcFFT(wave);
-        
+
         if (*isTheSameAsBefore)
         {
             *samples = texture;
             return;
         }
-    
+
         memcpy(texture, fft, sizeof(float) * 256);
         memcpy(texture + 256, wave, sizeof(float) * 256);
         *samples = texture;
@@ -1920,10 +1928,10 @@ extern "C"
     {
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
-            
+
         // Find the ConvolutionFilter in the filters list
         SoLoud::ConvolutionFilter* convFilter = nullptr;
-        
+
         if (soundHash != 0) {
             ActiveSound *sound = player.get()->findByHash(soundHash);
             if (sound == nullptr)
@@ -1941,7 +1949,7 @@ extern "C"
 
         if (convFilter == nullptr)
             return filterNotFound;
-            
+
         if (convFilter->loadIR(irPath) != SoLoud::SO_NO_ERROR)
             return fileLoadFailed;
 

@@ -1,3 +1,28 @@
+#### 3.5.1 (14 Mar 2026)
+- `getStreamTimeConsumed` return wrong time for s16le and s8 #419
+- win fix: hang on app exit #413
+- win fix: prevent Windows message pump goes irresponsive with plugins like `desktop_drop` and maybe others #401
+- fix: only unpause when buffer covers playback position #393. Thanks to @nukes
+- wasm fix: runtimeType error when voice ended #414
+
+#### 3.5.0 (1 Mar 2026)
+- Harden loader temp directory logic #404. Thanks to @filiph
+- updated audio_context example
+
+#### 3.4.10 (2 Feb 2026)
+- fix loadMem issue after deinit #399
+
+#### 3.4.9 (21 Jan 2026)
+- fix crash when seeking with a negative value #386
+- Linux fix: don't use -msse on arm64 builds #395. Thanks to @adil192
+- Android fix: enable AAudio with runtime API level check for safe fallback #397. Thanks to djkingCanada
+
+#### 3.4.8 (29 Dec 2025)
+- fix MP3 stream decoding missing last few seconds of audio #381
+
+#### 3.4.7 (18 Dec 2025)
+- fix: null check before accessing sound in seek() #384. Thanks to @9AZX
+
 #### 3.4.6 (4 Dec 2025)
 - win fix: loadMem/loadAsset futures never finish when run in parallel with the same file #376 
 

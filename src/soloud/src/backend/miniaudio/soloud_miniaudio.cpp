@@ -52,18 +52,38 @@ namespace SoLoud
 // addressed by this issue: https://github.com/mackron/miniaudio/issues/466
 // For me this happens using AAudio on android <= 10 (but not on Samsung Galaxy S9+).
 // Disablig AAudio in favor of OpenSL is a workaround to prevent the crash.
-#if defined(__ANDROID__) && (__ANDROID_API__ <= 29)
-#define MA_NO_AAUDIO
-#endif
+// #if defined(__ANDROID__) && (__ANDROID_API__ <= 29)
+// #define MA_NO_AAUDIO
+// #endif
 // #define MA_DEBUG_OUTPUT
 #include "miniaudio.h"
+#ifdef __ANDROID__
+#include <android/api-level.h>
+#endif
 #include <math.h>
+#include <thread>
+#include <mutex>
+#include <chrono>
 
 namespace SoLoud
 {
     ma_device gDevice;
     SoLoud::Soloud *soloud;
     ma_context context;
+    static bool gDeviceStartDeferred = false; // Track deferred device start on Windows
+    static bool gDeviceInitDeferred = false;  // Track deferred device init on Windows
+    static bool gDeviceInitialized = false;   // Track if device is actually initialized
+    static std::thread* gInitThread = nullptr; // Background thread for device init
+    static std::mutex gInitMutex; // Protect device init state
+    
+    // Configuration to store for deferred initialization
+    struct DeferredDeviceConfig {
+        ma_device_config config;
+        ma_context_config contextConfig;
+        bool useContext;
+        bool useContextConfig;
+    };
+    static DeferredDeviceConfig gDeferredConfig;
 
     // Added by Marco Bavagnoli
     void on_notification(const ma_device_notification* pNotification)
@@ -123,9 +143,26 @@ namespace SoLoud
 
     static void soloud_miniaudio_deinit(SoLoud::Soloud *aSoloud)
     {
-        ma_device_stop(&gDevice);
-        ma_device_uninit(&gDevice);
-#if defined(MA_HAS_COREAUDIO)
+        // Clean up initialization thread if it's still running
+        if (gInitThread != nullptr)
+        {
+            if (gInitThread->joinable())
+            {
+                gInitThread->join();
+            }
+            delete gInitThread;
+            gInitThread = nullptr;
+        }
+        
+        if (gDeviceInitialized)
+        {
+            // From miniaudio.h doc:
+            // "This will explicitly stop the device. You do not need to call `ma_device_stop()` beforehand, but it's harmless if you do."
+            // But probably by adding the initialization thread, the call to ma_device_stop() was causing the #413 issue (hang on exit app).
+            ma_device_uninit(&gDevice);
+            gDeviceInitialized = false;
+        }
+#if defined(MA_HAS_COREAUDIO) || defined(__ANDROID__)
         ma_context_uninit(&context);
 #endif
     }
@@ -145,13 +182,23 @@ namespace SoLoud
         deviceConfig.dataCallback       = soloud_miniaudio_audiomixer;
         deviceConfig.pUserData          = (void *)aSoloud;
 
-        // deviceConfig.aaudio.usage       = ma_aaudio_usage_default;
-        // deviceConfig.aaudio.contentType = ma_aaudio_content_type_default;
-        // deviceConfig.aaudio.inputPreset = ma_aaudio_input_preset_default;
         if (aSoloud->_stateChangedCallback != nullptr)
             deviceConfig.notificationCallback = on_notification;
 
-#if defined(MA_HAS_COREAUDIO)
+#ifdef _WIN32
+        // On Windows, defer the entire device initialization to avoid interfering with
+        // the main thread's message pump. This fixes compatibility with plugins like
+        // desktop_drop that rely on COM windowed messages.
+        gDeferredConfig.config = deviceConfig;
+        gDeferredConfig.useContext = false;
+        gDeferredConfig.useContextConfig = false;
+        gDeviceInitDeferred = true;
+        gDeviceStartDeferred = false;
+        
+        // Use safe default values for postinit
+        aSoloud->postinit_internal(aSamplerate, aBuffer, aFlags, aChannels);
+        
+#elif defined(MA_HAS_COREAUDIO)
         // Disable CoreAudio context
         ma_context_config contextConfig = ma_context_config_init();
         contextConfig.coreaudio.sessionCategory = ma_ios_session_category_none;
@@ -167,20 +214,100 @@ namespace SoLoud
             ma_context_uninit(&context);
             return UNKNOWN_ERROR;
         }
+        gDeviceInitialized = true;
+        aSoloud->postinit_internal(gDevice.sampleRate, gDevice.playback.internalPeriodSizeInFrames, aFlags, gDevice.playback.channels);
+        ma_device_start(&gDevice);
+        gDeviceInitDeferred = false;
+        gDeviceStartDeferred = false;
+        
+#elif defined(__ANDROID__)
+        ma_backend backends[] = { ma_backend_aaudio, ma_backend_opensl };
+        ma_uint32 backendCount = 2;
+        if (android_get_device_api_level() <= 29) {
+            backends[0] = ma_backend_opensl;
+            backendCount = 1;
+        }
+
+        ma_context_config contextConfig = ma_context_config_init();
+        if (ma_context_init(backends, backendCount, &contextConfig, &context) != MA_SUCCESS) {
+            return UNKNOWN_ERROR;
+        }
+        if (ma_device_init(&context, &deviceConfig, &gDevice) != MA_SUCCESS) {
+            ma_context_uninit(&context);
+            return UNKNOWN_ERROR;
+        }
+        gDeviceInitialized = true;
+        aSoloud->postinit_internal(gDevice.sampleRate, gDevice.playback.internalPeriodSizeInFrames, aFlags, gDevice.playback.channels);
+        ma_device_start(&gDevice);
+        gDeviceInitDeferred = false;
+        gDeviceStartDeferred = false;
+        
 #else
+        // Linux and other platforms
         if (ma_device_init(NULL, &deviceConfig, &gDevice) != MA_SUCCESS)
         {
             return UNKNOWN_ERROR;
         }
+        gDeviceInitialized = true;
+        aSoloud->postinit_internal(gDevice.sampleRate, gDevice.playback.internalPeriodSizeInFrames, aFlags, gDevice.playback.channels);
+        ma_device_start(&gDevice);
+        gDeviceInitDeferred = false;
+        gDeviceStartDeferred = false;
 #endif
 
-
-        aSoloud->postinit_internal(gDevice.sampleRate, gDevice.playback.internalPeriodSizeInFrames, aFlags, gDevice.playback.channels);
-
         aSoloud->mBackendCleanupFunc = soloud_miniaudio_deinit;
-
-        ma_device_start(&gDevice);
         aSoloud->mBackendString = "MiniAudio";
+        return 0;
+    }
+
+    // Background thread function to initialize the audio device
+    static void miniaudio_init_thread_func()
+    {
+        std::lock_guard<std::mutex> lock(gInitMutex);
+        
+        if (!gDeviceInitDeferred)
+            return;
+
+        if (ma_device_init(NULL, &gDeferredConfig.config, &gDevice) == MA_SUCCESS)
+        {
+            gDeviceInitDeferred = false;
+            gDeviceInitialized = true;
+            // Start the device after initialization
+            if (ma_device_get_state(&gDevice) != ma_device_state_started)
+            {
+                ma_device_start(&gDevice);
+            }
+            gDeviceStartDeferred = false;
+        }
+    }
+
+    // Ensure the device is started. Called on first audio operation on Windows.
+    // On Windows, this runs device init on a background thread to avoid blocking the message pump.
+    result miniaudio_ensure_device_started()
+    {
+        if (!gDeviceInitDeferred)
+            return 0; // Already initialized and started
+
+        // Create a background thread to initialize and start the device
+        // This prevents the main thread's message pump from being blocked
+        if (gInitThread == nullptr)
+        {
+            gInitThread = new std::thread(miniaudio_init_thread_func);
+            
+            // Wait for the thread to complete (with reasonable timeout)
+            // The thread uses a mutex to protect device access
+            if (gInitThread && gInitThread->joinable())
+            {
+                gInitThread->join();
+                delete gInitThread;
+                gInitThread = nullptr;
+            }
+        }
+
+        // Verify the device is ready
+        if (gDeviceInitDeferred)
+            return UNKNOWN_ERROR; // Init failed
+            
         return 0;
     }
 
@@ -200,8 +327,10 @@ namespace SoLoud
         deviceConfig.pUserData          = (void *)soloud;
         if (ma_device_init(NULL, &deviceConfig, &gDevice) != MA_SUCCESS)
         {
+            gDeviceInitialized = false;
             return UNKNOWN_ERROR;
         }
+        gDeviceInitialized = true;
         ma_device_start(&gDevice);
         return 0;
     }

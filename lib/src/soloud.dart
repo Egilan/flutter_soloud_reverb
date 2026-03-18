@@ -644,7 +644,9 @@ interface class SoLoud {
     });
 
     return completer.future.whenComplete(() {
-      loadedFileCompleters.removeWhere((key, __) => key == path);
+      loadedFileCompleters.removeWhere(
+        (key, __) => key.compareTo('$path-$counter') == 0,
+      );
     });
   }
 
@@ -972,11 +974,14 @@ interface class SoLoud {
 
   /// Set the end of the data stream.
   ///
-  /// By setting the stream to be ended means that when playing it, it can
-  /// handle the stop event when it reaches the end of the data stream or can
-  /// be looped if the looping is enabled.
+  /// Calling this method is mandatory to be sure the engine knows when the
+  /// stream is ended and all the data has been added and decoded.
   ///
-  /// [hash] the hash of the stream sound.
+  /// Marking the stream as ended allows the engine to handle the stop event
+  /// when the end of the data stream is reached, or to loop the audio if
+  /// looping is enabled.
+  ///
+  /// [sound] the stream sound.
   ///
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
   ///
@@ -993,8 +998,8 @@ interface class SoLoud {
     }
   }
 
-  /// Get the current buffer size in bytes of this sound with hash [hash].
-  /// [hash] the hash of the stream sound.
+  /// Get the current buffer size in bytes of this sound.
+  /// [sound] the sound.
   ///
   /// **NOTE**: the returned value is in bytes and since by default uses floats,
   /// the returned value should be divided by 4 and by the number of channels
@@ -1592,6 +1597,8 @@ interface class SoLoud {
   /// the audio source. Seeking to [Duration.zero] means "go to the beginning
   /// of the sound".
   ///
+  /// If [time] is negative, it will be set to [Duration.zero].
+  ///
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
   ///
   /// **Note**: when seeking an MP3 file loaded using [LoadMode.disk], the
@@ -1609,7 +1616,11 @@ interface class SoLoud {
     if (!isInitialized) {
       throw const SoLoudNotInitializedException();
     }
-    final ret = _controller.soLoudFFI.seek(handle, time);
+    var newTime = time;
+    if (time.isNegative) {
+      newTime = Duration.zero;
+    }
+    final ret = _controller.soLoudFFI.seek(handle, newTime);
     final error = PlayerErrors.values[ret];
     if (error != PlayerErrors.noError) {
       _log.severe(() => 'seek(): $error');
