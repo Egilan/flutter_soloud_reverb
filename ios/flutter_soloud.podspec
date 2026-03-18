@@ -33,7 +33,8 @@ Flutter audio plugin using SoLoud library and FFI
                      '../third_party/libpd/pure-data/extra/pique/*.{h,c}',
                      '../third_party/libpd/pure-data/extra/sigmund~/*.{h,c}',
                      '../third_party/libpd/pure-data/extra/stdout/*.{h,c}',
-                     '../third_party/libpd/libpd_wrapper/**/*.{h,c}'
+                     '../third_party/libpd/libpd_wrapper/**/*.{h,c}',
+                     '../src/synth/pd_bridge.cpp'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
 
