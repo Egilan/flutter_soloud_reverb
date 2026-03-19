@@ -34,6 +34,7 @@ Flutter audio plugin using SoLoud library and FFI
                      '../third_party/libpd/pure-data/extra/sigmund~/*.{h,c}',
                      '../third_party/libpd/pure-data/extra/stdout/*.{h,c}',
                      '../third_party/libpd/libpd_wrapper/**/*.{h,c}',
+                     '../src/synth/soloud_libpd.cpp',
                      '../src/synth/pd_bridge.cpp'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
@@ -92,7 +93,7 @@ Flutter audio plugin using SoLoud library and FFI
   ]
 
   # Flutter.framework does not contain a i386 slice.
-  s.pod_target_xcconfig = { 
+  s.pod_target_xcconfig = {
     'HEADER_SEARCH_PATHS' => [
       '$(PODS_TARGET_SRCROOT)/include',
       '$(PODS_TARGET_SRCROOT)/include/opus',
@@ -105,7 +106,7 @@ Flutter audio plugin using SoLoud library and FFI
       '$(PODS_TARGET_SRCROOT)/../third_party/libpd/pure-data/src',
     ],
     'GCC_PREPROCESSOR_DEFINITIONS' => preprocessor_definitions.join(' '),
-    'DEFINES_MODULE' => 'YES', 
+    'DEFINES_MODULE' => 'YES',
     'VALID_ARCHS' => 'arm64 x86_64',
     'LIBRARY_SEARCH_PATHS' => [
       '$(PODS_TARGET_SRCROOT)/libs',
@@ -116,7 +117,7 @@ Flutter audio plugin using SoLoud library and FFI
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
     "CLANG_CXX_LIBRARY" => "libc++"
   }
-  
+
   # Only include libraries if opus/ogg is enabled
   if !disable_opus_ogg
     s.ios.vendored_libraries = [
