@@ -70,7 +70,6 @@ flutter:
     - web/libflutter_soloud_plugin.js
     - web/libflutter_soloud_plugin.wasm
     - web/init_module.dart.js
-    -
 
 funding:
   - https://github.com/sponsors/alnitak
