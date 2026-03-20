@@ -15,27 +15,12 @@ Flutter audio plugin using SoLoud library and FFI
 
   # This will ensure the source files in Classes/ are included in the native
   # builds of apps using this FFI plugin. Podspec does not support relative
-  # paths, so Classes contains a forwarder C file that relatively imports
+  # paths, so Classes contains a forwarder .mm file that relatively imports
   # `../src/*` so that the C sources can be shared among all target platforms.
+  # libpd is pre-built as a static library (ios/libs/libpd_iOS-*.a) via
+  # scripts/build_libpd_ios.sh, matching the pattern used for opus/ogg/vorbis/FLAC.
   s.source           = { :path => '.' }
-  # Initialize libpd submodule if not already present (e.g. when installed from pub cache)
-  s.prepare_command = 'if [ ! -f "../third_party/libpd/CMakeLists.txt" ]; then cd .. && git submodule update --init --recursive; fi'
-  s.source_files = 'Classes/**/*',
-                     '../third_party/libpd/pure-data/src/**/*.{h,c}',
-                     '../third_party/libpd/pure-data/extra/bob~/*.{h,c}',
-                     '../third_party/libpd/pure-data/extra/bonk~/*.{h,c}',
-                     '../third_party/libpd/pure-data/extra/choice/*.{h,c}',
-                     '../third_party/libpd/pure-data/extra/fiddle~/*.{h,c}',
-                     '../third_party/libpd/pure-data/extra/loop~/*.{h,c}',
-                     '../third_party/libpd/pure-data/extra/lrshift~/*.{h,c}',
-                     '../third_party/libpd/pure-data/extra/pd~/pdsched.c',
-                     '../third_party/libpd/pure-data/extra/pd~/pd~.c',
-                     '../third_party/libpd/pure-data/extra/pique/*.{h,c}',
-                     '../third_party/libpd/pure-data/extra/sigmund~/*.{h,c}',
-                     '../third_party/libpd/pure-data/extra/stdout/*.{h,c}',
-                     '../third_party/libpd/libpd_wrapper/**/*.{h,c}',
-                     '../src/synth/soloud_libpd.cpp',
-                     '../src/synth/pd_bridge.cpp'
+  s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
 
@@ -47,49 +32,11 @@ Flutter audio plugin using SoLoud library and FFI
     preprocessor_definitions << 'NO_OPUS_OGG_LIBS'
   end
 
-  # Exclude libpd files not needed (backends, duplicate sources)
-  s.exclude_files = '../third_party/libpd/pure-data/src/s_audio_alsa.{h,c}',
-                    '../third_party/libpd/pure-data/src/s_audio_alsamm.c',
-                    '../third_party/libpd/pure-data/src/s_audio_audiounit.c',
-                    '../third_party/libpd/pure-data/src/s_audio_esd.c',
-                    '../third_party/libpd/pure-data/src/s_audio_jack.c',
-                    '../third_party/libpd/pure-data/src/s_audio_mmio.c',
-                    '../third_party/libpd/pure-data/src/s_audio_oss.c',
-                    '../third_party/libpd/pure-data/src/s_audio_pa.c',
-                    '../third_party/libpd/pure-data/src/s_audio_paring.{h,c}',
-                    '../third_party/libpd/pure-data/src/s_file.c',
-                    '../third_party/libpd/pure-data/src/s_midi_alsa.c',
-                    '../third_party/libpd/pure-data/src/s_midi_dummy.c',
-                    '../third_party/libpd/pure-data/src/s_midi_mmio.c',
-                    '../third_party/libpd/pure-data/src/s_midi_oss.c',
-                    '../third_party/libpd/pure-data/src/s_midi_pm.c',
-                    '../third_party/libpd/pure-data/src/s_midi.c',
-                    '../third_party/libpd/pure-data/src/d_fft_fftw.c',
-                    '../third_party/libpd/pure-data/src/s_entry.c',
-                    '../third_party/libpd/pure-data/src/s_watchdog.c',
-                    '../third_party/libpd/pure-data/src/u_pdreceive.c',
-                    '../third_party/libpd/pure-data/src/u_pdsend.c',
-                    '../third_party/libpd/pure-data/src/x_libpdreceive.{h,c}',
-                    '../third_party/libpd/pure-data/src/z_ringbuffer.{h,c}',
-                    '../third_party/libpd/pure-data/src/z_queued.{h,c}',
-                    '../third_party/libpd/pure-data/src/z_print_util.{h,c}',
-                    '../third_party/libpd/pure-data/src/z_hooks.{h,c}',
-                    '../third_party/libpd/pure-data/src/s_libpdmidi.c',
-                    '../third_party/libpd/pure-data/src/z_libpd.{h,c}',
-                    '../third_party/libpd/pure-data/src/m_dispatch_gen.c',
-                    '../third_party/libpd/objc/**/*'
-
+  # Compiler flags needed for soloud_libpd.cpp and pd_bridge.cpp (compiled via the .mm forwarder)
   s.compiler_flags = [
     '-w',
     '-DOS_OBJECT_USE_OBJC=0',
-    '-Wno-format',
-    '-lpthread',
-    '-lm',
-    '-DPD', '-DUSEAPI_DUMMY', '-DPD_INTERNAL',
-    '-DHAVE_UNISTD_H', '-DHAVE_ALLOCA_H',
-    '-DHAVE_MACHINE_ENDIAN_H', '-D_DARWIN_C_SOURCE',
-    '-D_DARWIN_UNLIMITED_SELECT', '-DFD_SETSIZE=10240',
-    '-DLIBPD_EXTRA', '-fcommon'
+    '-DPD', '-DUSEAPI_DUMMY',
   ]
 
   # Flutter.framework does not contain a i386 slice.
@@ -99,11 +46,10 @@ Flutter audio plugin using SoLoud library and FFI
       '$(PODS_TARGET_SRCROOT)/include/opus',
       '$(PODS_TARGET_SRCROOT)/include/ogg',
       '$(PODS_TARGET_SRCROOT)/include/vorbis',
+      '$(PODS_TARGET_SRCROOT)/include/libpd',
       '$(PODS_TARGET_SRCROOT)/../src',
       '$(PODS_TARGET_SRCROOT)/../src/soloud/include',
       '${PODS_ROOT}/abseil',
-      '$(PODS_TARGET_SRCROOT)/../third_party/libpd/libpd_wrapper',
-      '$(PODS_TARGET_SRCROOT)/../third_party/libpd/pure-data/src',
     ],
     'GCC_PREPROCESSOR_DEFINITIONS' => preprocessor_definitions.join(' '),
     'DEFINES_MODULE' => 'YES',
@@ -112,22 +58,33 @@ Flutter audio plugin using SoLoud library and FFI
       '$(PODS_TARGET_SRCROOT)/libs',
       '$(SRCROOT)/libs'
     ],
-    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => disable_opus_ogg ? '' : '-logg_iOS-simulator -lopus_iOS-simulator -lvorbis_iOS-simulator -lvorbisfile_iOS-simulator -lflac_iOS-simulator',
-    'OTHER_LDFLAGS[sdk=iphoneos*]' => disable_opus_ogg ? '' : '-logg_iOS-device -lopus_iOS-device -lvorbis_iOS-device -lvorbisfile_iOS-device -lflac_iOS-device',
+    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => [
+      disable_opus_ogg ? '' : '-logg_iOS-simulator -lopus_iOS-simulator -lvorbis_iOS-simulator -lvorbisfile_iOS-simulator -lflac_iOS-simulator',
+      '-lpd_iOS-simulator'
+    ].reject(&:empty?).join(' '),
+    'OTHER_LDFLAGS[sdk=iphoneos*]' => [
+      disable_opus_ogg ? '' : '-logg_iOS-device -lopus_iOS-device -lvorbis_iOS-device -lvorbisfile_iOS-device -lflac_iOS-device',
+      '-lpd_iOS-device'
+    ].reject(&:empty?).join(' '),
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
     "CLANG_CXX_LIBRARY" => "libc++"
   }
 
-  # Only include libraries if opus/ogg is enabled
+  vendored = ['libs/libpd_iOS-device.a']
+  preserve = [
+    'libs/libpd_iOS-device.a',
+    'libs/libpd_iOS-simulator.a',
+  ]
+
   if !disable_opus_ogg
-    s.ios.vendored_libraries = [
+    vendored += [
       'libs/libopus_iOS-device.a',
       'libs/libogg_iOS-device.a',
       'libs/libvorbis_iOS-device.a',
       'libs/libvorbisfile_iOS-device.a',
       'libs/libflac_iOS-device.a'
     ]
-    s.preserve_paths = [
+    preserve += [
       'libs/libopus_iOS-device.a',
       'libs/libogg_iOS-device.a',
       'libs/libopus_iOS-simulator.a',
@@ -138,9 +95,11 @@ Flutter audio plugin using SoLoud library and FFI
       'libs/libvorbisfile_iOS-simulator.a',
       'libs/libflac_iOS-device.a',
       'libs/libflac_iOS-simulator.a',
-      '../third_party/libpd/pure-data/extra/pd~/binarymsg.c'
     ]
   end
+
+  s.ios.vendored_libraries = vendored
+  s.preserve_paths = preserve
 
   s.swift_version = '5.0'
   s.ios.framework  = ['AudioToolbox', 'AVFAudio']
