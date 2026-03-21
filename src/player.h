@@ -122,7 +122,7 @@ public:
     /// @param hash the hash of the sound.
     /// @return Returns [PlayerErrors.SO_NO_ERROR] if success.
     PlayerErrors resetBufferStream(unsigned int hash);
-    
+
     /// @brief Set the mp3 and Flac buffer icy meta int.
     /// @param hash the hash of the sound.
     /// @param icyMetaInt the icy meta int.
@@ -476,6 +476,20 @@ public:
     /// @param busHandle the bus handle.
     /// @param filterType the filter type.
     PlayerErrors removeBusFilter(unsigned int busHandle, FilterType filterType);
+
+    /// @brief Set a filter parameter on the bus.
+    /// @param busHandle the bus handle.
+    /// @param filterType the filter type.
+    /// @param attributeId the parameter attribute ID.
+    /// @param value the parameter value.
+    void setBusFilterParameter(unsigned int busHandle, FilterType filterType, int attributeId, float value);
+
+    /// @brief Get a filter parameter from the bus.
+    /// @param busHandle the bus handle.
+    /// @param filterType the filter type.
+    /// @param attributeId the parameter attribute ID.
+    /// @return the parameter value.
+    float getBusFilterParameter(unsigned int busHandle, FilterType filterType, int attributeId);
 
     /// @brief Annex an already playing voice to the bus.
     /// @param busHandle the bus handle.

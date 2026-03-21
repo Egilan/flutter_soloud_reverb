@@ -369,7 +369,7 @@ PlayerErrors Player::setBufferStream(
     auto newSound = std::make_unique<ActiveSound>();
     newSound.get()->completeFileName = "";
     newSound.get()->soundHash = hash;
-    
+
     newSound.get()->sound = std::make_unique<SoLoud::BufferStream>();
 
     newSound.get()->soundType = SoundType::TYPE_BUFFER_STREAM;
@@ -420,7 +420,7 @@ PlayerErrors Player::setBufferIcyMetaInt(unsigned int hash, int icyMetaInt)
 {
     auto const s = findByHash(hash);
 
-    if (s == nullptr || s->soundType != SoundType::TYPE_BUFFER_STREAM) { 
+    if (s == nullptr || s->soundType != SoundType::TYPE_BUFFER_STREAM) {
         return PlayerErrors::soundHashNotFound;
     }
 
@@ -581,7 +581,7 @@ void Player::setPause(unsigned int handle, bool pause)
     {
         soloud.miniaudio_ensureDeviceStarted();
     }
-    
+
     soloud.setPause(handle, pause);
 }
 
@@ -711,7 +711,7 @@ void Player::disposeSound(unsigned int soundHash)
     }
 
     auto it = std::find_if(sounds.begin(), sounds.end(),
-                           [soundHash](const std::unique_ptr<ActiveSound> &sound) 
+                           [soundHash](const std::unique_ptr<ActiveSound> &sound)
                            {
                                return sound->soundHash == soundHash;
                            });
@@ -857,7 +857,7 @@ PlayerErrors Player::seek(SoLoud::handle handle, float time)
 
     ActiveSound *sound = findByHandle(handle);
     bool isGroupHandle = soloud.isVoiceGroup(handle);
-    
+
     if ((sound == nullptr || sound->soundType == TYPE_SYNTH) && !isGroupHandle)
         return invalidParameter;
 
@@ -910,7 +910,7 @@ void Player::setPan(SoLoud::handle handle, float pan)
 }
 
 void Player::setPanAbsolute(SoLoud::handle handle, float panLeft, float panRight)
-{ 
+{
     panLeft = std::clamp(panLeft, -1.0f, 1.0f);
     panRight = std::clamp(panRight, -1.0f, 1.0f);
     soloud.setPanAbsolute(handle, panLeft, panRight);
@@ -999,7 +999,7 @@ ActiveSound *Player::findByHandle(SoLoud::handle handle)
 ActiveSound *Player::findByHash(unsigned int soundHash)
 {
     auto const &s = std::find_if(sounds.begin(), sounds.end(),
-                                 [&](std::unique_ptr<ActiveSound> const &f) 
+                                 [&](std::unique_ptr<ActiveSound> const &f)
                                  { return f->soundHash == soundHash; });
     if (s == sounds.end())
         return nullptr;
@@ -1331,7 +1331,7 @@ PlayerErrors Player::playOnBus(
     if (!mInited) return backendNotInited;
 
     auto it = mBuses.find(busHandle);
-    if (it == mBuses.end()) return unknownError; 
+    if (it == mBuses.end()) return unknownError;
 
     ActiveSound *sound = findByHash(soundHash);
     if (sound == nullptr) return soundHashNotFound;
@@ -1365,7 +1365,7 @@ PlayerErrors Player::playOnBus(
     handle = 0;
     SoLoud::handle newHandle = it->second->play(
         *sound->sound.get(), volume, pan, paused);
-    
+
     if (newHandle != 0) {
         sound->handle.push_back({newHandle, MAX_DOUBLE});
         // Check if this buffer has enough data to be played
@@ -1407,6 +1407,24 @@ PlayerErrors Player::removeBusFilter(unsigned int busHandle, FilterType filterTy
 
     if (!it->second->removeFilter(filterType)) return filterNotFound;
     return noError;
+}
+
+void Player::setBusFilterParameter(unsigned int busHandle, FilterType filterType, int attributeId, float value)
+{
+    if (!mInited) return;
+    auto it = mBusFilters.find(busHandle);
+    if (it == mBusFilters.end()) return;
+
+    it->second->setFilterParams(busHandle, filterType, attributeId, value);
+}
+
+float Player::getBusFilterParameter(unsigned int busHandle, FilterType filterType, int attributeId)
+{
+    if (!mInited) return 0.0f;
+    auto it = mBusFilters.find(busHandle);
+    if (it == mBusFilters.end()) return 0.0f;
+
+    return it->second->getFilterParams(busHandle, filterType, attributeId);
 }
 
 void Player::annexSoundToBus(unsigned int busHandle, unsigned int voiceHandle)

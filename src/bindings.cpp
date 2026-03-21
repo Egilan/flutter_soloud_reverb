@@ -2007,6 +2007,27 @@ extern "C"
         return player.get()->removeBusFilter(busHandle, (FilterType)filterType);
     }
 
+    FFI_PLUGIN_EXPORT void setBusFilterParameter(
+        unsigned int busHandle,
+        int filterType,
+        int attributeId,
+        float value)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return;
+        player.get()->setBusFilterParameter(busHandle, (FilterType)filterType, attributeId, value);
+    }
+
+    FFI_PLUGIN_EXPORT float getBusFilterParameter(
+        unsigned int busHandle,
+        int filterType,
+        int attributeId)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return 0.0f;
+        return player.get()->getBusFilterParameter(busHandle, (FilterType)filterType, attributeId);
+    }
+
     FFI_PLUGIN_EXPORT enum PlayerErrors loadBusConvolutionIR(
         unsigned int busHandle,
         const char *irPath)
