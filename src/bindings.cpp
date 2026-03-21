@@ -236,13 +236,6 @@ extern "C"
         // Set the callback for when a voice is ended/stopped
         player.get()->setVoiceEndedCallback(voiceEndedCallback);
 
-        // On Windows, start the audio device initialization in background.
-        // This ensures the device is ready by the time play() is called,
-        // without blocking the main thread's message pump.
-#ifdef _WIN32
-        SoLoud::miniaudio_ensure_device_started();
-#endif
-
         return PlayerErrors::noError;
     }
 

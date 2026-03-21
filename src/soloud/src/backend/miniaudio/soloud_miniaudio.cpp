@@ -74,6 +74,7 @@ namespace SoLoud
     // Forward declarations for functions used in on_notification
     result soloud_miniaudio_pause(SoLoud::Soloud *aSoloud);
     result soloud_miniaudio_resume(SoLoud::Soloud *aSoloud);
+    result miniaudio_ensure_thread_device_started();
     static bool gDeviceStartDeferred = false; // Track deferred device start on Windows
     static bool gDeviceInitDeferred = false;  // Track deferred device init on Windows
     static bool gDeviceInitialized = false;   // Track if device is actually initialized
@@ -251,9 +252,14 @@ namespace SoLoud
         gDeviceInitDeferred = true;
         gDeviceStartDeferred = false;
         
-        // Use safe default values for postinit
+        // On Windows, start the audio device initialization in background.
+        // This ensures the device is ready by the time play() is called,
+        // without blocking the main thread's message pump.
         aSoloud->postinit_internal(aSamplerate, aBuffer, aFlags, aChannels);
-        
+
+        // Use safe default values for postinit
+        miniaudio_ensure_thread_device_started();
+
 #elif defined(MA_HAS_COREAUDIO)
         // Disable CoreAudio context
         ma_context_config contextConfig = ma_context_config_init();
@@ -341,7 +347,7 @@ namespace SoLoud
 
     // Ensure the device is started. Called on first audio operation on Windows.
     // On Windows, this runs device init on a background thread to avoid blocking the message pump.
-    result miniaudio_ensure_device_started()
+    result miniaudio_ensure_thread_device_started()
     {
         if (!gDeviceInitDeferred)
             return 0; // Already initialized and started
