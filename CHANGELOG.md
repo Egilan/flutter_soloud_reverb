@@ -13,7 +13,7 @@
 - breaking change: bump Flutter version to 3.41.0 and Dart to 3.11.0
 - added Swift Package Manager support
 - previously wasm module was included on all platforms, now it is included only on web
-- Linux feat: choose to link ogg,opus,vorbis, and flac libraries from the system #421
+- Linux feat: choose to link ogg,opus,vorbis, and flac libraries from the system with `TRY_SYSTEM_LIBS_FIRST=1` environment variable #421
 
 #### 3.4.9 (21 Jan 2026)
 - fix crash when seeking with a negative value #386

@@ -43,10 +43,11 @@ echo "  CMAKE_ARCHS: ${CMAKE_ARCHS}"
 echo "  SDKROOT: ${SDKROOT}"
 echo "  BUILD_DIR: ${BUILD_DIR}"
 
-# Pass NO_OPUS_OGG_LIBS to CMake if set
-CMAKE_EXTRA_ARGS=""
-if [ -n "$NO_OPUS_OGG_LIBS" ]; then
-    CMAKE_EXTRA_ARGS="-DNO_OPUS_OGG_LIBS=ON"
+# Clear cached NO_OPUS_OGG_LIBS from CMake cache to ensure environment variable is respected
+# This allows switching between configurations without manual cache deletion
+if [ -f "${BUILD_DIR}/CMakeCache.txt" ]; then
+    # Remove any cached NO_OPUS_OGG_LIBS value so we always use the current environment
+    sed -i '' '/NO_OPUS_OGG_LIBS/d' "${BUILD_DIR}/CMakeCache.txt" 2>/dev/null || true
 fi
 
 cmake -S "${SCRIPT_DIR}" \
@@ -56,8 +57,7 @@ cmake -S "${SCRIPT_DIR}" \
     -DCMAKE_OSX_ARCHITECTURES="${CMAKE_ARCHS}" \
     -DCMAKE_OSX_SYSROOT="${SDKROOT}" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="13.0" \
-    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-    ${CMAKE_EXTRA_ARGS}
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
 cmake --build "${BUILD_DIR}" -j$(sysctl -n hw.ncpu)
 

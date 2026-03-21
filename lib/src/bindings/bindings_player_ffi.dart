@@ -2207,7 +2207,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   // }
 
   // late final _busCalcFFTPtr = _lookup<
-  //         ffi.NativeFunction<ffi.Pointer<ffi.Float> Function(ffi.UnsignedInt)>>(
+  //         ffi.NativeFunction<ffi.Pointer<ffi.Float>
+  // Function(ffi.UnsignedInt)>>(
   //     'busCalcFFT');
   // late final _busCalcFFT =
   //     _busCalcFFTPtr.asFunction<ffi.Pointer<ffi.Float> Function(int)>();
@@ -2227,7 +2228,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   // }
 
   // late final _busGetWavePtr = _lookup<
-  //         ffi.NativeFunction<ffi.Pointer<ffi.Float> Function(ffi.UnsignedInt)>>(
+  //         ffi.NativeFunction<ffi.Pointer<ffi.Float>
+  // Function(ffi.UnsignedInt)>>(
   //     'busGetWave');
   // late final _busGetWave =
   //     _busGetWavePtr.asFunction<ffi.Pointer<ffi.Float> Function(int)>();
