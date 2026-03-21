@@ -850,6 +850,23 @@ abstract class FlutterSoLoud {
   @mustBeOverridden
   PlayerErrors removeBusFilter(BusHandle busHandle, FilterType filterType);
 
+  /// Set a filter parameter on the bus.
+  @mustBeOverridden
+  void setBusFilterParameter(
+    BusHandle busHandle,
+    FilterType filterType,
+    int attributeId,
+    double value,
+  );
+
+  /// Get a filter parameter from the bus.
+  @mustBeOverridden
+  double getBusFilterParameter(
+    BusHandle busHandle,
+    FilterType filterType,
+    int attributeId,
+  );
+
   /// Load a Convolution Reverb Impulse Response (IR) for a bus.
   @mustBeOverridden
   PlayerErrors loadBusConvolutionIR({

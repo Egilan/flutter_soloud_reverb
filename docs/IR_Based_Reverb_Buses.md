@@ -390,3 +390,43 @@ Free impulse response files can be found at:
 - You can change the IR on a bus at runtime by calling `loadBusConvolutionIR()` again with a new path.
 - The convolution filter can be combined with other bus filters (e.g., EQ, compressor) for more complex processing chains.
 - Bus volume can be faded using `fadeFilterParameter()` if needed for smooth transitions.
+
+---
+
+Added the Bus Filter Parameter API to this fork. The implementation allows controlling filter parameters (e.g., wet/dry) on bus-level filters.
+
+## Changes Made
+
+**C++ Layer (src/)**
+- [`player.h`](src/player.h:479): Added declarations for `setBusFilterParameter()` and `getBusFilterParameter()` methods
+- [`player.cpp`](src/player.cpp:1412): Added implementations that call the Filters' `setFilterParams()` and `getFilterParams()` with the bus handle
+- [`bindings.cpp`](src/bindings.cpp:2010): Added FFI plugin exports for `setBusFilterParameter` and `getBusFilterParameter`
+
+**Dart Layer (lib/src/)**
+- [`bindings_player.dart`](lib/src/bindings/bindings_player.dart:853): Added abstract interface declarations
+- [`bindings_player_ffi.dart`](lib/src/bindings/bindings_player_ffi.dart:2210): Added FFI bindings with native function lookups
+- [`bindings_player_web.dart`](lib/src/bindings/bindings_player_web.dart:1213): Added web platform stubs (returning notImplemented/0.0)
+- [`soloud.dart`](lib/src/soloud.dart:3027): Added public API methods `setBusFilterParameter()` and `getBusFilterParameter()`
+
+## Usage
+
+Other apps can now control bus filter parameters like this:
+
+```dart
+// Set convolution reverb wet parameter to 20% on a bus
+SoLoud.instance.setBusFilterParameter(
+  busHandle,
+  FilterType.convolutionFilter,
+  0,  // attributeId 0 = wet for SoLoud filters
+  0.2,
+);
+
+// Get the current wet value
+final wetValue = SoLoud.instance.getBusFilterParameter(
+  busHandle,
+  FilterType.convolutionFilter,
+  0,
+);
+```
+
+The convolution filter's wet parameter follows the same convention as per-handle filters (attribute 0 = wet).

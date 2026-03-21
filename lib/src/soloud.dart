@@ -3024,6 +3024,46 @@ interface class SoLoud {
     }
   }
 
+  /// Set a filter parameter on the bus.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setBusFilterParameter(
+    BusHandle busHandle,
+    FilterType filterType,
+    int attributeId,
+    double value,
+  ) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setBusFilterParameter(
+      busHandle,
+      filterType,
+      attributeId,
+      value,
+    );
+  }
+
+  /// Get a filter parameter from the bus.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Returns the value of the parameter.
+  double getBusFilterParameter(
+    BusHandle busHandle,
+    FilterType filterType,
+    int attributeId,
+  ) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    return _controller.soLoudFFI.getBusFilterParameter(
+      busHandle,
+      filterType,
+      attributeId,
+    );
+  }
+
   /// Load a Convolution Reverb Impulse Response (IR) for a bus.
   ///
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.

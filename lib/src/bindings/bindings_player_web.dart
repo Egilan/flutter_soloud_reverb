@@ -1211,6 +1211,23 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
+  void setBusFilterParameter(
+    BusHandle busHandle,
+    FilterType filterType,
+    int attributeId,
+    double value,
+  ) {}
+
+  @override
+  double getBusFilterParameter(
+    BusHandle busHandle,
+    FilterType filterType,
+    int attributeId,
+  ) {
+    return 0.0;
+  }
+
+  @override
   PlayerErrors loadBusConvolutionIR({
     required BusHandle busHandle,
     required String irPath,

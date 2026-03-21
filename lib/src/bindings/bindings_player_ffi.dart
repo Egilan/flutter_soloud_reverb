@@ -2208,6 +2208,41 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
       _removeBusFilterPtr.asFunction<int Function(int, int)>();
 
   @override
+  void setBusFilterParameter(
+    BusHandle busHandle,
+    FilterType filterType,
+    int attributeId,
+    double value,
+  ) {
+    _setBusFilterParameter(busHandle.id, filterType.index, attributeId, value);
+  }
+
+  late final _setBusFilterParameterPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(
+              ffi.UnsignedInt, ffi.Int32, ffi.Int32, ffi.Float)>>(
+              'setBusFilterParameter');
+  late final _setBusFilterParameter = _setBusFilterParameterPtr
+      .asFunction<void Function(int, int, int, double)>();
+
+  @override
+  double getBusFilterParameter(
+    BusHandle busHandle,
+    FilterType filterType,
+    int attributeId,
+  ) {
+    return _getBusFilterParameter(
+        busHandle.id, filterType.index, attributeId);
+  }
+
+  late final _getBusFilterParameterPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Float Function(
+              ffi.UnsignedInt, ffi.Int32, ffi.Int32)>>('getBusFilterParameter');
+  late final _getBusFilterParameter = _getBusFilterParameterPtr
+      .asFunction<double Function(int, int, int)>();
+
+  @override
   PlayerErrors loadBusConvolutionIR({
     required BusHandle busHandle,
     required String irPath,
