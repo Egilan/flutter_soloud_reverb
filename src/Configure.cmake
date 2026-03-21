@@ -15,6 +15,21 @@ else ()
   set (_DEFAULT_STATIC OFF)
 endif ()
 
+# Default audio backends based on platform.
+if (UNIX AND NOT APPLE AND NOT ANDROID)
+  # Linux
+  set (_DEFAULT_ALSA ON)
+else ()
+  set (_DEFAULT_ALSA OFF)
+endif ()
+
+if (APPLE)
+  # macOS/iOS
+  set (_DEFAULT_COREAUDIO ON)
+else ()
+  set (_DEFAULT_COREAUDIO OFF)
+endif ()
+
 option (SOLOUD_DYNAMIC "Set to ON to build dynamic SoLoud" ${_DEFAULT_DYNAMIC})
 print_option_status (SOLOUD_DYNAMIC "Build dynamic library")
 
@@ -36,10 +51,10 @@ print_option_status (SOLOUD_BACKEND_NULL "NULL backend")
 option (SOLOUD_BACKEND_SDL2 "Set to ON for building SDL2 backend" OFF)
 print_option_status (SOLOUD_BACKEND_SDL2 "SDL2 backend")
 
-option (SOLOUD_BACKEND_ALSA "Set to ON for building ALSA backend" OFF)
+option (SOLOUD_BACKEND_ALSA "Set to ON for building ALSA backend" ${_DEFAULT_ALSA})
 print_option_status (SOLOUD_BACKEND_ALSA "ALSA backend")
 
-option (SOLOUD_BACKEND_COREAUDIO "Set to ON for building CoreAudio backend" OFF)
+option (SOLOUD_BACKEND_COREAUDIO "Set to ON for building CoreAudio backend" ${_DEFAULT_COREAUDIO})
 print_option_status (SOLOUD_BACKEND_COREAUDIO "CoreAudio backend")
 
 option (SOLOUD_BACKEND_OPENSLES "Set to ON for building OpenSLES backend" OFF)

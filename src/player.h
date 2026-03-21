@@ -628,6 +628,7 @@ public:
 private:
   ma_device_info *pPlaybackInfos;
   std::mutex remove_handle_mutex;
+  mutable std::recursive_mutex sounds_mutex;  // Protects the sounds vector (recursive to avoid deadlock in destructors)
   unsigned int mBufferSize;
 
   std::map<unsigned int, BusData> busMap;

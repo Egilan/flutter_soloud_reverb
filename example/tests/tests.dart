@@ -67,7 +67,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
     /// Add all testing functions.
     tests.addAll([
-      _Test(name: 'testAutoDispose', callback: testAutoDispose),
       _Test(name: 'testProtectVoice', callback: testProtectVoice),
       _Test(
         name: 'testAllInstancesFinished',
@@ -85,6 +84,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _Test(name: 'testSoundFilters', callback: testSoundFilters),
       _Test(name: 'testGlobalFilters', callback: testGlobalFilters),
       _Test(name: 'testAsyncMultiLoad', callback: testAsyncMultiLoad),
+      _Test(name: 'testAutoDispose', callback: testAutoDispose),
     ]);
   }
 
@@ -921,25 +921,13 @@ Future<StringBuffer> testAsyncMultiLoad() async {
   final strBuf = StringBuffer();
   await initialize();
 
-  const prefix = 'assets/audio/12Bands/audiocheck.net_sin_';
   final sounds = [
-    SoLoud.instance.loadAsset('${prefix}1000Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}125Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}16000Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}16Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}20000Hz_-3dBFS_2s.wav'),
     SoLoud.instance.loadAsset('assets/audio/8_bit_mentality.mp3'),
     SoLoud.instance.loadAsset('assets/audio/explosion.mp3'),
     SoLoud.instance.loadAsset('assets/audio/IveSeenThings.mp3'),
+    SoLoud.instance.loadAsset('assets/audio/sample-1.ogg'),
     SoLoud.instance.loadAsset('assets/audio/tic-1.wav'),
     SoLoud.instance.loadAsset('assets/audio/tic-2.wav'),
-    SoLoud.instance.loadAsset('${prefix}2000Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}250Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}31.5Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}4000Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}500Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}63Hz_-3dBFS_2s.wav'),
-    SoLoud.instance.loadAsset('${prefix}8000Hz_-3dBFS_2s.wav'),
   ];
 
   await Future.wait(sounds);

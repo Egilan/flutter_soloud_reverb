@@ -60,7 +60,10 @@ void Player::dispose() {
     // Clean up SoLoud
     setVoiceEndedCallback(nullptr);
     setStateChangedCallback(nullptr);
-    sounds.clear();
+    {
+        std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
+        sounds.clear();
+    }
     soloud.deinit();
 }
 
@@ -187,6 +190,7 @@ bool Player::isInited()
 
 int Player::getSoundsCount()
 {
+    std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
     return (int)sounds.size();
 }
 
@@ -315,7 +319,10 @@ PlayerErrors Player::loadFile(
     {
         *hash = newHash;
         newSound.get()->filters = std::make_unique<Filters>(&soloud, newSound.get(), nullptr);
-        sounds.push_back(std::move(newSound));
+        {
+            std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
+            sounds.push_back(std::move(newSound));
+        }
     }
 
     // Return fileAlreadyLoaded if the filename hash was already in use,
@@ -374,7 +381,10 @@ PlayerErrors Player::loadMem(
     if (result == SoLoud::SO_NO_ERROR)
     {
         newSound.get()->filters = std::make_unique<Filters>(&soloud, newSound.get(), nullptr);
-        sounds.push_back(std::move(newSound));
+        {
+            std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
+            sounds.push_back(std::move(newSound));
+        }
     }
 
     // Return fileAlreadyLoaded if the unique name hash was already in use,
@@ -421,7 +431,10 @@ PlayerErrors Player::setBufferStream(
         onMetadataCallback);
 
     newSound.get()->filters = std::make_unique<Filters>(&soloud, newSound.get(), nullptr);
-    sounds.push_back(std::move(newSound));
+    {
+        std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
+        sounds.push_back(std::move(newSound));
+    }
 
     return e;
 }
@@ -521,12 +534,15 @@ PlayerErrors Player::loadWaveform(
 
     hash = dist(g);
 
-    sounds.push_back(std::make_unique<ActiveSound>());
-    sounds.back().get()->completeFileName = "";
-    sounds.back().get()->soundHash = hash;
-    sounds.back().get()->sound = std::make_unique<Basicwave>((SoLoud::Soloud::WAVEFORM)waveform, superWave, detune, scale);
-    sounds.back().get()->soundType = TYPE_SYNTH;
-    sounds.back().get()->filters = std::make_unique<Filters>(&soloud, sounds.back().get(), nullptr);
+    {
+        std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
+        sounds.push_back(std::make_unique<ActiveSound>());
+        sounds.back().get()->completeFileName = "";
+        sounds.back().get()->soundHash = hash;
+        sounds.back().get()->sound = std::make_unique<Basicwave>((SoLoud::Soloud::WAVEFORM)waveform, superWave, detune, scale);
+        sounds.back().get()->soundType = TYPE_SYNTH;
+        sounds.back().get()->filters = std::make_unique<Filters>(&soloud, sounds.back().get(), nullptr);
+    }
 
     return noError;
 }
@@ -621,6 +637,7 @@ float Player::getApproximateVolume(unsigned int channel)
 
 unsigned int Player::getActiveVoiceCount_internal()
 {
+    std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
     unsigned int count = 0;
     for (auto &s : sounds)
     {
@@ -708,6 +725,7 @@ void Player::stop(unsigned int handle)
 
 void Player::removeHandle(unsigned int handle)
 {
+    std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
     if (sounds.empty()) {
         return;
     }
@@ -732,44 +750,70 @@ void Player::removeHandle(unsigned int handle)
 
 void Player::disposeSound(unsigned int soundHash)
 {
-    if (sounds.empty())
+    std::unique_ptr<ActiveSound> soundToDestroy;
+    
     {
-        return;
-    }
-
-    auto it = std::find_if(sounds.begin(), sounds.end(),
-                           [soundHash](const std::unique_ptr<ActiveSound> &sound) 
-                           {
-                               return sound->soundHash == soundHash;
-                           });
-
-    if (it != sounds.end())
-    {
-        // Free filters
-        if (it->get()->filters)
+        std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
+        if (sounds.empty())
         {
-            Filters *f = it->get()->filters.release();
-            if (f != nullptr)
-            {
-                // TODO: deleting "f" when running on Web will crash with segmentation fault.
-                // This could be a bug in WebAssembly I can't figure out. Even if I don't delete
-                // there shouldn't be a memory leak as the filters are destroyed with the sound.
-                // This behavior can be tested by running "testAllInstancesFinished" in tests.dart.
-                // delete f;
-            }
-            it->get()->filters.reset();
+            return;
         }
-        sounds.erase(it);
+
+        auto it = std::find_if(sounds.begin(), sounds.end(),
+                               [soundHash](const std::unique_ptr<ActiveSound> &sound) 
+                               {
+                                   return sound->soundHash == soundHash;
+                               });
+
+        if (it != sounds.end())
+        {
+            // Mark BufferStream for destruction before removing it
+            // This prevents race conditions where the audio thread tries to access
+            // the BufferStream while it's being destroyed
+            if (it->get()->soundType == SoundType::TYPE_BUFFER_STREAM)
+            {
+                auto *bufferStream = static_cast<SoLoud::BufferStream *>(it->get()->sound.get());
+                if (bufferStream != nullptr)
+                {
+                    bufferStream->markForDestruction();
+                }
+            }
+            
+            // Move the sound out of the vector before erasing
+            // This ensures the destructor runs AFTER we release sounds_mutex
+            soundToDestroy = std::move(*it);
+            sounds.erase(it);
+        }
     }
+    // soundToDestroy is destroyed here, after sounds_mutex is released
+    // This prevents deadlock with SoLoud's internal mAudioThreadMutex
 }
 
 void Player::disposeAllSound()
 {
     soloud.stopAll();
-    while (sounds.size() > 0)
+    
+    std::vector<std::unique_ptr<ActiveSound>> soundsToDestroy;
+    
     {
-        disposeSound(sounds[0]->soundHash);
+        std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
+        // Mark all BufferStreams for destruction first
+        for (auto &sound : sounds)
+        {
+            if (sound->soundType == SoundType::TYPE_BUFFER_STREAM)
+            {
+                auto *bufferStream = static_cast<SoLoud::BufferStream *>(sound->sound.get());
+                if (bufferStream != nullptr)
+                {
+                    bufferStream->markForDestruction();
+                }
+            }
+        }
+        // Move all sounds out to destroy them after releasing the lock
+        soundsToDestroy = std::move(sounds);
+        sounds.clear();
     }
+    // All sounds are destroyed here, after sounds_mutex is released
 }
 
 bool Player::getLooping(unsigned int handle)
@@ -800,9 +844,11 @@ PlayerErrors Player::textToSpeech(const std::string &textToSpeech, unsigned int 
     // Ensure miniaudio device is started if it's stopped, ie by an interruption.
     soloud.miniaudio_ensureDeviceStarted();
 
+    SoLoud::result result = speech.setText(textToSpeech.c_str());
+    
+    std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
     sounds.push_back(std::make_unique<ActiveSound>());
     sounds.back().get()->completeFileName = std::string("");
-    SoLoud::result result = speech.setText(textToSpeech.c_str());
     if (result == SoLoud::SO_NO_ERROR)
     {
         handle = soloud.play(speech);
@@ -1004,6 +1050,7 @@ void Player::setMaxActiveVoiceCount(unsigned int maxVoiceCount)
 
 ActiveSound *Player::findByHandle(SoLoud::handle handle)
 {
+    std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
     int i = 0;
     while (i < (int)sounds.size())
     {
@@ -1024,6 +1071,7 @@ ActiveSound *Player::findByHandle(SoLoud::handle handle)
 
 ActiveSound *Player::findByHash(unsigned int soundHash)
 {
+    std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
     auto const &s = std::find_if(sounds.begin(), sounds.end(),
                                  [&](std::unique_ptr<ActiveSound> const &f) 
                                  { return f->soundHash == soundHash; });
@@ -1035,6 +1083,7 @@ ActiveSound *Player::findByHash(unsigned int soundHash)
 
 void Player::debug()
 {
+    std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
     int n = 0;
     for (auto &sound : sounds)
     {

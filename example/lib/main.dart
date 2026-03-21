@@ -59,10 +59,11 @@ class _HelloFlutterSoLoudState extends State<HelloFlutterSoLoud> {
 
     return Scaffold(
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 30,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 30,
+            children: [
             ElevatedButton(
               onPressed: () async {
                 /// This will eventually dispose (and stop) any previously
@@ -88,10 +89,7 @@ class _HelloFlutterSoLoudState extends State<HelloFlutterSoLoud> {
                 /// needs to be played until it's disposed.
                 await soloud.play(currentSound!);
               },
-              child: const Text(
-                'play asset',
-                textAlign: TextAlign.center,
-              ),
+              child: const Text('play asset'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -100,12 +98,10 @@ class _HelloFlutterSoLoudState extends State<HelloFlutterSoLoud> {
                 /// The sound will be disposed automatically when it's finished.
                 await soloud.playSource(asset: 'assets/audio/explosion.mp3');
               },
-              child: const Text(
-                'play source',
-                textAlign: TextAlign.center,
-              ),
+              child: const Text('play source'),
             ),
           ],
+          ),
         ),
       ),
     );

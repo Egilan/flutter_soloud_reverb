@@ -5,6 +5,68 @@ import 'package:flutter/material.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:logging/logging.dart';
 
+/// Mixing Bus Example - Grouped Audio Control and Routing
+///
+/// This example demonstrates how to use mixing buses to group and control
+/// multiple audio sources together. Mixing buses act as virtual audio devices
+/// that allow you to:
+///
+/// 1. **Group audio sources**: Route multiple sounds through a single bus
+/// 2. **Control volume collectively**: Adjust the volume of all sounds on a bus
+///    with a single call
+/// 3. **Apply shared effects**: Apply filters (like pitch shift, echo, etc.)
+///    to all sounds routed through the bus
+/// 4. **Dynamic routing**: Move live sounds between buses using [Bus.annexSound]
+///
+/// ## Key Concepts
+///
+/// - **Mixing Bus**: A special audio source that plays other audio sources
+///   through it. Think of it as a virtual audio mixer channel.
+///
+/// - **Bus Creation**: Create buses using [SoLoud.instance.createMixingBus()]
+///
+/// - **Playing the Bus**: A bus must be "played" on the main engine using
+///   [Bus.playOnEngine()] before its output becomes audible. This is different
+///   from playing regular sounds.
+///
+/// - **Routing Sounds**: Play sounds through a bus by calling [Bus.play()] or
+///   by passing the `busId` parameter to [SoLoud.instance.play()]
+///
+/// - **Annexing Sounds**: Dynamically reparent a live sound to a bus using
+///   [Bus.annexSound()]. Useful for moving sounds between buses at runtime.
+///
+/// ## Typical Workflow
+///
+/// ```dart
+/// // 1. Create a mixing bus
+/// final sfxBus = SoLoud.instance.createMixingBus(name: 'SFX');
+///
+/// // 2. Play the bus on the engine (required for audio output)
+/// sfxBus.playOnEngine();
+///
+/// // 3. Load and play sounds through the bus
+/// final explosion = await SoLoud.instance.loadAsset('explosion.mp3');
+/// sfxBus.play(explosion);
+///
+/// // 4. Control all sounds on the bus together
+/// SoLoud.instance.setVolume(sfxBus.soundHandle!, 0.5); // Half volume for all SFX
+/// sfxBus.filters.echoFilter.activate(); // Echo effect on all SFX
+/// ```
+///
+/// ## Use Cases
+///
+/// - **Game Audio Layers**: Separate buses for music, SFX, voiceovers, ambience
+/// - **Dynamic Audio Mixing**: Duck music when voiceover plays, apply effects
+///   to specific sound categories
+/// - **Volume Categories**: Allow users to adjust volume per sound category
+/// - **Runtime Effects**: Apply filters to groups of sounds (underwater effect
+///   for all SFX, radio filter for voice communications, etc.)
+///
+/// See also:
+/// - [Bus] - The mixing bus class with full API documentation
+/// - [Buses] - Helper singleton for managing all active buses
+/// - https://solhsa.com/soloud/mixbus.html - Official SoLoud mixing bus docs
+
 void main() async {
   // The `flutter_soloud` package logs everything
   // (from severe warnings to fine debug messages)

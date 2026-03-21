@@ -41,6 +41,10 @@ class Buses {
 /// filtering, and routing of multiple sounds. You can play multiple sounds
 /// on a single bus and apply effects or adjust the volume of the entire bus
 /// at once.
+/// 
+/// Refer to the official SoLoud documentation for more information on
+/// mixing buses:
+/// https://solhsa.com/soloud/mixbus.html
 ///
 /// **Workflow example:**
 /// ```dart
