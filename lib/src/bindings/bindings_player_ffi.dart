@@ -2172,6 +2172,79 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
       )>();
 
   @override
+  ({PlayerErrors error, SoundHandle newHandle}) play3dOnBus(
+    BusHandle busHandle,
+    SoundHash soundHash, {
+    double posX = 0,
+    double posY = 0,
+    double posZ = 0,
+    double velX = 0,
+    double velY = 0,
+    double velZ = 0,
+    double volume = 1,
+    bool paused = false,
+    bool looping = false,
+    Duration loopingStartAt = Duration.zero,
+  }) {
+    final ffi.Pointer<ffi.UnsignedInt> handle = calloc();
+    final e = _play3dOnBus(
+      busHandle.id,
+      soundHash.hash,
+      posX,
+      posY,
+      posZ,
+      velX,
+      velY,
+      velZ,
+      volume,
+      paused ? 1 : 0,
+      looping ? 1 : 0,
+      loopingStartAt.inMicroseconds.toDouble() / Duration.microsecondsPerSecond,
+      handle,
+    );
+    final ret = (
+      error: PlayerErrors.values[e],
+      newHandle: SoundHandle(handle.value),
+    );
+    calloc.free(handle);
+    return ret;
+  }
+
+  late final _play3dOnBusPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Int,
+            ffi.Int,
+            ffi.Double,
+            ffi.Pointer<ffi.UnsignedInt>,
+          )>>('play3dOnBus');
+  late final _play3dOnBus = _play3dOnBusPtr.asFunction<
+      int Function(
+        int,
+        int,
+        double,
+        double,
+        double,
+        double,
+        double,
+        double,
+        double,
+        int,
+        int,
+        double,
+        ffi.Pointer<ffi.UnsignedInt>,
+      )>();
+
+  @override
   PlayerErrors setBusVolume(BusHandle busHandle, double volume) {
     _setBusVolume(busHandle.id, volume);
     return PlayerErrors.noError;

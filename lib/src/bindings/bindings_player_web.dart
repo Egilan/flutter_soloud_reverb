@@ -1196,6 +1196,24 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
+  ({PlayerErrors error, SoundHandle newHandle}) play3dOnBus(
+    BusHandle busHandle,
+    SoundHash soundHash, {
+    double posX = 0,
+    double posY = 0,
+    double posZ = 0,
+    double velX = 0,
+    double velY = 0,
+    double velZ = 0,
+    double volume = 1,
+    bool paused = false,
+    bool looping = false,
+    Duration loopingStartAt = Duration.zero,
+  }) {
+    throw UnsupportedError('Buses are not supported on the web.');
+  }
+
+  @override
   PlayerErrors setBusVolume(BusHandle busHandle, double volume) {
     return PlayerErrors.noError;
   }

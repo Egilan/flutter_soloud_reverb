@@ -838,6 +838,23 @@ abstract class FlutterSoLoud {
     Duration loopingStartAt = Duration.zero,
   });
 
+  /// Play already loaded sound identified by [soundHash] through the bus with 3D positioning.
+  @mustBeOverridden
+  ({PlayerErrors error, SoundHandle newHandle}) play3dOnBus(
+    BusHandle busHandle,
+    SoundHash soundHash, {
+    double posX = 0,
+    double posY = 0,
+    double posZ = 0,
+    double velX = 0,
+    double velY = 0,
+    double velZ = 0,
+    double volume = 1,
+    bool paused = false,
+    bool looping = false,
+    Duration loopingStartAt = Duration.zero,
+  });
+
   /// Set the [busHandle] volume.
   @mustBeOverridden
   PlayerErrors setBusVolume(BusHandle busHandle, double volume);

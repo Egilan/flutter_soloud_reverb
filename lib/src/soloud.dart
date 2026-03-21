@@ -2982,6 +2982,76 @@ interface class SoLoud {
     return ret.newHandle;
   }
 
+  /// Play an audio source on the specified bus with 3D positioning.
+  ///
+  /// This method routes audio through a [Bus] while enabling 3D spatial
+  /// positioning. Unlike [playOnBus] which uses the non-3D play path,
+  /// this method uses SoLoud's 3D play path, ensuring the PROCESS_3D flag
+  /// is set and [set3dSourcePosition] works correctly.
+  ///
+  /// [busHandle] The bus to play on.
+  /// [sound] The audio source to play.
+  /// [posX], [posY], [posZ] The 3D position of the sound source.
+  ///
+  /// [velX], [velY], [velZ] The velocity of the sound source (for
+  /// Doppler effects).
+  ///
+  /// [volume] The volume of the sound.
+  ///
+  /// [paused] If true, the sound starts paused.
+  ///
+  /// [looping] If true, the sound loops.
+  ///
+  /// [loopingStartAt] If looping is enabled, the loop point is, by default,
+  /// the start of the stream.
+  ///
+  /// Return the error if any and a new [SoundHandle] of this sound.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] if the sound could not be played.
+  Future<SoundHandle> play3dOnBus(
+    BusHandle busHandle,
+    AudioSource sound,
+    double posX,
+    double posY,
+    double posZ, {
+    double velX = 0,
+    double velY = 0,
+    double velZ = 0,
+    double volume = 1,
+    bool paused = false,
+    bool looping = false,
+    Duration loopingStartAt = Duration.zero,
+  }) async {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final ret = _controller.soLoudFFI.play3dOnBus(
+      busHandle,
+      sound.soundHash,
+      posX,
+      posY,
+      posZ,
+      velX: velX,
+      velY: velY,
+      velZ: velZ,
+      volume: volume,
+      paused: paused,
+      looping: looping,
+      loopingStartAt: loopingStartAt,
+    );
+    if (ret.error != PlayerErrors.noError) {
+      _logPlayerError(ret.error, from: 'play3dOnBus() result');
+      throw SoLoudCppException.fromPlayerError(ret.error);
+    }
+
+    // Add the new handle to the sound's list of handles
+    sound.handlesInternal.add(ret.newHandle);
+
+    return ret.newHandle;
+  }
+
   /// Set the [busHandle] volume.
   ///
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
