@@ -462,6 +462,36 @@ public:
         bool looping = false,
         double loopingStartAt = 0.0);
 
+    /// @brief Play already loaded sound identified by [soundHash] through the bus identified by [busHandle] with 3D positioning.
+    /// @param busHandle the bus handle.
+    /// @param soundHash the unique hash of the sound to play.
+    /// @param handle the handle of the sound, 0 if error.
+    /// @param posX the X position of the sound.
+    /// @param posY the Y position of the sound.
+    /// @param posZ the Z position of the sound.
+    /// @param velX the X velocity of the sound.
+    /// @param velY the Y velocity of the sound.
+    /// @param velZ the Z velocity of the sound.
+    /// @param volume the volume of the sound.
+    /// @param paused whether to start paused.
+    /// @param looping whether to loop.
+    /// @param loopingStartAt the start position for looping.
+    /// @return the handle of the sound, 0 if error.
+    PlayerErrors play3dOnBus(
+        unsigned int busHandle,
+        unsigned int soundHash,
+        unsigned int &handle,
+        float posX,
+        float posY,
+        float posZ,
+        float velX = 0.0f,
+        float velY = 0.0f,
+        float velZ = 0.0f,
+        float volume = 1.0f,
+        bool paused = false,
+        bool looping = false,
+        double loopingStartAt = 0.0);
+
     /// @brief Set the [busHandle] volume.
     /// @param busHandle the bus handle.
     /// @param volume the new volume to set.

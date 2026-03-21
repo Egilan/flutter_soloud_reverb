@@ -1384,6 +1384,80 @@ PlayerErrors Player::playOnBus(
     return noError;
 }
 
+PlayerErrors Player::play3dOnBus(
+    unsigned int busHandle,
+    unsigned int soundHash,
+    unsigned int &handle,
+    float posX,
+    float posY,
+    float posZ,
+    float velX,
+    float velY,
+    float velZ,
+    float volume,
+    bool paused,
+    bool looping,
+    double loopingStartAt)
+{
+    if (!mInited) return backendNotInited;
+
+    auto it = mBuses.find(busHandle);
+    if (it == mBuses.end()) return unknownError;
+
+    ActiveSound *sound = findByHash(soundHash);
+    if (sound == nullptr) return soundHashNotFound;
+
+    // A BufferStream using `release` buffer type can only have one instance.
+    if (sound->soundType == SoundType::TYPE_BUFFER_STREAM &&
+        static_cast<SoLoud::BufferStream *>(sound->sound.get())->getBufferingType() == BufferingType::RELEASED &&
+        sound->handle.size() > 0)
+    {
+        return bufferStreamCanBePlayedOnlyOnce;
+    }
+
+    // Check if playing this sound will exceed the maximum number of voice counts. If true, then
+    // check if [soudHash] has other instances playing. If true remove the first and play the new one.
+    // If no other instances are playing, this sound cannot be played and return an error.
+    if (getActiveVoiceCount_internal() >= getMaxActiveVoiceCount())
+    {
+        if (sound->handle.size() > 0)
+        {
+            stop(sound->handle[0].handle);
+        }
+        else
+        {
+            return PlayerErrors::maxActiveVoiceCountReached;
+        }
+    }
+
+    // Ensure miniaudio device is started
+    soloud.miniaudio_ensureDeviceStarted();
+
+    handle = 0;
+    SoLoud::handle newHandle = it->second->play3d(
+        *sound->sound.get(),
+        posX, posY, posZ,
+        velX, velY, velZ,
+        volume, paused);
+
+    if (newHandle != 0) {
+        sound->handle.push_back({newHandle, MAX_DOUBLE});
+        // Check if this buffer has enough data to be played
+        if (sound->soundType == SoundType::TYPE_BUFFER_STREAM)
+        {
+            static_cast<SoLoud::BufferStream *>(sound->sound.get())->checkBuffering(0);
+        }
+    }
+
+    if (looping)
+    {
+        setLoopPoint(newHandle, loopingStartAt);
+        setLooping(newHandle, true);
+    }
+    handle = newHandle;
+    return noError;
+}
+
 void Player::setBusVolume(unsigned int busHandle, float volume)
 {
     if (!mInited) return;

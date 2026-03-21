@@ -1986,6 +1986,30 @@ extern "C"
             busHandle, soundHash, *voiceHandle, volume, pan, (bool)paused, (bool)looping, loopingStartAt);
     }
 
+    FFI_PLUGIN_EXPORT enum PlayerErrors play3dOnBus(
+        unsigned int busHandle,
+        unsigned int soundHash,
+        float posX,
+        float posY,
+        float posZ,
+        float velX,
+        float velY,
+        float velZ,
+        float volume,
+        int paused,
+        int looping,
+        double loopingStartAt,
+        unsigned int *voiceHandle)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+        return (PlayerErrors)player.get()->play3dOnBus(
+            busHandle, soundHash, *voiceHandle,
+            posX, posY, posZ,
+            velX, velY, velZ,
+            volume, (bool)paused, (bool)looping, loopingStartAt);
+    }
+
     FFI_PLUGIN_EXPORT void setBusVolume(unsigned int busHandle, float volume)
     {
         if (player.get() == nullptr || !player.get()->isInited())
