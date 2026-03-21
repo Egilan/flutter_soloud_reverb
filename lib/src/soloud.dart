@@ -3030,9 +3030,9 @@ interface class SoLoud {
     final ret = _controller.soLoudFFI.play3dOnBus(
       busHandle,
       sound.soundHash,
-      posX,
-      posY,
-      posZ,
+      posX: posX,
+      posY: posY,
+      posZ: posZ,
       velX: velX,
       velY: velY,
       velZ: velZ,
