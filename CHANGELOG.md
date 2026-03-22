@@ -15,6 +15,27 @@
 - previously wasm module was included on all platforms, now it is included only on web
 - Linux feat: choose to link ogg,opus,vorbis, and flac libraries from the system with `TRY_SYSTEM_LIBS_FIRST=1` environment variable #421
 
+#### 3.5.3 (21 Mar 2026)
+fix: compilation error on Windows #423
+
+#### 3.5.2 (18 Mar 2026)
+- fix: wire miniaudio backend pause/resume to stop AudioUnit on iOS #406. Thanks to @sbauly
+- updated audio_context example to demostrate how to integrate with `audio_session` and `audio_service`
+
+#### 3.5.1 (14 Mar 2026)
+- `getStreamTimeConsumed` return wrong time for s16le and s8 #419
+- win fix: hang on app exit #413
+- win fix: prevent Windows message pump goes irresponsive with plugins like `desktop_drop` and maybe others #401
+- fix: only unpause when buffer covers playback position #393. Thanks to @nukes
+- wasm fix: runtimeType error when voice ended #414
+
+#### 3.5.0 (1 Mar 2026)
+- Harden loader temp directory logic #404. Thanks to @filiph
+- updated audio_context example
+
+#### 3.4.10 (2 Feb 2026)
+- fix loadMem issue after deinit #399
+
 #### 3.4.9 (21 Jan 2026)
 - fix crash when seeking with a negative value #386
 - Linux fix: don't use -msse on arm64 builds #395. Thanks to @adil192

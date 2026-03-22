@@ -2,6 +2,7 @@
 #include "player.h"
 #include "soloud/include/soloud_bus.h"
 #include "soloud/include/soloud_fft.h"
+#include "soloud/include/soloud_internal.h"
 #include "soloud_thread.h"
 #include "waveform/waveform.h"
 
@@ -224,8 +225,8 @@ FFI_PLUGIN_EXPORT enum PlayerErrors initEngine(int deviceID,
   // Set the callback for when a voice is ended/stopped
   player.get()->setVoiceEndedCallback(voiceEndedCallback);
 
-  return (PlayerErrors)noError;
-}
+        return PlayerErrors::noError;
+    }
 
 /// Change the playback device.
 ///
