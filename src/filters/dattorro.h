@@ -34,7 +34,7 @@ private:
     int mPreDelayIdx;
 
     // Input diffusers (4 allpass filters in series)
-    float mDiff1[512], mDiff2[512], mDiff3[512], mDiff4[512];
+    float mDiff1[512], mDiff2[512], mDiff3[1024], mDiff4[512];
     int mDiff1Idx, mDiff2Idx, mDiff3Idx, mDiff4Idx;
     int mDiff1Len, mDiff2Len, mDiff3Len, mDiff4Len;
 
@@ -54,8 +54,8 @@ private:
     int mTankDelay1Len, mTankDelay2Len, mTankDelay3Len, mTankDelay4Len;
 
     // Tank allpass diffusers (two per half: AP1/AP2 for left, AP3/AP4 for right)
-    float mTankAP1[1024], mTankAP2[2048];
-    float mTankAP3[1024], mTankAP4[2048];
+    float mTankAP1[2048], mTankAP2[4096];
+    float mTankAP3[2048], mTankAP4[8192];
     int mTankAP1Idx, mTankAP2Idx, mTankAP3Idx, mTankAP4Idx;
     int mTankAP1Len, mTankAP2Len, mTankAP3Len, mTankAP4Len;
 

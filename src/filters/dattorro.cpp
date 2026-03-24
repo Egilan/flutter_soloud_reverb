@@ -50,7 +50,7 @@ void DattorroReverb::init(float sr) {
     // Input diffuser lengths (scaled) - from Dattorro paper
     mDiff1Len = (int)(142 * scale); if (mDiff1Len < 1) mDiff1Len = 1; if (mDiff1Len > 511) mDiff1Len = 511;
     mDiff2Len = (int)(107 * scale); if (mDiff2Len < 1) mDiff2Len = 1; if (mDiff2Len > 511) mDiff2Len = 511;
-    mDiff3Len = (int)(379 * scale); if (mDiff3Len < 1) mDiff3Len = 1; if (mDiff3Len > 511) mDiff3Len = 511;
+    mDiff3Len = (int)(379 * scale); if (mDiff3Len < 1) mDiff3Len = 1; if (mDiff3Len > 1023) mDiff3Len = 1023;
     mDiff4Len = (int)(277 * scale); if (mDiff4Len < 1) mDiff4Len = 1; if (mDiff4Len > 511) mDiff4Len = 511;
 
     // Tank topology per half (from Dattorro paper Figure 1):
@@ -60,10 +60,10 @@ void DattorroReverb::init(float sr) {
     // Right half: AP3(908) -> Delay3(4217) -> LP -> AP4(2656) -> Delay4(3163)
 
     // Tank allpass lengths
-    mTankAP1Len = (int)(672 * scale);  if (mTankAP1Len < 1) mTankAP1Len = 1; if (mTankAP1Len > 1023) mTankAP1Len = 1023;
-    mTankAP2Len = (int)(1800 * scale); if (mTankAP2Len < 1) mTankAP2Len = 1; if (mTankAP2Len > 2047) mTankAP2Len = 2047;
-    mTankAP3Len = (int)(908 * scale);  if (mTankAP3Len < 1) mTankAP3Len = 1; if (mTankAP3Len > 1023) mTankAP3Len = 1023;
-    mTankAP4Len = (int)(2656 * scale); if (mTankAP4Len < 1) mTankAP4Len = 1; if (mTankAP4Len > 2047) mTankAP4Len = 2047;
+    mTankAP1Len = (int)(672 * scale);  if (mTankAP1Len < 1) mTankAP1Len = 1; if (mTankAP1Len > 2047) mTankAP1Len = 2047;
+    mTankAP2Len = (int)(1800 * scale); if (mTankAP2Len < 1) mTankAP2Len = 1; if (mTankAP2Len > 4095) mTankAP2Len = 4095;
+    mTankAP3Len = (int)(908 * scale);  if (mTankAP3Len < 1) mTankAP3Len = 1; if (mTankAP3Len > 2047) mTankAP3Len = 2047;
+    mTankAP4Len = (int)(2656 * scale); if (mTankAP4Len < 1) mTankAP4Len = 1; if (mTankAP4Len > 8191) mTankAP4Len = 8191;
 
     // Tank delay lengths
     mTankDelay1Len = (int)(4453 * scale); if (mTankDelay1Len < 1) mTankDelay1Len = 1; if (mTankDelay1Len > TANK_DELAY1_MAX-1) mTankDelay1Len = TANK_DELAY1_MAX-1;
@@ -175,7 +175,7 @@ void DattorroReverb::processSample(float inL, float inR, float& outL, float& out
     float diffused = preDelayed;
     diffused = processAllpass(diffused, mDiff1, 512, mDiff1Idx, mDiff1Len, 0.75f);
     diffused = processAllpass(diffused, mDiff2, 512, mDiff2Idx, mDiff2Len, 0.75f);
-    diffused = processAllpass(diffused, mDiff3, 512, mDiff3Idx, mDiff3Len, 0.625f);
+    diffused = processAllpass(diffused, mDiff3, 1024, mDiff3Idx, mDiff3Len, 0.625f);
     diffused = processAllpass(diffused, mDiff4, 512, mDiff4Idx, mDiff4Len, 0.625f);
 
     // === LFO ===
@@ -197,7 +197,7 @@ void DattorroReverb::processSample(float inL, float inR, float& outL, float& out
     float tankInL = diffused + prevTankOutR * mDecay;
 
     // First allpass (modulated by LFO)
-    float apOutL1 = processAllpassMod(tankInL, mTankAP1, 1024, mTankAP1Idx, mTankAP1Len, -0.7f, lfoSin * mLfoExcursion);
+    float apOutL1 = processAllpassMod(tankInL, mTankAP1, 2048, mTankAP1Idx, mTankAP1Len, -0.7f, lfoSin * mLfoExcursion);
 
     // First delay line
     mTankDelay1[mTankDelay1Idx] = apOutL1;
@@ -211,7 +211,7 @@ void DattorroReverb::processSample(float inL, float inR, float& outL, float& out
     mDampL = mDampL * mDamping + d1Out * (1.0f - mDamping);
 
     // Second allpass
-    float apOutL2 = processAllpass(mDampL * mDecay, mTankAP2, 2048, mTankAP2Idx, mTankAP2Len, 0.5f);
+    float apOutL2 = processAllpass(mDampL * mDecay, mTankAP2, 4096, mTankAP2Idx, mTankAP2Len, 0.5f);
 
     // Second delay line
     mTankDelay2[mTankDelay2Idx] = apOutL2;
@@ -225,7 +225,7 @@ void DattorroReverb::processSample(float inL, float inR, float& outL, float& out
     float tankInR = diffused + prevTankOutL * mDecay;
 
     // First allpass (modulated by LFO, phase-offset using cosine)
-    float apOutR1 = processAllpassMod(tankInR, mTankAP3, 1024, mTankAP3Idx, mTankAP3Len, -0.7f, lfoCos * mLfoExcursion);
+    float apOutR1 = processAllpassMod(tankInR, mTankAP3, 2048, mTankAP3Idx, mTankAP3Len, -0.7f, lfoCos * mLfoExcursion);
 
     // First delay line
     mTankDelay3[mTankDelay3Idx] = apOutR1;
@@ -239,7 +239,7 @@ void DattorroReverb::processSample(float inL, float inR, float& outL, float& out
     mDampR = mDampR * mDamping + d3Out * (1.0f - mDamping);
 
     // Second allpass
-    float apOutR2 = processAllpass(mDampR * mDecay, mTankAP4, 2048, mTankAP4Idx, mTankAP4Len, 0.5f);
+    float apOutR2 = processAllpass(mDampR * mDecay, mTankAP4, 8192, mTankAP4Idx, mTankAP4Len, 0.5f);
 
     // Second delay line
     mTankDelay4[mTankDelay4Idx] = apOutR2;
@@ -253,19 +253,19 @@ void DattorroReverb::processSample(float inL, float inR, float& outL, float& out
     // Left output: taps from both halves
     float wetL = readDelay(mTankDelay1, TANK_DELAY1_MAX, mTankDelay1Idx, mTapL_d1a)
                + readDelay(mTankDelay1, TANK_DELAY1_MAX, mTankDelay1Idx, mTapL_d1b)
-               - readDelay(mTankAP2, 2048, mTankAP2Idx, mTapL_ap2)
+               - readDelay(mTankAP2, 4096, mTankAP2Idx, mTapL_ap2)
                + readDelay(mTankDelay2, TANK_DELAY2_MAX, mTankDelay2Idx, mTapL_d2)
                - readDelay(mTankDelay3, TANK_DELAY3_MAX, mTankDelay3Idx, mTapL_d3a)
-               - readDelay(mTankAP4, 2048, mTankAP4Idx, mTapL_ap4)
+               - readDelay(mTankAP4, 8192, mTankAP4Idx, mTapL_ap4)
                - readDelay(mTankDelay4, TANK_DELAY4_MAX, mTankDelay4Idx, mTapL_d4);
 
     // Right output: taps from both halves
     float wetR = readDelay(mTankDelay3, TANK_DELAY3_MAX, mTankDelay3Idx, mTapR_d3a)
                + readDelay(mTankDelay3, TANK_DELAY3_MAX, mTankDelay3Idx, mTapR_d3b)
-               - readDelay(mTankAP4, 2048, mTankAP4Idx, mTapR_ap4)
+               - readDelay(mTankAP4, 8192, mTankAP4Idx, mTapR_ap4)
                + readDelay(mTankDelay4, TANK_DELAY4_MAX, mTankDelay4Idx, mTapR_d4)
                - readDelay(mTankDelay1, TANK_DELAY1_MAX, mTankDelay1Idx, mTapR_d1a)
-               - readDelay(mTankAP2, 2048, mTankAP2Idx, mTapR_ap2)
+               - readDelay(mTankAP2, 4096, mTankAP2Idx, mTapR_ap2)
                - readDelay(mTankDelay2, TANK_DELAY2_MAX, mTankDelay2Idx, mTapR_d2);
 
     // Scale output (7 taps summed)
