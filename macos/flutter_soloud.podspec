@@ -19,10 +19,10 @@ Flutter audio plugin using SoLoud library and FFI
   s.platform = :osx, '10.15'
 
   # Declare vendored Xiph libraries (only when not disabled)
-  s.vendored_libraries = 'flutter_soloud/libs/lib*.a' unless ENV['NO_OPUS_OGG_LIBS'] == '1'
+  s.vendored_libraries = 'flutter_soloud/libs/lib*.a' unless ENV['NO_XIPH_LIBS'] == '1'
 
   # Check if we should disable opus/ogg support (must exist and be '1')
-  disable_opus_ogg = !ENV['NO_OPUS_OGG_LIBS'].nil? && ENV['NO_OPUS_OGG_LIBS'] == '1'
+  disable_xiph_libs = !ENV['NO_XIPH_LIBS'].nil? && ENV['NO_XIPH_LIBS'] == '1'
   
   local_lib_path = '$(PODS_TARGET_SRCROOT)/flutter_soloud/libs'
   local_include_path = '$(PODS_TARGET_SRCROOT)/flutter_soloud/include'
@@ -31,8 +31,8 @@ Flutter audio plugin using SoLoud library and FFI
   plugin_root = '${PODS_ROOT}/../Flutter/ephemeral/.symlinks/plugins/flutter_soloud/macos'
 
   preprocessor_definitions = ['$(inherited)']
-  if disable_opus_ogg
-    preprocessor_definitions << 'NO_OPUS_OGG_LIBS'
+  if disable_xiph_libs
+    preprocessor_definitions << 'NO_XIPH_LIBS'
   end
   preprocessor_definitions << 'SIGNALSMITH_USE_PFFFT'
 
@@ -40,7 +40,7 @@ Flutter audio plugin using SoLoud library and FFI
   # CMake handles incremental builds internally — if no source files changed,
   # this is a fast no-op.
   script_lines = [
-    (disable_opus_ogg ? 'export NO_OPUS_OGG_LIBS=1' : 'unset NO_OPUS_OGG_LIBS'),
+    (disable_xiph_libs ? 'export NO_XIPH_LIBS=1' : 'unset NO_XIPH_LIBS'),
     'bash "${PODS_TARGET_SRCROOT}/build_cmake.sh"'
   ]
 
@@ -81,7 +81,7 @@ Flutter audio plugin using SoLoud library and FFI
   
   # With vendored_libraries declared above, CocoaPods handles xiph lib linking automatically.
   # We only need the library search path for the cmake_build output and ensure inherited flags.
-  xiph_flags = disable_opus_ogg ? '' : '-logg -lopus -lvorbis -lvorbisfile -lFLAC'
+  xiph_flags = disable_xiph_libs ? '' : '-logg -lopus -lvorbis -lvorbisfile -lFLAC'
 
   s.user_target_xcconfig = {
     'OTHER_LDFLAGS' => "$(inherited) #{force_load_lib} #{xiph_flags}",

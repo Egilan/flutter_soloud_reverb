@@ -22,8 +22,8 @@ target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 target_compile_definitions(${PLUGIN_NAME} PRIVATE SIGNALSMITH_USE_PFFFT)
 target_include_directories(${PLUGIN_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-if(NOT DEFINED ENV{NO_OPUS_OGG_LIBS})
-    message("NO_OPUS_OGG_LIBS has not been set. Linking Opus and Ogg libraries!")
+if(NOT DEFINED ENV{NO_XIPH_LIBS})
+    message("NO_XIPH_LIBS has not been set. Linking Opus and Ogg libraries!")
 
     if(MSVC)
       # Enable static linking of the MSVC runtime
@@ -89,8 +89,8 @@ if(NOT DEFINED ENV{NO_OPUS_OGG_LIBS})
         "${CMAKE_BINARY_DIR}/runner/$<CONFIG>/FLAC.dll"
     )
 else()
-    message("NO_OPUS_OGG_LIBS has been set. Not linking Opus and Ogg libraries!")
-    add_definitions(-DNO_OPUS_OGG_LIBS)
+    message("NO_XIPH_LIBS has been set. Not linking Opus and Ogg libraries!")
+    add_definitions(-DNO_XIPH_LIBS)
 endif()
 
 if(MSVC)

@@ -954,9 +954,9 @@ interface class SoLoud {
   ///
   /// Throws [SoLoudOpusOggLibsNotAvailableException] if the Ogg, Opus and
   /// Vorbis libraries are not linked and trying to add audio data in those
-  /// formats. Probably you need to unset NO_OPUS_OGG_LIBS environment
+  /// formats. Probably you need to unset NO_XIPH_LIBS environment
   /// variable. Ref:
-  /// https://docs.page/alnitak/flutter_soloud_docs/get_started/no_opus_ogg_libs
+  /// https://docs.page/alnitak/flutter_soloud_docs/get_started/no_xiph_libs
   void addAudioDataStream(AudioSource source, Uint8List audioChunk) {
     if (!isInitialized) {
       throw const SoLoudNotInitializedException();

@@ -19,14 +19,14 @@ Flutter audio plugin using SoLoud library and FFI
   s.platform = :ios, '13.0'
 
   # Check if we should disable opus/ogg support (must exist and be '1')
-  disable_opus_ogg = !ENV['NO_OPUS_OGG_LIBS'].nil? && ENV['NO_OPUS_OGG_LIBS'] == '1'
+  disable_xiph_libs = !ENV['NO_XIPH_LIBS'].nil? && ENV['NO_XIPH_LIBS'] == '1'
 
   # Path to the plugin's source root from PODS_ROOT (available in app target context)
   plugin_root = '${PODS_ROOT}/../.symlinks/plugins/flutter_soloud/ios'
 
   preprocessor_definitions = ['$(inherited)']
-  if disable_opus_ogg
-    preprocessor_definitions << 'NO_OPUS_OGG_LIBS'
+  if disable_xiph_libs
+    preprocessor_definitions << 'NO_XIPH_LIBS'
   end
   preprocessor_definitions << 'SIGNALSMITH_USE_PFFFT'
 
@@ -34,7 +34,7 @@ Flutter audio plugin using SoLoud library and FFI
   # CMake handles incremental builds internally — if no source files changed,
   # this is a fast no-op.
   script_lines = [
-    (disable_opus_ogg ? 'export NO_OPUS_OGG_LIBS=1' : 'unset NO_OPUS_OGG_LIBS'),
+    (disable_xiph_libs ? 'export NO_XIPH_LIBS=1' : 'unset NO_XIPH_LIBS'),
     'bash "${PODS_TARGET_SRCROOT}/build_cmake.sh"'
   ]
 
@@ -74,7 +74,7 @@ Flutter audio plugin using SoLoud library and FFI
   # in the app target's context.
   force_load_lib = "-force_load #{plugin_root}/cmake_build/$(PLATFORM_NAME)/libflutter_soloud_plugin.a"
 
-  if disable_opus_ogg
+  if disable_xiph_libs
     user_ldflags_device = force_load_lib
     user_ldflags_sim = force_load_lib
   else
@@ -89,7 +89,7 @@ Flutter audio plugin using SoLoud library and FFI
   }
   
   # Only include libraries if opus/ogg is enabled
-  if !disable_opus_ogg
+  if !disable_xiph_libs
     s.ios.vendored_libraries = [
       'flutter_soloud/libs/libopus_iOS-device.a',
       'flutter_soloud/libs/libogg_iOS-device.a',

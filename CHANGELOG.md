@@ -17,6 +17,7 @@
 - Android: build optimizations
 - breaking change: bump Flutter version to 3.41.0 and Dart to 3.11.0
 - breaking change: play, play3d, speechText, are now sync
+- breaking change: renamed `NO_OPUS_OGG_LIBS` environment variable to `NO_XIPH_LIBS`
 
 #### 3.5.3 (21 Mar 2026)
 - fix: compilation error on Windows #423

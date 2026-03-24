@@ -1,4 +1,4 @@
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
 
 #include "vorbis_stream_decoder.h"
 #include <stdexcept>
@@ -274,4 +274,4 @@ std::vector<float> VorbisDecoderWrapper::decodePacket(ogg_packet* packet) {
 
     return packetPcm;
 }
-#endif // #if defined(NO_OPUS_OGG_LIBS)
+#endif // #if defined(NO_XIPH_LIBS)

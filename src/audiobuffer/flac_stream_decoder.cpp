@@ -1,4 +1,4 @@
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
 
 #include "flac_stream_decoder.h"
 #include "../common.h"
@@ -301,4 +301,4 @@ void FlacDecoderWrapper::getMetadata()
     }
 }
 
-#endif // #if !defined(NO_OPUS_OGG_LIBS)
+#endif // #if !defined(NO_XIPH_LIBS)

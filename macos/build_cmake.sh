@@ -37,11 +37,11 @@ echo "  CMAKE_ARCHS: ${CMAKE_ARCHS}"
 echo "  SDKROOT: ${SDKROOT}"
 echo "  BUILD_DIR: ${BUILD_DIR}"
 
-# Clear cached NO_OPUS_OGG_LIBS from CMake cache to ensure environment variable is respected
+# Clear cached NO_XIPH_LIBS from CMake cache to ensure environment variable is respected
 # This allows switching between configurations without manual cache deletion
 if [ -f "${BUILD_DIR}/CMakeCache.txt" ]; then
-    # Remove any cached NO_OPUS_OGG_LIBS value so we always use the current environment
-    sed -i '' '/NO_OPUS_OGG_LIBS/d' "${BUILD_DIR}/CMakeCache.txt" 2>/dev/null || true
+    # Remove any cached NO_XIPH_LIBS value so we always use the current environment
+    sed -i '' '/NO_XIPH_LIBS/d' "${BUILD_DIR}/CMakeCache.txt" 2>/dev/null || true
 fi
 
 cmake -S "${SCRIPT_DIR}" \

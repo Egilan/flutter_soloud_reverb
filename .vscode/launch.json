@@ -11,7 +11,7 @@
             "program": "lib/buffer_stream/web_radio.dart",
             "flutterMode": "debug",
             // "env": {
-            //     "NO_OPUS_OGG_LIBS": "1"
+            //     "NO_XIPH_LIBS": "1"
             // },
             "cwd": "${workspaceFolder}/example"
         },
@@ -22,7 +22,7 @@
             "program": "lib/mixing_bus/mixing_bus.dart",
             "flutterMode": "profile",
             // "env": {
-            //     "NO_OPUS_OGG_LIBS": "1"
+            //     "NO_XIPH_LIBS": "1"
             // },
             "cwd": "${workspaceFolder}/example"
         },
@@ -33,7 +33,7 @@
             "program": "lib/buffer_stream/web_radio.dart",
             "flutterMode": "release",
             // "env": {
-            //     "NO_OPUS_OGG_LIBS": "1"
+            //     "NO_XIPH_LIBS": "1"
             // },
             "cwd": "${workspaceFolder}/example"
         },

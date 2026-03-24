@@ -27,7 +27,7 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
 
 # Library linking behavior:
 # 
-# - NO_OPUS_OGG_LIBS:       If set, skips linking Opus/Ogg/Vorbis/FLAC libraries entirely.
+# - NO_XIPH_LIBS:       If set, skips linking Opus/Ogg/Vorbis/FLAC libraries entirely.
 #
 # - TRY_SYSTEM_LIBS_FIRST:  If set, tries to find system-installed libraries first
 #                           (FLAC, opus, ogg, vorbis, vorbisfile), and falls back to
@@ -35,8 +35,8 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
 #
 # - Default behavior:       Uses bundled precompiled libraries from the libs/ directory.
 #
-if(NOT DEFINED ENV{NO_OPUS_OGG_LIBS})
-    message("NO_OPUS_OGG_LIBS has not been set. Linking Opus and Ogg libraries!")
+if(NOT DEFINED ENV{NO_XIPH_LIBS})
+    message("NO_XIPH_LIBS has not been set. Linking Opus and Ogg libraries!")
 
     # Check if we should try system libraries first
     if(DEFINED ENV{TRY_SYSTEM_LIBS_FIRST})
@@ -124,8 +124,8 @@ if(NOT DEFINED ENV{NO_OPUS_OGG_LIBS})
 
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 else()
-    message("NO_OPUS_OGG_LIBS has been set. Not linking Opus and Ogg libraries!")
-    add_definitions(-DNO_OPUS_OGG_LIBS)
+    message("NO_XIPH_LIBS has been set. Not linking Opus and Ogg libraries!")
+    add_definitions(-DNO_XIPH_LIBS)
 endif()
 
 target_compile_options("${PLUGIN_NAME}" PRIVATE -Wall -Wno-error -Wno-vla -O2) #  -ldl -lpthread -lm

@@ -42,8 +42,8 @@ target_include_directories(${PLUGIN_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}
 target_link_libraries(${PLUGIN_NAME} PRIVATE ${log-lib} android)
 
 
-if(NOT DEFINED NO_OPUS_OGG_LIBS AND NOT DEFINED ENV{NO_OPUS_OGG_LIBS})
-    message("NO_OPUS_OGG_LIBS has not been set. Linking Opus and Ogg libraries!")
+if(NOT DEFINED NO_XIPH_LIBS AND NOT DEFINED ENV{NO_XIPH_LIBS})
+    message("NO_XIPH_LIBS has not been set. Linking Opus and Ogg libraries!")
 
     # Add FLAC library
     set(FLAC_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/${ANDROID_ABI}/libFLAC.so)
@@ -67,8 +67,8 @@ if(NOT DEFINED NO_OPUS_OGG_LIBS AND NOT DEFINED ENV{NO_OPUS_OGG_LIBS})
 
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 else()
-    message("NO_OPUS_OGG_LIBS has been set. Not linking Opus and Ogg libraries!")
-    add_definitions(-DNO_OPUS_OGG_LIBS)
+    message("NO_XIPH_LIBS has been set. Not linking Opus and Ogg libraries!")
+    add_definitions(-DNO_XIPH_LIBS)
 endif()
 
 # Support Android 15 16k page size

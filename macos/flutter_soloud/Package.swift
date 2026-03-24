@@ -5,9 +5,9 @@ import PackageDescription
 import class Foundation.ProcessInfo
 
 // Check if Opus/Ogg libraries should be disabled via environment variable
-// Usage: NO_OPUS_OGG_LIBS=1 swift build
+// Usage: NO_XIPH_LIBS=1 swift build
 var disableOpusOggLibs: Bool {
-    ProcessInfo.processInfo.environment["NO_OPUS_OGG_LIBS"] == "1"
+    ProcessInfo.processInfo.environment["NO_XIPH_LIBS"] == "1"
 }
 
 // Base dependencies that are always included
@@ -45,10 +45,10 @@ let cSettings: [CSetting]
 let cxxSettings: [CXXSetting]
 if disableOpusOggLibs {
     cSettings = baseCSettings + [
-        .define("NO_OPUS_OGG_LIBS")
+        .define("NO_XIPH_LIBS")
     ]
     cxxSettings = baseCXXSettings + [
-        .define("NO_OPUS_OGG_LIBS")
+        .define("NO_XIPH_LIBS")
     ]
 } else {
     cSettings = baseCSettings + [

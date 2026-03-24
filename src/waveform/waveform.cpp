@@ -1,5 +1,5 @@
 #include "../soloud/src/backend/miniaudio/miniaudio.h"
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
     #include "miniaudio_libvorbis.h"
 #endif
 #include "common.h"
@@ -118,7 +118,7 @@ namespace Waveform
         ma_result result;
         bool isOgg = false;
 
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
         // Create a static backend vtable to ensure it persists
         static ma_decoding_backend_vtable* pCustomBackendVTables[] = {
             ma_decoding_backend_libvorbis
@@ -153,15 +153,15 @@ namespace Waveform
         else if (buffer[0] == 'O' && buffer[1] == 'g' && buffer[2] == 'g' && buffer[3] == 'S')
             isOgg = true;
 
-#if defined(NO_OPUS_OGG_LIBS)
+#if defined(NO_XIPH_LIBS)
         if (isOgg)
         {
-            platform_log("No OGG support. If you want OGG support, please undefine NO_OPUS_OGG_LIBS\n");
+            platform_log("No OGG support. If you want OGG support, please undefine NO_XIPH_LIBS\n");
             return ReadSamplesErrors::noBackend;
         }
 #endif
 
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
         if (isOgg)
         {
             decoderConfig.pCustomBackendUserData = NULL;

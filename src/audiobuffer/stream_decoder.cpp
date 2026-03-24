@@ -1,6 +1,6 @@
 #include "stream_decoder.h"
 #include "mp3_stream_decoder.h"
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
 #   include "opus_stream_decoder.h"
 #   include "vorbis_stream_decoder.h"
 #   include "flac_stream_decoder.h"
@@ -123,7 +123,7 @@ std::pair<std::vector<float>, DecoderError> StreamDecoder::decode(
         if (detectedType == DetectedType::BUFFER_OGG_OPUS
             || detectedType == DetectedType::BUFFER_OGG_VORBIS
             || detectedType == DetectedType::BUFFER_OGG_FLAC) {
-            #if defined(NO_OPUS_OGG_LIBS)
+            #if defined(NO_XIPH_LIBS)
                 return {{}, DecoderError::NoOpusOggLibs};
             #else
                 if (detectedType == DetectedType::BUFFER_OGG_VORBIS) {
@@ -162,7 +162,7 @@ std::pair<std::vector<float>, DecoderError> StreamDecoder::decode(
     }
     
     if (mWrapper) {
-        #if !defined(NO_OPUS_OGG_LIBS)
+        #if !defined(NO_XIPH_LIBS)
             if (mWrapper->detectedType == DetectedType::BUFFER_OGG_OPUS) {
                 return static_cast<OpusDecoderWrapper*>(mWrapper.get())->decode(buffer, samplerate, channels);
             }

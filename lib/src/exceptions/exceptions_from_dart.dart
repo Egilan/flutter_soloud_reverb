@@ -132,7 +132,7 @@ class SoLoudOpusOggLibsNotAvailableException extends SoLoudDartException {
       'If your target platform is Android, could happens that the NDK built '
       'files are not updated. If this is the case, or you just want to read '
       'more about enablig/disabling the libs, please read the documentation: '
-      'https://docs.page/alnitak/flutter_soloud_docs/get_started/no_opus_ogg_libs';
+      'https://docs.page/alnitak/flutter_soloud_docs/get_started/no_xiph_libs';
 }
 
 /// An exception that is thrown when trying to use a bus that has been disposed.

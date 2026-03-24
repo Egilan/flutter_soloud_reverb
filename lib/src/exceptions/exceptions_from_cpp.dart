@@ -198,8 +198,8 @@ class SoLoudReadSamplesNoBackendCppException extends SoLoudCppException {
   String get description => 'An error occurred while initializing the '
       'backend to read samples. Probably for an unsupported or broken format. '
       'If you are trying to open an OGG file, please make sure that you have '
-      'unset NO_OPUS_OGG_LIBS environment variable. Ref: '
-      'https://docs.page/alnitak/flutter_soloud_docs/get_started/no_opus_ogg_libs  '
+      'unset NO_XIPH_LIBS environment variable. Ref: '
+      'https://docs.page/alnitak/flutter_soloud_docs/get_started/no_xiph_libs  '
       '(on the C++ side).';
 }
 
@@ -371,8 +371,8 @@ class SoLoudOpusOggVorbisLibsNotFoundCppException extends SoLoudCppException {
   String get description => 'An error occurred while trying to initialize an '
       'audio decoder. Probably for an unsupported or broken format. '
       'If you are trying to open an OGG/OPUS/VORBIS stream, please make sure '
-      'that you have unset NO_OPUS_OGG_LIBS environment variable. Ref: '
-      'https://docs.page/alnitak/flutter_soloud_docs/get_started/no_opus_ogg_libs  '
+      'that you have unset NO_XIPH_LIBS environment variable. Ref: '
+      'https://docs.page/alnitak/flutter_soloud_docs/get_started/no_xiph_libs  '
       '(on the C++ side).';
 }
 

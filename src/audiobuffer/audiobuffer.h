@@ -11,7 +11,7 @@
 #include <atomic>
 #include <chrono>
 #include <stdio.h>
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
 #include "opus_stream_decoder.h"
 #endif
 #include "metadata_ffi.h"

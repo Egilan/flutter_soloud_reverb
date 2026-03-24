@@ -1,4 +1,4 @@
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
 
 #ifndef miniaudio_libvorbis_c
 #define miniaudio_libvorbis_c

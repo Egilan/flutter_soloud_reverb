@@ -246,7 +246,7 @@ PlayerErrors BufferStream::setBufferStream(
     streamDecoder = std::make_unique<StreamDecoder>();
   }
 
-#if defined(NO_OPUS_OGG_LIBS)
+#if defined(NO_XIPH_LIBS)
   if (pcmFormat.dataType == BufferType::OPUS) {
     return PlayerErrors::failedToCreateOpusDecoder;
   }

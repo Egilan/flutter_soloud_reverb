@@ -7,7 +7,7 @@ RESET="\e[0m"
 
 # Comment this line or set it to 0 to build with opus and ogg.
 # If set to 1, the plugin will be built without opus and ogg.
-NO_OPUS_OGG_LIBS="0"
+NO_XIPH_LIBS="0"
 
 # Get number of CPU cores for parallel compilation
 CORES=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
@@ -17,7 +17,7 @@ CORES=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 FORCE_REBUILD_LIBS=0
 
 # Check if we should skip Opus/Ogg
-if [ -n "${NO_OPUS_OGG_LIBS+x}" ] && [ "$NO_OPUS_OGG_LIBS" = "1" ]; then
+if [ -n "${NO_XIPH_LIBS+x}" ] && [ "$NO_XIPH_LIBS" = "1" ]; then
     SKIP_OPUS_OGG="1"
 else
     SKIP_OPUS_OGG="0"
@@ -178,10 +178,10 @@ if [ "${SKIP_OPUS_OGG}" != "1" ]; then
     )
 fi
 
-# Define compiler flags based on NO_OPUS_OGG_LIBS
+# Define compiler flags based on NO_XIPH_LIBS
 COMPILER_DEFINES="-D WITH_MINIAUDIO -D SIGNALSMITH_USE_PFFFT"
 if [ "${SKIP_OPUS_OGG}" = "1" ]; then
-    COMPILER_DEFINES="$COMPILER_DEFINES -D NO_OPUS_OGG_LIBS"
+    COMPILER_DEFINES="$COMPILER_DEFINES -D NO_XIPH_LIBS"
 fi
 
 # Now compile everything together

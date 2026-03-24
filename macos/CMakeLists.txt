@@ -24,11 +24,11 @@ target_compile_definitions(${PLUGIN_NAME} PRIVATE SIGNALSMITH_USE_PFFFT)
 
 # Xiph library include paths (for compilation only; linking is handled by the podspec)
 # Check environment variable directly - do not cache to allow switching between configurations
-if(DEFINED ENV{NO_OPUS_OGG_LIBS} AND NOT "$ENV{NO_OPUS_OGG_LIBS}" STREQUAL "")
-    message("NO_OPUS_OGG_LIBS has been set. Not including Opus/Ogg headers.")
-    add_definitions(-DNO_OPUS_OGG_LIBS)
+if(DEFINED ENV{NO_XIPH_LIBS} AND NOT "$ENV{NO_XIPH_LIBS}" STREQUAL "")
+    message("NO_XIPH_LIBS has been set. Not including Opus/Ogg headers.")
+    add_definitions(-DNO_XIPH_LIBS)
 else()
-    message("NO_OPUS_OGG_LIBS has not been set. Including Opus/Ogg headers.")
+    message("NO_XIPH_LIBS has not been set. Including Opus/Ogg headers.")
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/flutter_soloud/include)
 endif()
 
