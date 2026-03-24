@@ -10,13 +10,13 @@ namespace dattorro {
 class DattorroReverb {
 public:
     DattorroReverb();
-    
+
     void init(float sampleRate);
     void processSample(float inL, float inR, float& outL, float& outR);
-    
+
     void setPreDelay(float val);
-    void setDecay(float val); 
-    void setDamping(float val); 
+    void setDecay(float val);
+    void setDamping(float val);
     void setWet(float val);
     void setDry(float val);
 
@@ -26,73 +26,115 @@ private:
     float mDamping;
     float mWet;
     float mDry;
-    
+
     // Pre-delay
     enum { PREDELAY_MAX = 8820 }; // 200ms at 44.1k
     float mPreDelay[PREDELAY_MAX];
     int mPreDelayLen;
     int mPreDelayIdx;
-    
+
     // Input diffusers (4 allpass filters in series)
-    enum { 
-        DIFF1_LEN = 142,
-        DIFF2_LEN = 107,
-        DIFF3_LEN = 379,
-        DIFF4_LEN = 277
-    };
     float mDiff1[512], mDiff2[512], mDiff3[512], mDiff4[512];
     int mDiff1Idx, mDiff2Idx, mDiff3Idx, mDiff4Idx;
     int mDiff1Len, mDiff2Len, mDiff3Len, mDiff4Len;
-    
+
     // Tank delays (the main reverb body)
+    // Dattorro paper has two delay lines per tank half
     enum {
-        TANK1_MAX = 8192,
-        TANK2_MAX = 8192
+        TANK_DELAY1_MAX = 8192,  // first delay in left half
+        TANK_DELAY2_MAX = 8192,  // second delay in left half
+        TANK_DELAY3_MAX = 8192,  // first delay in right half
+        TANK_DELAY4_MAX = 8192   // second delay in right half
     };
-    float mTank1[TANK1_MAX];
-    float mTank2[TANK2_MAX];
-    int mTank1Idx, mTank2Idx;
-    int mTank1Len, mTank2Len;
-    
-    // Tank allpass diffusers
-    enum {
-        TANKAP1_LEN = 672,
-        TANKAP2_LEN = 908
-    };
-    float mTankAP1[1024], mTankAP2[1024];
-    int mTankAP1Idx, mTankAP2Idx;
-    int mTankAP1Len, mTankAP2Len;
-    
+    float mTankDelay1[TANK_DELAY1_MAX];
+    float mTankDelay2[TANK_DELAY2_MAX];
+    float mTankDelay3[TANK_DELAY3_MAX];
+    float mTankDelay4[TANK_DELAY4_MAX];
+    int mTankDelay1Idx, mTankDelay2Idx, mTankDelay3Idx, mTankDelay4Idx;
+    int mTankDelay1Len, mTankDelay2Len, mTankDelay3Len, mTankDelay4Len;
+
+    // Tank allpass diffusers (two per half: AP1/AP2 for left, AP3/AP4 for right)
+    float mTankAP1[1024], mTankAP2[2048];
+    float mTankAP3[1024], mTankAP4[2048];
+    int mTankAP1Idx, mTankAP2Idx, mTankAP3Idx, mTankAP4Idx;
+    int mTankAP1Len, mTankAP2Len, mTankAP3Len, mTankAP4Len;
+
     // Damping lowpass states
     float mDampL, mDampR;
-    
+
     // Tank feedback storage
     float mTankOutL, mTankOutR;
-    
-    // Output tap positions (scaled at init)
-    int mTapL1, mTapL2, mTapL3, mTapL4;
-    int mTapR1, mTapR2, mTapR3, mTapR4;
-    
+
+    // LFO for tank delay modulation
+    float mLfoPhase;
+    float mLfoFreq;       // in Hz (~1 Hz)
+    float mLfoExcursion;  // modulation depth in samples
+
+    // Output tap positions (from Dattorro paper, scaled at init)
+    // Left output taps
+    int mTapL_d1a, mTapL_d1b;   // from tank delay 1
+    int mTapL_ap2;               // from tank allpass 2
+    int mTapL_d2;                // from tank delay 2
+    int mTapL_d3a;               // from tank delay 3
+    int mTapL_ap4;               // from tank allpass 4
+    int mTapL_d4;                // from tank delay 4
+    // Right output taps
+    int mTapR_d3a, mTapR_d3b;   // from tank delay 3
+    int mTapR_ap4;               // from tank allpass 4
+    int mTapR_d4;                // from tank delay 4
+    int mTapR_d1a;               // from tank delay 1
+    int mTapR_ap2;               // from tank allpass 2
+    int mTapR_d2;                // from tank delay 2
+
     bool mInitialized;
-    
+
     // Helper functions
     inline float readDelay(const float* buf, int maxLen, int writeIdx, int offset) const {
         int idx = writeIdx - offset;
         while (idx < 0) idx += maxLen;
         return buf[idx];
     }
-    
+
+    // Read from delay with fractional sample interpolation (for LFO modulation)
+    inline float readDelayInterp(const float* buf, int maxLen, int writeIdx, float offset) const {
+        int intOffset = (int)offset;
+        float frac = offset - (float)intOffset;
+
+        int idx0 = writeIdx - intOffset;
+        while (idx0 < 0) idx0 += maxLen;
+        int idx1 = idx0 - 1;
+        if (idx1 < 0) idx1 += maxLen;
+
+        return buf[idx0] * (1.0f - frac) + buf[idx1] * frac;
+    }
+
     inline float processAllpass(float input, float* buf, int maxLen, int& writeIdx, int len, float coeff) {
         int readIdx = writeIdx - len;
         while (readIdx < 0) readIdx += maxLen;
-        
+
         float delayed = buf[readIdx];
         float output = -coeff * input + delayed;
         buf[writeIdx] = input + coeff * output;
-        
+
         writeIdx++;
         if (writeIdx >= maxLen) writeIdx = 0;
-        
+
+        return output;
+    }
+
+    // Modulated allpass: the read position is modulated by LFO
+    inline float processAllpassMod(float input, float* buf, int maxLen, int& writeIdx, int len, float coeff, float modSamples) {
+        float readOffset = (float)len + modSamples;
+        if (readOffset < 1.0f) readOffset = 1.0f;
+        if (readOffset > (float)(maxLen - 1)) readOffset = (float)(maxLen - 1);
+
+        float delayed = readDelayInterp(buf, maxLen, writeIdx, readOffset);
+        float output = -coeff * input + delayed;
+        buf[writeIdx] = input + coeff * output;
+
+        writeIdx++;
+        if (writeIdx >= maxLen) writeIdx = 0;
+
         return output;
     }
 };
