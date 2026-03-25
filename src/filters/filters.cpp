@@ -22,6 +22,7 @@
 #include "compressor.h"
 #include "soloud_reverbsc.h"
 #include "soloud_convolutionfilter.h"
+#include "soloud_dattorro_filter.h"
 
 
 Filters::Filters(SoLoud::Soloud *soloud, ActiveSound *sound)
@@ -193,6 +194,16 @@ std::vector<std::string> Filters::getFilterParamNames(FilterType filterType)
         }
     }
     break;
+    case DattorroFilter:
+    {
+        SoLoud::DattorroFilter f;
+        int nParams = f.getParamCount();
+        for (int i = 0; i < nParams; i++)
+        {
+            ret.push_back(f.getParamName(i));
+        }
+    }
+    break;
     }
 
     return ret;
@@ -254,6 +265,9 @@ PlayerErrors Filters::addFilter(FilterType filterType)
         break;
     case ConvolutionFilter:
         newFilter = new SoLoud::ConvolutionFilter();
+        break;
+    case DattorroFilter:
+        newFilter = new SoLoud::DattorroFilter();
         break;
     default:
         return filterNotFound;

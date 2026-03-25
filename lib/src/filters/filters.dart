@@ -16,6 +16,7 @@ import 'package:flutter_soloud/src/filters/lofi_filter.dart';
 import 'package:flutter_soloud/src/filters/pitchshift_filter.dart';
 import 'package:flutter_soloud/src/filters/reverbsc_filter.dart';
 import 'package:flutter_soloud/src/filters/convolution_filter.dart';
+import 'package:flutter_soloud/src/filters/dattorro_filter.dart';
 import 'package:flutter_soloud/src/filters/robotize_filter.dart';
 import 'package:flutter_soloud/src/filters/wave_shaper_filter.dart';
 import 'package:flutter_soloud/src/soloud.dart';
@@ -206,6 +207,16 @@ final class FiltersSingle {
   /// - `wet`: Volume of the reverb tail.
   /// - `dry`: Volume of the original sound.
   ConvolutionSingle get convolutionFilter => ConvolutionSingle(soundHash);
+
+  /// The `Dattorro` plate reverb filter for this sound.
+  ///
+  /// **Parameters**:
+  /// - `preDelay`: Pre-delay amount (0.0 to 1.0, maps to 0-200ms)
+  /// - `decay`: Reverb decay time (0.0 to 0.99)
+  /// - `damping`: High-frequency damping (0.0 to 0.99)
+  /// - `wet`: Volume of the reverb tail (0.0 to 1.0)
+  /// - `dry`: Volume of the original sound (0.0 to 1.0)
+  DattorroSingle get dattorroFilter => DattorroSingle(soundHash);
 }
 
 /// Filters instance used in [SoLoud.filters]. This differentiate from the
@@ -339,6 +350,16 @@ final class FiltersGlobal {
 
   /// The `Convolution` Reverb filter used globally.
   ConvolutionGlobal get convolutionFilter => const ConvolutionGlobal();
+
+  /// The `Dattorro` plate reverb filter used globally.
+  ///
+  /// **Parameters**:
+  /// - `preDelay`: Pre-delay amount (0.0 to 1.0, maps to 0-200ms)
+  /// - `decay`: Reverb decay time (0.0 to 0.99)
+  /// - `damping`: High-frequency damping (0.0 to 0.99)
+  /// - `wet`: Volume of the reverb tail (0.0 to 1.0)
+  /// - `dry`: Volume of the original sound (0.0 to 1.0)
+  DattorroGlobal get dattorroFilter => const DattorroGlobal();
 }
 
 /// Common class for single and global filters.
@@ -477,7 +498,10 @@ enum FilterType {
   reverbScFilter,
   
   /// Convolution Filter
-  convolutionFilter;
+  convolutionFilter,
+
+  /// Dattorro plate reverb filter
+  dattorroFilter;
 
   @override
   String toString() => switch (this) {
@@ -495,6 +519,7 @@ enum FilterType {
         FilterType.compressorFilter => 'Compressor',
         FilterType.reverbScFilter => 'ReverbSc',
         FilterType.convolutionFilter => 'Convolution',
+        FilterType.dattorroFilter => 'Dattorro',
       };
 
   /// The number of parameter this filter owns.
@@ -513,6 +538,7 @@ enum FilterType {
         FilterType.compressorFilter => 8,
         FilterType.reverbScFilter => 4,
         FilterType.convolutionFilter => 2,
+        FilterType.dattorroFilter => 5,
       };
 
   /// Activate this filter. If [soundHash] is null this filter is applied

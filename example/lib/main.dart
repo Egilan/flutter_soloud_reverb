@@ -32,6 +32,8 @@ void main() async {
   );
 }
 
+enum ReverbMode { none, ir, dattorro, hybrid }
+
 class MultiBusDemo extends StatefulWidget {
   const MultiBusDemo({super.key});
 
@@ -49,14 +51,31 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
   BusHandle? busB;
 
   List<String> _irAssets = [];
+
+  // Per-bus state
+  ReverbMode modeA = ReverbMode.ir;
+  ReverbMode modeB = ReverbMode.ir;
+
   String irA = '';
   String irB = '';
 
   double volA = 1.0;
   double volB = 1.0;
-  
-  bool isBusAActive = false;
-  bool isBusBActive = false;
+
+  // Dattorro params per bus
+  double dattorroPreDelayA = 0.0;
+  double dattorroDecayA = 0.7;
+  double dattorroDampingA = 0.5;
+  double dattorroWetA = 0.8;
+  double dattorroDryA = 0.5;
+
+  double dattorroPreDelayB = 0.0;
+  double dattorroDecayB = 0.7;
+  double dattorroDampingB = 0.5;
+  double dattorroWetB = 0.8;
+  double dattorroDryB = 0.5;
+
+  bool isReady = false;
 
   @override
   void initState() {
@@ -66,12 +85,14 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
 
   Future<void> _initDemo() async {
     // 1. Discover IRs
-    final AssetManifest manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final AssetManifest manifest =
+        await AssetManifest.loadFromAssetBundle(rootBundle);
     final assets = manifest
         .listAssets()
-        .where((String path) => path.startsWith('assets/audio/IR/') && path.endsWith('.wav'))
+        .where((String path) =>
+            path.startsWith('assets/audio/IR/') && path.endsWith('.wav'))
         .toList();
-    
+
     setState(() {
       _irAssets = assets;
       if (_irAssets.length >= 2) {
@@ -83,27 +104,74 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
     });
 
     // 2. Load sounds
-    speech = await SoLoud.instance.loadAsset('assets/audio/speech_20250803074809927_01.mp3');
+    speech = await SoLoud.instance
+        .loadAsset('assets/audio/speech_20250803074809927_01.mp3');
     music = await SoLoud.instance.loadAsset('assets/audio/8_bit_mentality.mp3');
-    
+
     // 3. Create buses
     busA = SoLoud.instance.createBus();
     busB = SoLoud.instance.createBus();
 
-    // 4. Setup initial IRs on buses
-    if (irA.isNotEmpty) {
-      SoLoud.instance.addBusFilter(busA!, FilterType.convolutionFilter);
-      await _loadIrToBus(busA!, irA);
-    }
-    if (irB.isNotEmpty) {
-      SoLoud.instance.addBusFilter(busB!, FilterType.convolutionFilter);
-      await _loadIrToBus(busB!, irB);
-    }
+    // 4. Setup initial filters (IR mode by default)
+    await _applyMode(busA!, modeA, isA: true);
+    await _applyMode(busB!, modeB, isA: false);
 
-    setState(() {
-      isBusAActive = true;
-      isBusBActive = true;
-    });
+    setState(() => isReady = true);
+  }
+
+  Future<void> _applyMode(BusHandle bus, ReverbMode mode,
+      {required bool isA}) async {
+    // Remove existing filters
+    try {
+      SoLoud.instance.removeBusFilter(bus, FilterType.convolutionFilter);
+    } catch (_) {}
+    try {
+      SoLoud.instance.removeBusFilter(bus, FilterType.dattorroFilter);
+    } catch (_) {}
+
+    final ir = isA ? irA : irB;
+
+    switch (mode) {
+      case ReverbMode.none:
+        break;
+      case ReverbMode.ir:
+        if (ir.isNotEmpty) {
+          SoLoud.instance.addBusFilter(bus, FilterType.convolutionFilter);
+          await _loadIrToBus(bus, ir);
+        }
+        break;
+      case ReverbMode.dattorro:
+        SoLoud.instance.addBusFilter(bus, FilterType.dattorroFilter);
+        _applyDattorroParams(bus, isA: isA);
+        break;
+      case ReverbMode.hybrid:
+        if (ir.isNotEmpty) {
+          SoLoud.instance.addBusFilter(bus, FilterType.convolutionFilter);
+          await _loadIrToBus(bus, ir);
+        }
+        SoLoud.instance.addBusFilter(bus, FilterType.dattorroFilter);
+        _applyDattorroParams(bus, isA: isA);
+        break;
+    }
+  }
+
+  void _applyDattorroParams(BusHandle bus, {required bool isA}) {
+    final preDelay = isA ? dattorroPreDelayA : dattorroPreDelayB;
+    final decay = isA ? dattorroDecayA : dattorroDecayB;
+    final damping = isA ? dattorroDampingA : dattorroDampingB;
+    final wet = isA ? dattorroWetA : dattorroWetB;
+    final dry = isA ? dattorroDryA : dattorroDryB;
+
+    SoLoud.instance.setBusFilterParameter(
+        bus, FilterType.dattorroFilter, 0, preDelay);
+    SoLoud.instance
+        .setBusFilterParameter(bus, FilterType.dattorroFilter, 1, decay);
+    SoLoud.instance
+        .setBusFilterParameter(bus, FilterType.dattorroFilter, 2, damping);
+    SoLoud.instance
+        .setBusFilterParameter(bus, FilterType.dattorroFilter, 3, wet);
+    SoLoud.instance
+        .setBusFilterParameter(bus, FilterType.dattorroFilter, 4, dry);
   }
 
   Future<void> _loadIrToBus(BusHandle bus, String assetPath) async {
@@ -141,95 +209,261 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("SoLoud Multi-Bus Demo")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildBusControl("Bus A", busA, irA, volA, (val) {
-              setState(() => volA = val);
-              SoLoud.instance.setBusVolume(busA!, val);
-            }, (asset) async {
-              setState(() => irA = asset);
-              await _loadIrToBus(busA!, asset);
-            }),
-            const SizedBox(height: 24),
-            _buildBusControl("Bus B", busB, irB, volB, (val) {
-              setState(() => volB = val);
-              SoLoud.instance.setBusVolume(busB!, val);
-            }, (asset) async {
-              setState(() => irB = asset);
-              await _loadIrToBus(busB!, asset);
-            }),
-            const Divider(height: 48),
-            _buildSoundControl("Speech", speech, () => _playSpeech(null), () => _playSpeech(busA), () => _playSpeech(busB)),
-            const SizedBox(height: 24),
-            _buildSoundControl("Music", music, () => _playMusic(null), () => _playMusic(busA), () => _playMusic(busB)),
-          ],
-        ),
-      ),
+      appBar: AppBar(title: const Text("SoLoud Multi-Bus Reverb Demo")),
+      body: !isReady
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildBusControl("Bus A", busA!, isA: true),
+                  const SizedBox(height: 24),
+                  _buildBusControl("Bus B", busB!, isA: false),
+                  const Divider(height: 48),
+                  _buildSoundControl(
+                    "Speech",
+                    speech,
+                    () => _playSpeech(null),
+                    () => _playSpeech(busA),
+                    () => _playSpeech(busB),
+                  ),
+                  const SizedBox(height: 24),
+                  _buildSoundControl(
+                    "Music",
+                    music,
+                    () => _playMusic(null),
+                    () => _playMusic(busA),
+                    () => _playMusic(busB),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 
-  Widget _buildBusControl(String name, BusHandle? handle, String currentIr, double vol, ValueChanged<double> onVolChanged, ValueChanged<String> onIrChanged) {
+  Widget _buildBusControl(String name, BusHandle handle,
+      {required bool isA}) {
+    final mode = isA ? modeA : modeB;
+    final currentIr = isA ? irA : irB;
+    final vol = isA ? volA : volB;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(name,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
+
+            // Volume
             Row(
               children: [
                 const Text("Volume"),
                 Expanded(
-                  child: Slider(value: vol, onChanged: onVolChanged),
+                  child: Slider(
+                    value: vol,
+                    onChanged: (val) {
+                      setState(() {
+                        if (isA) {
+                          volA = val;
+                        } else {
+                          volB = val;
+                        }
+                      });
+                      SoLoud.instance.setBusVolume(handle, val);
+                    },
+                  ),
                 ),
                 Text(vol.toStringAsFixed(2)),
               ],
             ),
+
+            // Mode selector
             Row(
               children: [
-                const Text("IR"),
+                const Text("Mode"),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: DropdownButton<String>(
-                    value: currentIr,
-                    isExpanded: true,
-                    items: _irAssets.map((asset) => DropdownMenuItem(value: asset, child: Text(asset.split('/').last))).toList(),
-                    onChanged: (val) => val != null ? onIrChanged(val) : null,
+                  child: SegmentedButton<ReverbMode>(
+                    segments: const [
+                      ButtonSegment(
+                          value: ReverbMode.none, label: Text("None")),
+                      ButtonSegment(value: ReverbMode.ir, label: Text("IR")),
+                      ButtonSegment(
+                          value: ReverbMode.dattorro, label: Text("Dattorro")),
+                      ButtonSegment(
+                          value: ReverbMode.hybrid, label: Text("Hybrid")),
+                    ],
+                    selected: {mode},
+                    onSelectionChanged: (selected) async {
+                      final newMode = selected.first;
+                      setState(() {
+                        if (isA) {
+                          modeA = newMode;
+                        } else {
+                          modeB = newMode;
+                        }
+                      });
+                      await _applyMode(handle, newMode, isA: isA);
+                    },
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+
+            // IR selector (shown for IR and Hybrid modes)
+            if (mode == ReverbMode.ir || mode == ReverbMode.hybrid)
+              Row(
+                children: [
+                  const Text("IR"),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: DropdownButton<String>(
+                      value: currentIr,
+                      isExpanded: true,
+                      items: _irAssets
+                          .map((asset) => DropdownMenuItem(
+                              value: asset,
+                              child: Text(asset.split('/').last)))
+                          .toList(),
+                      onChanged: (val) async {
+                        if (val == null) return;
+                        setState(() {
+                          if (isA) {
+                            irA = val;
+                          } else {
+                            irB = val;
+                          }
+                        });
+                        await _loadIrToBus(handle, val);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+            // Dattorro params (shown for Dattorro and Hybrid modes)
+            if (mode == ReverbMode.dattorro || mode == ReverbMode.hybrid)
+              _buildDattorroControls(handle, isA: isA),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSoundControl(String name, AudioSource? source, VoidCallback onMain, VoidCallback onBusA, VoidCallback onBusB) {
+  Widget _buildDattorroControls(BusHandle bus, {required bool isA}) {
+    return Column(
+      children: [
+        _dattorroSlider("Pre-Delay", isA ? dattorroPreDelayA : dattorroPreDelayB, 0.0, 1.0,
+            (val) {
+          setState(() {
+            if (isA) {
+              dattorroPreDelayA = val;
+            } else {
+              dattorroPreDelayB = val;
+            }
+          });
+          SoLoud.instance
+              .setBusFilterParameter(bus, FilterType.dattorroFilter, 0, val);
+        }),
+        _dattorroSlider(
+            "Decay", isA ? dattorroDecayA : dattorroDecayB, 0.0, 0.99, (val) {
+          setState(() {
+            if (isA) {
+              dattorroDecayA = val;
+            } else {
+              dattorroDecayB = val;
+            }
+          });
+          SoLoud.instance
+              .setBusFilterParameter(bus, FilterType.dattorroFilter, 1, val);
+        }),
+        _dattorroSlider("Damping", isA ? dattorroDampingA : dattorroDampingB,
+            0.0, 0.99, (val) {
+          setState(() {
+            if (isA) {
+              dattorroDampingA = val;
+            } else {
+              dattorroDampingB = val;
+            }
+          });
+          SoLoud.instance
+              .setBusFilterParameter(bus, FilterType.dattorroFilter, 2, val);
+        }),
+        _dattorroSlider("Wet", isA ? dattorroWetA : dattorroWetB, 0.0, 1.0,
+            (val) {
+          setState(() {
+            if (isA) {
+              dattorroWetA = val;
+            } else {
+              dattorroWetB = val;
+            }
+          });
+          SoLoud.instance
+              .setBusFilterParameter(bus, FilterType.dattorroFilter, 3, val);
+        }),
+        _dattorroSlider("Dry", isA ? dattorroDryA : dattorroDryB, 0.0, 1.0,
+            (val) {
+          setState(() {
+            if (isA) {
+              dattorroDryA = val;
+            } else {
+              dattorroDryB = val;
+            }
+          });
+          SoLoud.instance
+              .setBusFilterParameter(bus, FilterType.dattorroFilter, 4, val);
+        }),
+      ],
+    );
+  }
+
+  Widget _dattorroSlider(String label, double value, double min, double max,
+      ValueChanged<double> onChanged) {
+    return Row(
+      children: [
+        SizedBox(width: 80, child: Text(label)),
+        Expanded(
+          child: Slider(value: value, min: min, max: max, onChanged: onChanged),
+        ),
+        SizedBox(width: 48, child: Text(value.toStringAsFixed(2))),
+      ],
+    );
+  }
+
+  Widget _buildSoundControl(String name, AudioSource? source,
+      VoidCallback onMain, VoidCallback onBusA, VoidCallback onBusB) {
     final isPlaying = source != null && source.handles.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+        Text(name,
+            style:
+                const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           children: [
-            ElevatedButton(onPressed: onMain, child: const Text("Play Main")),
-            ElevatedButton(onPressed: onBusA, child: const Text("Play on Bus A")),
-            ElevatedButton(onPressed: onBusB, child: const Text("Play on Bus B")),
+            ElevatedButton(
+                onPressed: onMain, child: const Text("Play Main")),
+            ElevatedButton(
+                onPressed: onBusA, child: const Text("Play on Bus A")),
+            ElevatedButton(
+                onPressed: onBusB, child: const Text("Play on Bus B")),
             if (isPlaying)
-              IconButton(onPressed: () {
-                for (final h in source.handles.toList()) {
-                  SoLoud.instance.stop(h);
-                }
-                setState(() {});
-              }, icon: const Icon(Icons.stop, color: Colors.red)),
+              IconButton(
+                  onPressed: () {
+                    for (final h in source.handles.toList()) {
+                      SoLoud.instance.stop(h);
+                    }
+                    setState(() {});
+                  },
+                  icon: const Icon(Icons.stop, color: Colors.red)),
           ],
         ),
       ],

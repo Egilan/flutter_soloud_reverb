@@ -4,6 +4,7 @@
 
 #include "../../src/filters/dattorro.cpp"
 #include "../../src/filters/soloud_reverbsc.cpp"
+#include "../../src/filters/soloud_dattorro_filter.cpp"
 
 #include "../../src/synth/soloud_libpd.cpp"
 #include "../../src/synth/pd_bridge.cpp"
