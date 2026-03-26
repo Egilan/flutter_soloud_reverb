@@ -1,3 +1,6 @@
+#### 4.0.0-pre.1 (XX Xxx 2026)
+- macOS fix: build error
+
 #### 4.0.0-pre.0 (24 Mar 2026)
 - added Mixing Bus feature and example https://docs.page/alnitak/flutter_soloud_docs~dev/advanced/mixing_bus
 - added `getApproximateVolume` to get the approximate volume of a channel of the player
