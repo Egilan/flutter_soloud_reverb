@@ -35,6 +35,16 @@ endif()
 # Force release optimization flags regardless of build configuration
 target_compile_options("${PLUGIN_NAME}" PRIVATE -Wall -Wno-error -Wno-vla -O2 -DNDEBUG)
 
+# Workaround for iOS 26.4+ / Xcode 16+ duplicate symbol issue with miniaudio's
+# ma_ios_notification_handler class. We use -include to force-include a header
+# that renames the Objective-C class via preprocessor macros before miniaudio.h
+# is processed. This prevents conflicts with other libraries that may also use
+# miniaudio (e.g., when Flutter's debug dylib is loaded).
+if(APPLE)
+  set(MINIAUDIO_PREFIX_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/flutter_soloud/Sources/flutter_soloud/miniaudio_objc_prefix.h")
+  target_compile_options("${PLUGIN_NAME}" PRIVATE "-include${MINIAUDIO_PREFIX_HEADER}")
+endif()
+
 # On Apple platforms, miniaudio.h includes AVFoundation Objective-C headers,
 # so soloud_miniaudio.cpp must be compiled as Objective-C++.
 set(MINIAUDIO_SOURCE "${SRC_DIR}/soloud/src/backend/miniaudio/soloud_miniaudio.cpp")
