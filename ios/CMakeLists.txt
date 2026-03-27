@@ -36,7 +36,7 @@ endif()
 target_compile_options("${PLUGIN_NAME}" PRIVATE -Wall -Wno-error -Wno-vla -O2 -DNDEBUG)
 
 # Workaround for iOS 26.4+ / Xcode 16+ duplicate symbol issue with miniaudio's
-# ma_ios_notification_handler class. We use -include to force-include a header
+# ma_ios_notification_handler. We use -include to force-include a header
 # that renames the Objective-C class via preprocessor macros before miniaudio.h
 # is processed. This prevents conflicts with other libraries that may also use
 # miniaudio (e.g., when Flutter's debug dylib is loaded).
