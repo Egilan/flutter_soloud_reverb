@@ -11,6 +11,18 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Xcode's build environment has a restricted PATH that may not include cmake.
+# Add common locations where cmake might be installed.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# Verify cmake is available
+if ! command -v cmake &> /dev/null; then
+    echo "ERROR: cmake not found. Please install cmake (e.g., 'brew install cmake')"
+    exit 1
+fi
+
+echo "  Using cmake: $(which cmake)"
+
 # Use Xcode environment variables
 # ARCHS: space-separated list of architectures (e.g., "arm64" or "arm64 x86_64")
 # SDKROOT: path to the SDK
