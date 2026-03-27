@@ -33,14 +33,23 @@ Flutter audio plugin using SoLoud library and FFI
   # Build the plugin's native code using CMake with release optimizations.
   # CMake handles incremental builds internally — if no source files changed,
   # this is a fast no-op.
-  script_lines = [
-    (disable_xiph_libs ? 'export NO_XIPH_LIBS=1' : 'unset NO_XIPH_LIBS'),
-    'bash "${PODS_TARGET_SRCROOT}/build_cmake.sh"'
-  ]
+  build_script = <<-SCRIPT
+    # Build flutter_soloud with CMake
+    #{disable_xiph_libs ? 'export NO_XIPH_LIBS=1' : 'unset NO_XIPH_LIBS'}
+    bash "${PODS_TARGET_SRCROOT}/build_cmake.sh"
+    
+    # Warn about iOS 26.4+ debug mode requirements
+    if [ "${CONFIGURATION}" = "Debug" ] && [ "${PLATFORM_NAME}" = "iphoneos" ]; then
+      echo "⚠️  flutter_soloud: iOS 26.4+ Debug Mode Notice"
+      echo "    If you encounter EXC_BAD_ACCESS (code=50) crashes in debug mode on iOS 26.4+,"
+      echo "    please see https://docs.page/alnitak/flutter_soloud_docs/get_started/iOS_issue"
+      echo "    for more details."
+    fi
+  SCRIPT
 
   s.script_phase = {
     :name => 'Build flutter_soloud with CMake',
-    :script => script_lines.join("\n"),
+    :script => build_script,
     :execution_position => :before_compile,
     :output_files => ['$(PODS_TARGET_SRCROOT)/cmake_build/$(PLATFORM_NAME)/libflutter_soloud_plugin.a'],
   }
