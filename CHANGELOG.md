@@ -1,3 +1,7 @@
+#### 4.0.0-pre.2 (XX Mar 2026)
+- macOS/iOS fix: check for cmake in path while building
+- iOS simulator: fix libs linking
+
 #### 4.0.0-pre.1 (26 Mar 2026)
 - macOS fix: build error
 
