@@ -89,6 +89,7 @@ namespace SoLoud
 		mCodec.mOgg = 0;
 		mCodec.mFlac = 0;
 		mFile = 0;
+		mStreamEnded = false;
 		if (aParent->mMemFile)
 		{
 			MemoryFile *mf = new MemoryFile();
@@ -307,9 +308,10 @@ namespace SoLoud
 					offset += b;
 					mOggFrameOffset += b;
 
-					if (mOffset >= mParent->mSampleCount || b == 0)
+					// End of stream: no more data available from decoder
+					if (b == 0)
 					{
-						mOffset += offset;
+						mStreamEnded = true;
 						return offset;
 					}
 				}
@@ -428,6 +430,12 @@ namespace SoLoud
 
 	bool WavStreamInstance::hasEnded()
 	{
+		// For OGG streams, use the stream ended flag since mSampleCount may not
+		// match actual decoded samples (empty final page in OGG)
+		if (mParent->mFiletype == WAVSTREAM_OGG && mStreamEnded)
+		{
+			return 1;
+		}
 		if (mOffset >= mParent->mSampleCount)
 		{
 			return 1;

@@ -1,3 +1,6 @@
+#### 4.0.0-pre.4 (XX Xxx 2026)
+- fix: some OGG audio files don't trigger `SoundEventType.handleIsNoMoreValid`
+
 #### 4.0.0-pre.3 (29 Mar 2026)
 - fix: FFI symbol stripping causing "symbol not found" errors in iOS/macOS when uploading to App Store #431
 

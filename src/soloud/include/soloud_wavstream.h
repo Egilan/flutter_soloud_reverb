@@ -60,6 +60,7 @@ namespace SoLoud
 		unsigned int mOggFrameSize;
 		unsigned int mOggFrameOffset;
 		float **mOggOutputs;
+		bool mStreamEnded; // Set to true when decoder reaches end of stream
 		
 	public:
 		WavStreamInstance(WavStream *aParent);
