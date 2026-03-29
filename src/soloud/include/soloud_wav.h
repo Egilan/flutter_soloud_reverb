@@ -57,6 +57,7 @@ namespace SoLoud
 	public:
 		float *mData;
 		unsigned int mSampleCount;
+		unsigned int mActualSampleCount; // Actual decoded samples (may differ from mSampleCount for OGG)
 
 		Wav();
 		virtual ~Wav();
