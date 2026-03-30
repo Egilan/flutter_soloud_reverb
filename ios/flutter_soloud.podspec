@@ -14,7 +14,7 @@ Flutter audio plugin using SoLoud library and FFI
   s.author           = { 'Your Company' => 'email@example.com' }
 
   s.source           = { :path => '.' }
-  s.source_files = 'flutter_soloud/Sources/flutter_soloud/**/*'
+  s.source_files = 'flutter_soloud/Sources/flutter_soloud/*'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
 

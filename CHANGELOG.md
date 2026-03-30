@@ -1,6 +1,6 @@
 #### 4.0.0-pre.4 (XX Xxx 2026)
 - fix: some OGG audio files don't trigger `SoundEventType.handleIsNoMoreValid`
-- fix: setBufferStream fails to decode small MP3 files under 32 KB #434
+- fix: setBufferStream fails to decode small MP3 files under 32 KB #434. Thanks to @chaudharydeepanshu
 
 #### 4.0.0-pre.3 (29 Mar 2026)
 - fix: FFI symbol stripping causing "symbol not found" errors in iOS/macOS when uploading to App Store #431

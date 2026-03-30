@@ -1002,10 +1002,9 @@ Future<StringBuffer> testBufferStreamSmallMp3() async {
     final source = SoLoud.instance.setBufferStream(
       format: BufferType.auto,
       bufferingTimeNeeds: 0.3,
-      bufferingType: BufferingType.preserved,
       maxBufferSizeBytes: 1024 * 1024 * 5,
     );
-    final handle = await SoLoud.instance.play(source);
+    final handle = SoLoud.instance.play(source);
     final startTime = DateTime.now();
 
     final completed = Completer<int>();

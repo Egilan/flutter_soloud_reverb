@@ -14,7 +14,7 @@ Flutter audio plugin using SoLoud library and FFI
   s.author           = { 'Your Company' => 'email@example.com' }
 
   s.source           = { :path => '.' }
-  s.source_files     = 'flutter_soloud/Sources/flutter_soloud/**/*.{h,mm}'
+  s.source_files     = 'flutter_soloud/Sources/flutter_soloud/*.{h,mm}'
   s.dependency 'FlutterMacOS'
   s.platform = :osx, '10.15'
 
@@ -85,7 +85,7 @@ Flutter audio plugin using SoLoud library and FFI
 
   s.user_target_xcconfig = {
     'OTHER_LDFLAGS' => "$(inherited) #{force_load_lib} #{xiph_flags}",
-    'LIBRARY_SEARCH_PATHS' => "$(inherited) \"#{plugin_root}/cmake_build/macosx\" \"#{plugin_root}/libs\"",
+    'LIBRARY_SEARCH_PATHS' => "$(inherited) \"#{plugin_root}/cmake_build/macosx\" \"#{plugin_root}/flutter_soloud/libs\"",
     # Fix for FFI symbol stripping on macOS Release builds
     'STRIP_STYLE' => 'debugging',
     'DEBUG_INFORMATION_FORMAT' => 'dwarf-with-dsym',
