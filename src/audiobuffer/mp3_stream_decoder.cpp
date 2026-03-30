@@ -116,7 +116,7 @@ MP3DecoderWrapper::MP3DecoderWrapper()
     : isInitialized(false), audioData({}), m_read_pos(0),
       bytes_until_meta(0), // no metadata expected by default
       lastMetadata(""), mIcyMetaInt(0), ID3TagsFound(false),
-      mDataIsEnded(false) {}
+      mDataEnded(false) {}
 
 MP3DecoderWrapper::~MP3DecoderWrapper() { cleanup(); }
 
@@ -131,10 +131,10 @@ void MP3DecoderWrapper::cleanup() {
   metadata_buffer.clear();
   lastMetadata = "";
   ID3TagsFound = false;
-  mDataIsEnded = false;
+  mDataEnded = false;
 }
 
-void MP3DecoderWrapper::setDataEnded() { mDataIsEnded = true; }
+void MP3DecoderWrapper::setDataEnded() { mDataEnded = true; }
 
 void MP3DecoderWrapper::setIcyMetaInt(int icyMetaInt) {
   if (mIcyMetaInt == icyMetaInt)
@@ -225,10 +225,10 @@ MP3DecoderWrapper::decode(std::vector<unsigned char> &buffer, int *samplerate,
 
   // Only return early if audioData is empty AND either:
   // - decoder is not initialized (need data to init), OR
-  // - mDataIsEnded is false (more data may come)
-  // When mDataIsEnded is true and decoder is initialized, dr_mp3 may still have
+  // - mDataEnded is false (more data may come)
+  // When mDataEnded is true and decoder is initialized, dr_mp3 may still have
   // data in its internal buffer that needs to be flushed.
-  if (audioData.empty() && (!isInitialized || !mDataIsEnded)) {
+  if (audioData.empty() && (!isInitialized || !mDataEnded)) {
     return {{}, DecoderError::NoError};
   }
 
@@ -301,9 +301,9 @@ MP3DecoderWrapper::decode(std::vector<unsigned char> &buffer, int *samplerate,
     // If the read position has reached the end of internal buffer and data
     // is NOT ended, we must stop and wait for more data. The next on_read()
     // call would return 0 and stop decoding.
-    // When mDataIsEnded is true, we continue the loop to let dr_mp3 fully
+    // When mDataEnded is true, we continue the loop to let dr_mp3 fully
     // drain its internal buffers.
-    if (m_read_pos >= audioData.size() && !mDataIsEnded) {
+    if (m_read_pos >= audioData.size() && !mDataEnded) {
       break;
     }
   }
@@ -326,9 +326,9 @@ MP3DecoderWrapper::decode(std::vector<unsigned char> &buffer, int *samplerate,
   // After decoding, erase the portion of audioData that has been successfully
   // read. Any remaining data is a partial frame, which will be used in the next
   // `decode` call.
-  // When mDataIsEnded is true and we've consumed all data, clear everything.
+  // When mDataEnded is true and we've consumed all data, clear everything.
   if (m_read_pos > 0) {
-    if (mDataIsEnded && m_read_pos >= audioData.size()) {
+    if (mDataEnded && m_read_pos >= audioData.size()) {
       // Stream has ended and all data has been consumed
       audioData.clear();
       m_read_pos = 0;

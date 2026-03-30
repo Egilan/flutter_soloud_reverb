@@ -250,13 +250,22 @@ protected:
 class StreamDecoder {
 public:
   StreamDecoder()
-      : mWrapper(nullptr), isFormatDetected(false), mIcyMetaInt(0) {}
+      : mWrapper(nullptr), isFormatDetected(false), mIcyMetaInt(0),
+        mDataEndedPending(false) {}
 
   ~StreamDecoder() = default;
 
   void setBufferIcyMetaInt(int icyMetaInt);
 
+  /// Signal that no more data will be added to the stream.
+  ///
+  /// Forwards immediately if the decoder wrapper exists, otherwise stores
+  /// the signal and forwards it when the wrapper is created in decode().
+  /// Without deferred delivery the signal is lost when total data is below
+  /// the 32 KB threshold in addData(), because the wrapper has not been
+  /// created yet at the time BufferStream::setDataIsEnded() calls this.
   void setDataEnded() {
+    mDataEndedPending = true;
     if (mWrapper) {
       mWrapper->setDataEnded();
     }
@@ -275,6 +284,10 @@ private:
   std::unique_ptr<IDecoderWrapper> mWrapper;
   bool isFormatDetected;
   int mIcyMetaInt;
+
+  /// Deferred end-of-stream flag. Set by setDataEnded() when the wrapper
+  /// does not exist yet. Forwarded to the wrapper in decode() once created.
+  bool mDataEndedPending;
 };
 
 #endif // STREAM_DECODER_H

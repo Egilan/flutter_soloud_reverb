@@ -56,7 +56,7 @@ private:
   std::string lastMetadata;
   int mIcyMetaInt;
   bool ID3TagsFound;
-  bool mDataIsEnded; // Signals that no more data will be added
+  bool mDataEnded; // Signals that no more data will be added
 };
 
 #endif // MP3_STREAM_DECODER_H

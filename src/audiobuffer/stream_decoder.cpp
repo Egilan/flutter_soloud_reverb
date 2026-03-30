@@ -159,6 +159,13 @@ std::pair<std::vector<float>, DecoderError> StreamDecoder::decode(
             mWrapper->setTrackChangeCallback(metadataChangeCallback);
         }
         mWrapper->detectedType = detectedType;
+
+        // Forward deferred end-of-stream signal. When total data is below the
+        // 32 KB addData threshold, setDataEnded() is called before the wrapper
+        // exists and the signal is stored in mDataEndedPending. Deliver it now.
+        if (mDataEndedPending) {
+            mWrapper->setDataEnded();
+        }
     }
     
     if (mWrapper) {
