@@ -83,6 +83,12 @@ void ParametricEqInstance::initBandParameters() {
 }
 
 void ParametricEqInstance::initFFTBuffers() {
+  // Safety check: ensure window size is valid
+  // PFFFT requires power-of-2 sizes, minimum 16
+  if (mParent->mSTFT_WINDOW_SIZE < 16 || mParent->mSTFT_WINDOW_SIZE > 65536) {
+    return;  // Invalid window size, don't reallocate
+  }
+  
   // Free existing FFT resources if any
   if (mFFTSetup != nullptr) {
     pffft_destroy_setup(mFFTSetup);
@@ -101,8 +107,10 @@ void ParametricEqInstance::initFFTBuffers() {
     mTemp = nullptr;
   }
 
-  // Free and reallocate channel buffers
-  for (int i = 0; i < mParent->mChannels; i++) {
+  // Free and reallocate channel buffers for all possible channels (up to MAX_CHANNELS)
+  // We must iterate up to MAX_CHANNELS, not mParent->mChannels, because filterChannel
+  // can be called with any channel index < MAX_CHANNELS
+  for (int i = 0; i < MAX_CHANNELS; i++) {
     if (mInputBuffer[i] != nullptr) {
       delete[] mInputBuffer[i];
       mInputBuffer[i] = nullptr;
@@ -150,8 +158,10 @@ ParametricEqInstance::~ParametricEqInstance() {
     mTemp = nullptr;
   }
 
-  // Free channel buffers
-  for (int i = 0; i < mParent->mChannels; i++) {
+  // Free channel buffers for all possible channels (up to MAX_CHANNELS)
+  // We must iterate up to MAX_CHANNELS, not mParent->mChannels, because buffers
+  // may have been allocated for any channel index < MAX_CHANNELS
+  for (int i = 0; i < MAX_CHANNELS; i++) {
     if (mInputBuffer[i] != nullptr) {
       delete[] mInputBuffer[i];
       mInputBuffer[i] = nullptr;
@@ -205,6 +215,23 @@ void ParametricEqInstance::filterChannel(float *aBuffer, unsigned int aSamples,
                                          float aSamplerate, SoLoud::time aTime,
                                          unsigned int aChannel,
                                          unsigned int aChannels) {
+  // Safety check: ensure parent filter still exists
+  if (mParent == nullptr) {
+    return;  // Parent destroyed, pass through audio unchanged
+  }
+  
+  // Safety check: ensure channel index is within bounds to prevent buffer overflow
+  // MAX_CHANNELS is defined in soloud.h (typically 8)
+  if (aChannel >= MAX_CHANNELS) {
+    // Channel out of range - pass through audio unchanged
+    return;
+  }
+  
+  // Safety check: ensure window size is valid before processing
+  if (mParent->mSTFT_WINDOW_TWICE <= 0 || mParent->mSTFT_WINDOW_TWICE > 131072) {
+    return;  // Invalid window size, pass through audio unchanged
+  }
+  
   // Lazy initialization of buffers for this channel
   if (mInputBuffer[aChannel] == nullptr) {
     mInputBuffer[aChannel] =
@@ -405,7 +432,10 @@ float ParametricEq::getParamMin(unsigned int aParamIndex) {
 }
 
 void ParametricEq::setFreqs(unsigned int nBands) {
-  mBands = std::max(1U, nBands);
+  // Clamp band count to reasonable limits to prevent excessive memory allocation
+  // Max 64 bands to prevent memory issues
+  const unsigned int MAX_BANDS = 64;
+  mBands = std::max(1U, std::min(nBands, MAX_BANDS));
 
   // resize vectors
   mGain.assign(mBands, 1.0f);

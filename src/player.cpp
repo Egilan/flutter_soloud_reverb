@@ -777,6 +777,7 @@ void Player::removeHandle(unsigned int handle)
 void Player::disposeSound(unsigned int soundHash)
 {
     std::unique_ptr<ActiveSound> soundToDestroy;
+    bool shouldPause = false;
     
     {
         std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
@@ -793,9 +794,14 @@ void Player::disposeSound(unsigned int soundHash)
 
         if (it != sounds.end())
         {
+            // Stop all handles for this sound before destroying to prevent
+            // the audio thread from accessing filters during destruction.
+            for (auto &handleInfo : it->get()->handle)
+            {
+                soloud.stop(handleInfo.handle);
+            }
+            
             // Mark BufferStream for destruction before removing it
-            // This prevents race conditions where the audio thread tries to access
-            // the BufferStream while it's being destroyed
             if (it->get()->soundType == SoundType::TYPE_BUFFER_STREAM)
             {
                 auto *bufferStream = static_cast<SoLoud::BufferStream *>(it->get()->sound.get());
@@ -805,15 +811,30 @@ void Player::disposeSound(unsigned int soundHash)
                 }
             }
             
+            // Clear all filters from this sound BEFORE moving it out.
+            // This prevents the audio thread from accessing filter instances
+            // when the sound is destroyed.
+            if (it->get()->sound)
+            {
+                for (int i = 0; i < FILTERS_PER_STREAM; i++)
+                {
+                    it->get()->sound->setFilter(i, nullptr);
+                }
+            }
+            
             // Move the sound out of the vector before erasing
-            // This ensures the destructor runs AFTER we release sounds_mutex
             soundToDestroy = std::move(*it);
             sounds.erase(it);
+            
+            // Check if we should pause the device after destroying
+            shouldPause = (soloud.getActiveVoiceCount() == 0);
         }
     }
+    // Sound (and its filters) is destroyed here when soundToDestroy goes out of scope
+    
     // After disposing a sound, check if there are any remaining active voices.
     // If no voices are active, pause the audio device.
-    if (soloud.getActiveVoiceCount() == 0)
+    if (shouldPause)
     {
         soloud.pause();
     }
@@ -821,13 +842,21 @@ void Player::disposeSound(unsigned int soundHash)
 
 void Player::disposeAllSound()
 {
+    // Stop all voices first. This stops all active audio processing.
     soloud.stopAll();
+    
+    // Pause the audio device BEFORE destroying sounds to ensure the audio thread
+    // is not accessing filter memory. This prevents race conditions where the
+    // audio thread crashes trying to access freed filter instances.
+    soloud.pause();
     
     std::vector<std::unique_ptr<ActiveSound>> soundsToDestroy;
     
     {
         std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
-        // Mark all BufferStreams for destruction first
+        
+        // First, remove all filters from sounds while the audio thread is paused.
+        // This prevents the audio thread from accessing filter instances during destruction.
         for (auto &sound : sounds)
         {
             if (sound->soundType == SoundType::TYPE_BUFFER_STREAM)
@@ -838,13 +867,27 @@ void Player::disposeAllSound()
                     bufferStream->markForDestruction();
                 }
             }
+            // Clear all filters from this sound
+            if (sound->sound)
+            {
+                for (int i = 0; i < FILTERS_PER_STREAM; i++)
+                {
+                    sound->sound->setFilter(i, nullptr);
+                }
+            }
         }
+        
+        // Clear global filters
+        for (int i = 0; i < FILTERS_PER_STREAM; i++)
+        {
+            soloud.setGlobalFilter(i, nullptr);
+        }
+        
         // Move all sounds out to destroy them after releasing the lock
         soundsToDestroy = std::move(sounds);
         sounds.clear();
     }
-    // All sounds have been disposed, pause the audio device.
-    soloud.pause();
+    // Sounds (and their filters) are destroyed here when soundsToDestroy goes out of scope
 }
 
 bool Player::getLooping(unsigned int handle)
