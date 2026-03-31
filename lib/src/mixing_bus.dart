@@ -3,6 +3,7 @@ import 'package:flutter_soloud/src/bindings/soloud_controller.dart';
 import 'package:flutter_soloud/src/filters/filters.dart';
 import 'package:logging/logging.dart';
 
+
 /// A singleton helper class to manage all active mixing buses.
 ///
 /// Provides methods to look up a [Bus] by its name or ID.
@@ -101,6 +102,21 @@ class Bus {
 
   /// The number of channels of this bus.
   var _channels = Channels.stereo;
+
+  // The equality comparison is based solely on busId which IS final,
+  // so the equality override is safe and correct (!?).
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Bus && other.busId == busId;
+  }
+
+  // The equality comparison is based solely on busId which IS final,
+  // so the equality override is safe and correct (!?).
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => busId.hashCode;
 
   /// Destroys this bus.
   ///
