@@ -21,10 +21,7 @@ extension type const SoundHash._(int hash) {
   /// Constructs a valid sound hash with [hash].
   @internal
   const SoundHash(this.hash)
-      : assert(
-          hash > 0,
-          'Trying to create a valid sound hash with the value 0',
-        );
+    : assert(hash > 0, 'Trying to create a valid sound hash with the value 0');
 
   /// Constructs an invalid sound hash
   /// (for APIs that need to return _some_ hash even during errors).

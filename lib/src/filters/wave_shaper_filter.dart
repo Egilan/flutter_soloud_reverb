@@ -18,14 +18,14 @@ enum WaveShaperEnum {
 
   @override
   String toString() => switch (this) {
-        WaveShaperEnum.wet => 'Wet',
-        WaveShaperEnum.amount => 'Amount',
-      };
+    WaveShaperEnum.wet => 'Wet',
+    WaveShaperEnum.amount => 'Amount',
+  };
 }
 
 abstract class _WaveShaperInternal extends FilterBase {
   const _WaveShaperInternal(SoundHash? soundHash, int? busId)
-      : super(FilterType.waveShaperFilter, soundHash, busId);
+    : super(FilterType.waveShaperFilter, soundHash, busId);
 
   WaveShaperEnum get queryWet => WaveShaperEnum.wet;
   WaveShaperEnum get queryAmount => WaveShaperEnum.amount;
@@ -35,42 +35,42 @@ class WaveShaperSingle extends _WaveShaperInternal {
   WaveShaperSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        WaveShaperEnum.wet.index,
-        WaveShaperEnum.wet.min,
-        WaveShaperEnum.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    WaveShaperEnum.wet.index,
+    WaveShaperEnum.wet.min,
+    WaveShaperEnum.wet.max,
+  );
 
   FilterParam amount({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        WaveShaperEnum.amount.index,
-        WaveShaperEnum.amount.min,
-        WaveShaperEnum.amount.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    WaveShaperEnum.amount.index,
+    WaveShaperEnum.amount.min,
+    WaveShaperEnum.amount.max,
+  );
 }
 
 class WaveShaperGlobal extends _WaveShaperInternal {
   const WaveShaperGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        null,
-        filterType,
-        WaveShaperEnum.wet.index,
-        WaveShaperEnum.wet.min,
-        WaveShaperEnum.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    WaveShaperEnum.wet.index,
+    WaveShaperEnum.wet.min,
+    WaveShaperEnum.wet.max,
+  );
 
   FilterParam get amount => FilterParam(
-        null,
-        null,
-        filterType,
-        WaveShaperEnum.amount.index,
-        WaveShaperEnum.amount.min,
-        WaveShaperEnum.amount.max,
-      );
+    null,
+    null,
+    filterType,
+    WaveShaperEnum.amount.index,
+    WaveShaperEnum.amount.min,
+    WaveShaperEnum.amount.max,
+  );
 }

@@ -16,8 +16,8 @@ Future<StringBuffer> testWaveformControls() async {
     final sound = await SoLoud.instance.loadWaveform(
       waveform,
       true, // super wave
-      1,    // scale
-      0.5,  // detune
+      1, // scale
+      0.5, // detune
     );
 
     // Play the waveform

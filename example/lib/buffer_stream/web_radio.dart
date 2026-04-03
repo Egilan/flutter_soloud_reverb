@@ -304,11 +304,11 @@ class _WebRadioExampleState extends State<WebRadioExample> {
                   },
                   child: const Text('stop'),
                 ),
-            
+
                 /// Only with preserved buffering is possible to seek
                 if (bufferingType == BufferingType.preserved)
                   SeekBar(source: source),
-            
+
                 ValueListenableBuilder(
                   valueListenable: streamBuffering,
                   builder: (context, value, child) {

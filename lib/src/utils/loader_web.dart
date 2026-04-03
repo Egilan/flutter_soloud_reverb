@@ -55,8 +55,10 @@ class SoLoudLoader {
       rethrow;
     }
 
-    final buffer = byteData.buffer
-        .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
+    final buffer = byteData.buffer.asUint8List(
+      byteData.offsetInBytes,
+      byteData.lengthInBytes,
+    );
     final newAudioSource = SoLoud.instance.loadMem(
       key,
       buffer,
@@ -103,8 +105,10 @@ class SoLoudLoader {
       rethrow;
     }
 
-    final buffer = byteData.buffer
-        .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
+    final buffer = byteData.buffer.asUint8List(
+      byteData.offsetInBytes,
+      byteData.lengthInBytes,
+    );
     final newAudioSource = SoLoud.instance.loadMem(
       url,
       buffer,

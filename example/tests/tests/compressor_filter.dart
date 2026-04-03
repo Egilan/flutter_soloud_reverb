@@ -22,8 +22,8 @@ Future<StringBuffer> testCompressorFilterSingle() async {
   // Get the compressor filter for this sound
   final filter = sound.filters.compressorFilter
 
-  // Activate the filter on the sound
-  ..activate();
+    // Activate the filter on the sound
+    ..activate();
   assert(filter.isActive, 'Compressor filter should be active');
   strBuf.writeln('Compressor single filter activated');
 
@@ -57,9 +57,9 @@ Future<StringBuffer> testCompressorFilterSingle() async {
   await delay(800);
 
   filter.wet(soundHandle: handle).fadeFilterParameter(
-    to: 0.3,
-    time: const Duration(milliseconds: 500),
-  );
+        to: 0.3,
+        time: const Duration(milliseconds: 500),
+      );
   strBuf.writeln('Fading compression to 0.3');
 
   await delay(600);
@@ -82,8 +82,8 @@ Future<StringBuffer> testCompressorFilterGlobal() async {
   // Get the global compressor filter
   final filter = SoLoud.instance.filters.compressorFilter
 
-  // Activate the global filter
-  ..activate();
+    // Activate the global filter
+    ..activate();
   assert(filter.isActive, 'Global compressor filter should be active');
   strBuf.writeln('Compressor global filter activated');
 

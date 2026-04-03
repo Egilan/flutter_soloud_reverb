@@ -18,14 +18,14 @@ enum BassBoostEnum {
 
   @override
   String toString() => switch (this) {
-        BassBoostEnum.wet => 'Wet',
-        BassBoostEnum.boost => 'Boost',
-      };
+    BassBoostEnum.wet => 'Wet',
+    BassBoostEnum.boost => 'Boost',
+  };
 }
 
 abstract class _BassBoostInternal extends FilterBase {
   const _BassBoostInternal(SoundHash? soundHash, int? busId)
-      : super(FilterType.bassboostFilter, soundHash, busId);
+    : super(FilterType.bassboostFilter, soundHash, busId);
 
   BassBoostEnum get queryWet => BassBoostEnum.wet;
   BassBoostEnum get queryBoost => BassBoostEnum.boost;
@@ -35,42 +35,42 @@ class BassBoostSingle extends _BassBoostInternal {
   BassBoostSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        BassBoostEnum.wet.index,
-        BassBoostEnum.wet.min,
-        BassBoostEnum.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    BassBoostEnum.wet.index,
+    BassBoostEnum.wet.min,
+    BassBoostEnum.wet.max,
+  );
 
   FilterParam boost({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        BassBoostEnum.boost.index,
-        BassBoostEnum.boost.min,
-        BassBoostEnum.boost.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    BassBoostEnum.boost.index,
+    BassBoostEnum.boost.min,
+    BassBoostEnum.boost.max,
+  );
 }
 
 class BassBoostGlobal extends _BassBoostInternal {
   const BassBoostGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        null,
-        filterType,
-        BassBoostEnum.wet.index,
-        BassBoostEnum.wet.min,
-        BassBoostEnum.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    BassBoostEnum.wet.index,
+    BassBoostEnum.wet.min,
+    BassBoostEnum.wet.max,
+  );
 
   FilterParam get boost => FilterParam(
-        null,
-        null,
-        filterType,
-        BassBoostEnum.boost.index,
-        BassBoostEnum.boost.min,
-        BassBoostEnum.boost.max,
-      );
+    null,
+    null,
+    filterType,
+    BassBoostEnum.boost.index,
+    BassBoostEnum.boost.min,
+    BassBoostEnum.boost.max,
+  );
 }

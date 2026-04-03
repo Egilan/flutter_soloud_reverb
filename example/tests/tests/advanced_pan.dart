@@ -48,10 +48,11 @@ Future<StringBuffer> testAdvancedPan() async {
 
   await delay(250);
   final pannedLeft = SoLoud.instance.getPan(handle);
-  strBuf..writeln('After fade to left, pan: $pannedLeft')
+  strBuf
+    ..writeln('After fade to left, pan: $pannedLeft')
 
-  // Test fade to right
-  ..writeln('Fading pan to full right over 400ms');
+    // Test fade to right
+    ..writeln('Fading pan to full right over 400ms');
   SoLoud.instance.fadePan(
     handle,
     1, // Full right
@@ -60,10 +61,11 @@ Future<StringBuffer> testAdvancedPan() async {
 
   await delay(500);
   final pannedRight = SoLoud.instance.getPan(handle);
-  strBuf..writeln('After fade to right, pan: $pannedRight')
+  strBuf
+    ..writeln('After fade to right, pan: $pannedRight')
 
-  // Test oscillatePan
-  ..writeln('Testing oscillatePan between -0.8 and 0.8 over 800ms');
+    // Test oscillatePan
+    ..writeln('Testing oscillatePan between -0.8 and 0.8 over 800ms');
   SoLoud.instance.oscillatePan(
     handle,
     -0.8,

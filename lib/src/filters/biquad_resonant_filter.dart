@@ -37,16 +37,16 @@ enum BiquadResonantEnum {
 
   @override
   String toString() => switch (this) {
-        BiquadResonantEnum.wet => 'Wet',
-        BiquadResonantEnum.type => 'Type',
-        BiquadResonantEnum.frequency => 'Frequency',
-        BiquadResonantEnum.resonance => 'Resonance',
-      };
+    BiquadResonantEnum.wet => 'Wet',
+    BiquadResonantEnum.type => 'Type',
+    BiquadResonantEnum.frequency => 'Frequency',
+    BiquadResonantEnum.resonance => 'Resonance',
+  };
 }
 
 abstract class _BiquadResonantInternal extends FilterBase {
   const _BiquadResonantInternal(SoundHash? soundHash, int? busId)
-      : super(FilterType.biquadResonantFilter, soundHash, busId);
+    : super(FilterType.biquadResonantFilter, soundHash, busId);
 
   BiquadResonantEnum get queryWet => BiquadResonantEnum.wet;
   BiquadResonantEnum get queryType => BiquadResonantEnum.type;
@@ -58,78 +58,78 @@ class BiquadResonantSingle extends _BiquadResonantInternal {
   BiquadResonantSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        BiquadResonantEnum.wet.index,
-        BiquadResonantEnum.wet.min,
-        BiquadResonantEnum.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    BiquadResonantEnum.wet.index,
+    BiquadResonantEnum.wet.min,
+    BiquadResonantEnum.wet.max,
+  );
 
   FilterParam type({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        BiquadResonantEnum.type.index,
-        BiquadResonantEnum.type.min,
-        BiquadResonantEnum.type.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    BiquadResonantEnum.type.index,
+    BiquadResonantEnum.type.min,
+    BiquadResonantEnum.type.max,
+  );
 
   FilterParam frequency({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        BiquadResonantEnum.frequency.index,
-        BiquadResonantEnum.frequency.min,
-        BiquadResonantEnum.frequency.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    BiquadResonantEnum.frequency.index,
+    BiquadResonantEnum.frequency.min,
+    BiquadResonantEnum.frequency.max,
+  );
 
   FilterParam resonance({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        BiquadResonantEnum.resonance.index,
-        BiquadResonantEnum.resonance.min,
-        BiquadResonantEnum.resonance.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    BiquadResonantEnum.resonance.index,
+    BiquadResonantEnum.resonance.min,
+    BiquadResonantEnum.resonance.max,
+  );
 }
 
 class BiquadResonantGlobal extends _BiquadResonantInternal {
   const BiquadResonantGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        null,
-        filterType,
-        BiquadResonantEnum.wet.index,
-        BiquadResonantEnum.wet.min,
-        BiquadResonantEnum.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    BiquadResonantEnum.wet.index,
+    BiquadResonantEnum.wet.min,
+    BiquadResonantEnum.wet.max,
+  );
 
   FilterParam get type => FilterParam(
-        null,
-        null,
-        filterType,
-        BiquadResonantEnum.type.index,
-        BiquadResonantEnum.type.min,
-        BiquadResonantEnum.type.max,
-      );
+    null,
+    null,
+    filterType,
+    BiquadResonantEnum.type.index,
+    BiquadResonantEnum.type.min,
+    BiquadResonantEnum.type.max,
+  );
 
   FilterParam get frequency => FilterParam(
-        null,
-        null,
-        filterType,
-        BiquadResonantEnum.frequency.index,
-        BiquadResonantEnum.frequency.min,
-        BiquadResonantEnum.frequency.max,
-      );
+    null,
+    null,
+    filterType,
+    BiquadResonantEnum.frequency.index,
+    BiquadResonantEnum.frequency.min,
+    BiquadResonantEnum.frequency.max,
+  );
 
   FilterParam get resonance => FilterParam(
-        null,
-        null,
-        filterType,
-        BiquadResonantEnum.resonance.index,
-        BiquadResonantEnum.resonance.min,
-        BiquadResonantEnum.resonance.max,
-      );
+    null,
+    null,
+    filterType,
+    BiquadResonantEnum.resonance.index,
+    BiquadResonantEnum.resonance.min,
+    BiquadResonantEnum.resonance.max,
+  );
 }

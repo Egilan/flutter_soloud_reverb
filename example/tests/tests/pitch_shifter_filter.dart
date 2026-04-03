@@ -22,8 +22,8 @@ Future<StringBuffer> testPitchShifterFilterSingle() async {
   // Get the pitch shift filter for this sound
   final filter = sound.filters.pitchShiftFilter
 
-  // Activate the filter on the sound
-  ..activate();
+    // Activate the filter on the sound
+    ..activate();
   assert(filter.isActive, 'Pitch shift filter should be active');
   strBuf.writeln('Pitch shift single filter activated');
 
@@ -48,9 +48,9 @@ Future<StringBuffer> testPitchShifterFilterSingle() async {
   await delay(500);
 
   filter.shift(soundHandle: handle).fadeFilterParameter(
-    to: 2,
-    time: const Duration(milliseconds: 500),
-  );
+        to: 2,
+        time: const Duration(milliseconds: 500),
+      );
   strBuf.writeln('Fading pitch shift to 2.0');
 
   await delay(600);
@@ -78,8 +78,8 @@ Future<StringBuffer> testPitchShifterFilterGlobal() async {
   // Get the global pitch shift filter
   final filter = SoLoud.instance.filters.pitchShiftFilter
 
-  // Activate the global filter
-  ..activate();
+    // Activate the global filter
+    ..activate();
   assert(filter.isActive, 'Global pitch shift filter should be active');
   strBuf.writeln('Pitch shift global filter activated');
 

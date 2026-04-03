@@ -16,14 +16,14 @@ enum NativeDetectedType {
   final int value;
 
   static NativeDetectedType fromValue(int value) => switch (value) {
-        0 => unknown,
-        1 => oggOpus,
-        2 => oggVorbis,
-        3 => oggFlac,
-        4 => mp3WithId3,
-        5 => mp3Stream,
-        _ => throw ArgumentError(r'Unknown value for DetectedTypeJS: $value'),
-      };
+    0 => unknown,
+    1 => oggOpus,
+    2 => oggVorbis,
+    3 => oggFlac,
+    4 => mp3WithId3,
+    5 => mp3Stream,
+    _ => throw ArgumentError(r'Unknown value for DetectedTypeJS: $value'),
+  };
 
   DetectedType toDart() {
     switch (this) {
@@ -163,9 +163,7 @@ class NativeAudioMetadata extends _MetadataJS {
 
   // Dummy method to reflect the FFI implementation. Not used with Web.
   AudioMetadata toAudioMetadata() {
-    return AudioMetadata(
-      detectedType: DetectedType.unknown,
-    );
+    return AudioMetadata(detectedType: DetectedType.unknown);
   }
 
   /// Converts the struct pointed by [metadataPtr] to the Dart-friendly

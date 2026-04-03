@@ -236,13 +236,13 @@ enum ReadSamplesErrors {
 
   /// Returns a [ReadSamplesErrors] from a [value].
   static ReadSamplesErrors fromValue(int value) => switch (value) {
-        0 => readSamplesNoError,
-        1 => noBackend,
-        2 => failedToGetDataFormat,
-        3 => failedToSeekPcm,
-        4 => failedToReadPcmFrames,
-        _ => throw ArgumentError('Unknown value for ReadSamplesErrors: $value'),
-      };
+    0 => readSamplesNoError,
+    1 => noBackend,
+    2 => failedToGetDataFormat,
+    3 => failedToSeekPcm,
+    4 => failedToReadPcmFrames,
+    _ => throw ArgumentError('Unknown value for ReadSamplesErrors: $value'),
+  };
 
   /// Returns a human-friendly sentence describing the error.
   String get _asSentence {
@@ -433,5 +433,5 @@ enum BufferingType {
   preserved,
 
   /// Release the data in the buffer while playing it.
-  released
+  released,
 }

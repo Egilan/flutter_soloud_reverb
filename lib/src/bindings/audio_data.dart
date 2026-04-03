@@ -93,9 +93,7 @@ enum GetSamplesKind {
 /// To smooth FFT values use [SoLoud.setFftSmoothing].
 class AudioData {
   /// Initialize the way the audio data should be acquired.
-  AudioData(
-    this._getSamplesKind,
-  ) : ctrl = AudioDataCtrl() {
+  AudioData(this._getSamplesKind) : ctrl = AudioDataCtrl() {
     _init();
     ctrl.allocSamples(this);
   }

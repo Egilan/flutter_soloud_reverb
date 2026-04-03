@@ -3,7 +3,6 @@ import 'package:flutter_soloud/src/bindings/soloud_controller.dart';
 import 'package:flutter_soloud/src/filters/filters.dart';
 import 'package:logging/logging.dart';
 
-
 /// A singleton helper class to manage all active mixing buses.
 ///
 /// Provides methods to look up a [Bus] by its name or ID.
@@ -42,7 +41,7 @@ class Buses {
 /// filtering, and routing of multiple sounds. You can play multiple sounds
 /// on a single bus and apply effects or adjust the volume of the entire bus
 /// at once.
-/// 
+///
 /// Refer to the official SoLoud documentation for more information on
 /// mixing buses:
 /// https://solhsa.com/soloud/mixbus.html
@@ -153,10 +152,10 @@ class Bus {
       throw const SoLoudBusDisposedDartException();
     }
     final handle = SoLoudController().soLoudFFI.busPlayOnEngine(
-          busId,
-          volume,
-          paused,
-        );
+      busId,
+      volume,
+      paused,
+    );
     soundHandle = SoundHandle(handle);
     return soundHandle!;
   }

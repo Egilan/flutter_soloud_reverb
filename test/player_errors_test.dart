@@ -7,7 +7,8 @@ void main() {
       expect(
         error.value,
         PlayerErrors.values.indexOf(error),
-        reason: 'The value of $error is ${error.value} '
+        reason:
+            'The value of $error is ${error.value} '
             'but its position in the PlayerErrors enum is '
             '${PlayerErrors.values.indexOf(error)}. '
             'This makes code such as `final error = PlayerErrors.values[ret];` '

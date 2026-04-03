@@ -9,8 +9,7 @@ Future<StringBuffer> testVolumeControls() async {
   await initialize();
 
   // Load and play a sound
-  final sound =
-      await SoLoud.instance.loadAsset('assets/audio/explosion.mp3');
+  final sound = await SoLoud.instance.loadAsset('assets/audio/explosion.mp3');
   final handle = SoLoud.instance.play(sound, looping: true);
 
   // Test setVolume and getVolume
@@ -55,10 +54,11 @@ Future<StringBuffer> testVolumeControls() async {
     closeTo(volume, 0.2, 0.05),
     'fadeVolume failed: expected ~0.2, got $volume',
   );
-  strBuf..writeln('After fade, volume: $volume')
+  strBuf
+    ..writeln('After fade, volume: $volume')
 
-  // Test oscillateVolume
-  ..writeln('Starting oscillateVolume between 0.3 and 0.7 over 400ms');
+    // Test oscillateVolume
+    ..writeln('Starting oscillateVolume between 0.3 and 0.7 over 400ms');
   SoLoud.instance.oscillateVolume(
     handle,
     0.3,

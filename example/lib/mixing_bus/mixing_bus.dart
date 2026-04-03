@@ -148,8 +148,7 @@ class _HelloFlutterSoLoudState extends State<HelloFlutterSoLoud> {
                   children: [
                     ElevatedButton(
                       onPressed: () async {
-                        SoLoud.instance
-                            .play(currentSound!, looping: true);
+                        SoLoud.instance.play(currentSound!, looping: true);
                       },
                       child: const Text('play sound on engine'),
                     ),

@@ -67,10 +67,11 @@ Future<StringBuffer> testPlaybackSpeed() async {
     closeTo(speed, 1.5, 0.05),
     'After fade, speed should be ~1.5, got $speed',
   );
-  strBuf..writeln('After fade, speed: $speed')
+  strBuf
+    ..writeln('After fade, speed: $speed')
 
-  // Test oscillateRelativePlaySpeed
-  ..writeln('Oscillating speed between 0.8 and 1.2 over 600ms');
+    // Test oscillateRelativePlaySpeed
+    ..writeln('Oscillating speed between 0.8 and 1.2 over 600ms');
   SoLoud.instance.oscillateRelativePlaySpeed(
     handle,
     0.8,

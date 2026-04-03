@@ -69,8 +69,9 @@ class AudioSource {
   /// When the sound finishes playing, its handle will be removed from this set.
   ///
   /// This set is unmodifiable.
-  late final UnmodifiableSetView<SoundHandle> handles =
-      UnmodifiableSetView(handlesInternal);
+  late final UnmodifiableSetView<SoundHandle> handles = UnmodifiableSetView(
+    handlesInternal,
+  );
 
   /// The [internal] backing of [handles]/ Use [handles] from outside
   /// the package.
@@ -182,7 +183,7 @@ class AudioSource {
   /// ```dart
   /// AudioSource sound = await SoLoud.instance.loadAsset(...);
   /// sound.autoDispose = true;
-  /// 
+  ///
   /// // or just
   /// AudioSource sound =
   ///     await SoLoud.instance.loadAsset(..., autoDispose: true);

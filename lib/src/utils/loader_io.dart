@@ -45,8 +45,10 @@ class SoLoudLoader {
     final directory = _temporaryDirectory;
 
     if (directory == null) {
-      _log.warning("Temporary directory hasn't been initialized, "
-          'yet cleanUp() is called.');
+      _log.warning(
+        "Temporary directory hasn't been initialized, "
+        'yet cleanUp() is called.',
+      );
       return;
     }
 
@@ -183,8 +185,9 @@ class SoLoudLoader {
 
     if (directory == null) {
       throw const SoLoudTemporaryFolderFailedException(
-          "Temporary directory hasn't been initialized, "
-          'yet loadAsset() is called.');
+        "Temporary directory hasn't been initialized, "
+        'yet loadAsset() is called.',
+      );
     }
 
     final newFilepath = _getFullTempFilePath(id);
@@ -218,8 +221,11 @@ class SoLoudLoader {
 
     _temporaryFiles[id] = newFile;
 
-    final audioSource = SoLoud.instance
-        .loadFile(newFile.path, mode: mode, autoDispose: autoDispose);
+    final audioSource = SoLoud.instance.loadFile(
+      newFile.path,
+      mode: mode,
+      autoDispose: autoDispose,
+    );
     return audioSource;
   }
 
@@ -267,8 +273,9 @@ class SoLoudLoader {
 
     if (directory == null) {
       throw const SoLoudTemporaryFolderFailedException(
-          "Temporary directory hasn't been initialized, "
-          'yet loadUrl() is called.');
+        "Temporary directory hasn't been initialized, "
+        'yet loadUrl() is called.',
+      );
     }
 
     final newFilepath = _getFullTempFilePath(id);
@@ -322,18 +329,17 @@ class SoLoudLoader {
     final directory = _temporaryDirectory;
 
     if (directory == null) {
-      throw StateError("Temporary directory hasn't been initialized, "
-          'yet _getTempFile() is called.');
+      throw StateError(
+        "Temporary directory hasn't been initialized, "
+        'yet _getTempFile() is called.',
+      );
     }
 
     return path.join(directory.absolute.path, id.asFilename);
   }
 }
 
-enum _Source {
-  url,
-  asset,
-}
+enum _Source { url, asset }
 
 @immutable
 class _TemporaryFileIdentifier {

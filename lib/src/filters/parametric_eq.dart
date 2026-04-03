@@ -79,7 +79,7 @@ class ParametricEqParam {
 
 abstract class _ParametricEqInternal extends FilterBase {
   const _ParametricEqInternal(SoundHash? soundHash, int? busId)
-      : super(FilterType.parametricEq, soundHash, busId);
+    : super(FilterType.parametricEq, soundHash, busId);
 }
 
 class ParametricEqSingle extends _ParametricEqInternal {
@@ -87,33 +87,33 @@ class ParametricEqSingle extends _ParametricEqInternal {
 
   /// Get the wet parameter (0-1, default 1)
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        ParametricEqParam.wet,
-        ParametricEqParam.getMin(ParametricEqParam.wet),
-        ParametricEqParam.getMax(ParametricEqParam.wet),
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    ParametricEqParam.wet,
+    ParametricEqParam.getMin(ParametricEqParam.wet),
+    ParametricEqParam.getMax(ParametricEqParam.wet),
+  );
 
   /// Get the STFT window size parameter (32-4096, power of 2, default 1024)
   FilterParam stftWindowSize({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        ParametricEqParam.stftWindowSize,
-        ParametricEqParam.getMin(ParametricEqParam.stftWindowSize),
-        ParametricEqParam.getMax(ParametricEqParam.stftWindowSize),
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    ParametricEqParam.stftWindowSize,
+    ParametricEqParam.getMin(ParametricEqParam.stftWindowSize),
+    ParametricEqParam.getMax(ParametricEqParam.stftWindowSize),
+  );
 
   /// Get the number of bands parameter (1-64, default 3)
   FilterParam numBands({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        ParametricEqParam.numBands,
-        ParametricEqParam.getMin(ParametricEqParam.numBands),
-        ParametricEqParam.getMax(ParametricEqParam.numBands),
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    ParametricEqParam.numBands,
+    ParametricEqParam.getMin(ParametricEqParam.numBands),
+    ParametricEqParam.getMax(ParametricEqParam.numBands),
+  );
 
   /// Get the gain parameter for a specific band (0-4, default 1)
   /// [bandIndex] should be 0-63
@@ -135,33 +135,33 @@ class ParametricEqGlobal extends _ParametricEqInternal {
 
   /// Get the wet parameter (0-1, default 1)
   FilterParam get wet => FilterParam(
-        null,
-        null,
-        filterType,
-        ParametricEqParam.wet,
-        ParametricEqParam.getMin(ParametricEqParam.wet),
-        ParametricEqParam.getMax(ParametricEqParam.wet),
-      );
+    null,
+    null,
+    filterType,
+    ParametricEqParam.wet,
+    ParametricEqParam.getMin(ParametricEqParam.wet),
+    ParametricEqParam.getMax(ParametricEqParam.wet),
+  );
 
   /// Get the STFT window size parameter (32-4096, power of 2, default 1024)
   FilterParam get stftWindowSize => FilterParam(
-        null,
-        null,
-        filterType,
-        ParametricEqParam.stftWindowSize,
-        ParametricEqParam.getMin(ParametricEqParam.stftWindowSize),
-        ParametricEqParam.getMax(ParametricEqParam.stftWindowSize),
-      );
+    null,
+    null,
+    filterType,
+    ParametricEqParam.stftWindowSize,
+    ParametricEqParam.getMin(ParametricEqParam.stftWindowSize),
+    ParametricEqParam.getMax(ParametricEqParam.stftWindowSize),
+  );
 
   /// Get the number of bands parameter (1-64, default 3)
   FilterParam get numBands => FilterParam(
-        null,
-        null,
-        filterType,
-        ParametricEqParam.numBands,
-        ParametricEqParam.getMin(ParametricEqParam.numBands),
-        ParametricEqParam.getMax(ParametricEqParam.numBands),
-      );
+    null,
+    null,
+    filterType,
+    ParametricEqParam.numBands,
+    ParametricEqParam.getMin(ParametricEqParam.numBands),
+    ParametricEqParam.getMax(ParametricEqParam.numBands),
+  );
 
   /// Get the gain parameter for a specific band (0-4, default 1)
   /// [bandIndex] should be 0-63

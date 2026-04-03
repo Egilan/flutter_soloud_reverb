@@ -25,7 +25,7 @@ Future<StringBuffer> testPlaybackDevices() async {
   // The sound must keep playing throughout all device switches
   final sound =
       await SoLoud.instance.loadAsset('assets/audio/8_bit_mentality.mp3');
-  
+
   // Enable looping so the sound continues playing during device switches
   SoLoud.instance.play(sound);
 

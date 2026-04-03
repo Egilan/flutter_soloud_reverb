@@ -18,14 +18,12 @@ interface class SoLoudLoader {
     LoadMode mode, {
     AssetBundle? assetBundle,
     bool autoDispose = false,
-  }) async =>
-      throw UnsupportedError('platform not supported');
+  }) async => throw UnsupportedError('platform not supported');
 
   Future<AudioSource> loadUrl(
     String url,
     LoadMode mode, {
     http.Client? httpClient,
     bool autoDispose = false,
-  }) async =>
-      throw UnsupportedError('platform not supported');
+  }) async => throw UnsupportedError('platform not supported');
 }

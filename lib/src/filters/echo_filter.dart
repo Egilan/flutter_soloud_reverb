@@ -20,16 +20,16 @@ enum EchoEnum {
 
   @override
   String toString() => switch (this) {
-        EchoEnum.wet => 'Wet',
-        EchoEnum.delay => 'Delay',
-        EchoEnum.decay => 'Decay',
-        EchoEnum.filter => 'Filter',
-      };
+    EchoEnum.wet => 'Wet',
+    EchoEnum.delay => 'Delay',
+    EchoEnum.decay => 'Decay',
+    EchoEnum.filter => 'Filter',
+  };
 }
 
 abstract class _EchoInternal extends FilterBase {
   const _EchoInternal(SoundHash? soundHash, int? busId)
-      : super(FilterType.echoFilter, soundHash, busId);
+    : super(FilterType.echoFilter, soundHash, busId);
 
   EchoEnum get queryWet => EchoEnum.wet;
   EchoEnum get queryDelay => EchoEnum.delay;
@@ -41,78 +41,78 @@ class EchoSingle extends _EchoInternal {
   EchoSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        EchoEnum.wet.index,
-        EchoEnum.wet.min,
-        EchoEnum.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    EchoEnum.wet.index,
+    EchoEnum.wet.min,
+    EchoEnum.wet.max,
+  );
 
   FilterParam delay({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        EchoEnum.delay.index,
-        EchoEnum.delay.min,
-        EchoEnum.delay.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    EchoEnum.delay.index,
+    EchoEnum.delay.min,
+    EchoEnum.delay.max,
+  );
 
   FilterParam decay({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        EchoEnum.decay.index,
-        EchoEnum.decay.min,
-        EchoEnum.decay.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    EchoEnum.decay.index,
+    EchoEnum.decay.min,
+    EchoEnum.decay.max,
+  );
 
   FilterParam filter({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        super.busId,
-        filterType,
-        EchoEnum.filter.index,
-        EchoEnum.filter.min,
-        EchoEnum.filter.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    EchoEnum.filter.index,
+    EchoEnum.filter.min,
+    EchoEnum.filter.max,
+  );
 }
 
 class EchoGlobal extends _EchoInternal {
   const EchoGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        null,
-        filterType,
-        EchoEnum.wet.index,
-        EchoEnum.wet.min,
-        EchoEnum.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    EchoEnum.wet.index,
+    EchoEnum.wet.min,
+    EchoEnum.wet.max,
+  );
 
   FilterParam get delay => FilterParam(
-        null,
-        null,
-        filterType,
-        EchoEnum.delay.index,
-        EchoEnum.delay.min,
-        EchoEnum.delay.max,
-      );
+    null,
+    null,
+    filterType,
+    EchoEnum.delay.index,
+    EchoEnum.delay.min,
+    EchoEnum.delay.max,
+  );
 
   FilterParam get decay => FilterParam(
-        null,
-        null,
-        filterType,
-        EchoEnum.decay.index,
-        EchoEnum.decay.min,
-        EchoEnum.decay.max,
-      );
+    null,
+    null,
+    filterType,
+    EchoEnum.decay.index,
+    EchoEnum.decay.min,
+    EchoEnum.decay.max,
+  );
 
   FilterParam get filter => FilterParam(
-        null,
-        null,
-        filterType,
-        EchoEnum.filter.index,
-        EchoEnum.filter.min,
-        EchoEnum.filter.max,
-      );
+    null,
+    null,
+    filterType,
+    EchoEnum.filter.index,
+    EchoEnum.filter.min,
+    EchoEnum.filter.max,
+  );
 }

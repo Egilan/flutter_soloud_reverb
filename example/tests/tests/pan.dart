@@ -47,10 +47,11 @@ Future<StringBuffer> testPan() async {
   await delay(500);
   pan = SoLoud.instance.getPan(handle);
   assert(closeTo(pan, -0.8, 0.05), 'fadePan() failed!');
-  strBuf..writeln('fadePan completed: pan=$pan')
+  strBuf
+    ..writeln('fadePan completed: pan=$pan')
 
-  /// Test oscillatePan
-  ..writeln('Testing oscillatePan');
+    /// Test oscillatePan
+    ..writeln('Testing oscillatePan');
   SoLoud.instance.oscillatePan(
     handle,
     -0.5,

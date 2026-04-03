@@ -58,19 +58,19 @@ Future<StringBuffer> testSoundFilters() async {
   /// Test fading filter parameter
   strBuf.writeln('Fading wet parameter to 0.5');
   filter.wet(soundHandle: h1).fadeFilterParameter(
-    to: 0.5,
-    time: const Duration(milliseconds: 500),
-  );
+        to: 0.5,
+        time: const Duration(milliseconds: 500),
+      );
 
   await delay(600);
 
   /// Test oscillating filter parameter
   strBuf.writeln('Oscillating wet parameter');
   filter.wet(soundHandle: h1).oscillateFilterParameter(
-    from: 0.1,
-    to: 1.0,
-    time: const Duration(milliseconds: 800),
-  );
+        from: 0.1,
+        to: 1.0,
+        time: const Duration(milliseconds: 800),
+      );
 
   await delay(2000);
 

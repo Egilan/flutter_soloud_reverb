@@ -22,8 +22,8 @@ Future<StringBuffer> testEqualizerFilterSingle() async {
   // Get the parametric EQ filter for this sound
   final filter = sound.filters.parametricEqFilter
 
-  // Activate the filter on the sound
-  ..activate();
+    // Activate the filter on the sound
+    ..activate();
   assert(filter.isActive, 'Parametric EQ filter should be active');
   strBuf.writeln('Parametric EQ single filter activated');
 
@@ -58,19 +58,19 @@ Future<StringBuffer> testEqualizerFilterSingle() async {
 
   // Test fading a band gain
   filter.bandGain(0, soundHandle: handle).fadeFilterParameter(
-    to: 2,
-    time: const Duration(milliseconds: 500),
-  );
+        to: 2,
+        time: const Duration(milliseconds: 500),
+      );
   strBuf.writeln('Fading band 0 gain to 2.0');
 
   await delay(600);
 
   // Test oscillating a band gain
   filter.bandGain(1, soundHandle: handle).oscillateFilterParameter(
-    from: 0.5,
-    to: 1.5,
-    time: const Duration(milliseconds: 400),
-  );
+        from: 0.5,
+        to: 1.5,
+        time: const Duration(milliseconds: 400),
+      );
   strBuf.writeln('Oscillating band 1 gain');
 
   await delay(500);
@@ -96,8 +96,8 @@ Future<StringBuffer> testEqualizerFilterGlobal() async {
   // Get the global parametric EQ filter
   final filter = SoLoud.instance.filters.parametricEqFilter
 
-  // Activate the global filter
-  ..activate();
+    // Activate the global filter
+    ..activate();
   assert(filter.isActive, 'Global parametric EQ filter should be active');
   strBuf.writeln('Parametric EQ global filter activated');
 
@@ -135,19 +135,19 @@ Future<StringBuffer> testEqualizerFilterGlobal() async {
 
   // Test fading a band gain
   filter.bandGain(0).fadeFilterParameter(
-    to: 2,
-    time: const Duration(milliseconds: 500),
-  );
+        to: 2,
+        time: const Duration(milliseconds: 500),
+      );
   strBuf.writeln('Fading band 0 gain to 2.0');
 
   await delay(600);
 
   // Test oscillating a band gain
   filter.bandGain(1).oscillateFilterParameter(
-    from: 0.5,
-    to: 1.5,
-    time: const Duration(milliseconds: 400),
-  );
+        from: 0.5,
+        to: 1.5,
+        time: const Duration(milliseconds: 400),
+      );
   strBuf.writeln('Oscillating band 1 gain');
 
   await delay(500);

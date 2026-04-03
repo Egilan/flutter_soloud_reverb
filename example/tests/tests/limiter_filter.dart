@@ -22,8 +22,8 @@ Future<StringBuffer> testLimiterFilterSingle() async {
   // Get the limiter filter for this sound
   final filter = sound.filters.limiterFilter
 
-  // Activate the filter on the sound
-  ..activate();
+    // Activate the filter on the sound
+    ..activate();
   assert(filter.isActive, 'Limiter filter should be active');
   strBuf.writeln('Limiter single filter activated');
 
@@ -54,9 +54,9 @@ Future<StringBuffer> testLimiterFilterSingle() async {
   await delay(800);
 
   filter.outputCeiling(soundHandle: handle).fadeFilterParameter(
-    to: -1,
-    time: const Duration(milliseconds: 500),
-  );
+        to: -1,
+        time: const Duration(milliseconds: 500),
+      );
   strBuf.writeln('Fading output ceiling to -1.0 dB');
 
   await delay(600);
@@ -81,8 +81,8 @@ Future<StringBuffer> testLimiterFilterGlobal() async {
   // Get the global limiter filter
   final filter = SoLoud.instance.filters.limiterFilter
 
-  // Activate the global filter
-  ..activate();
+    // Activate the global filter
+    ..activate();
   assert(filter.isActive, 'Global limiter filter should be active');
   strBuf.writeln('Limiter global filter activated');
 

@@ -19,10 +19,11 @@ import 'package:meta/meta.dart';
 extension type const SoundHandle._(int id) {
   /// Constructs a valid handle with [id].
   const SoundHandle(this.id)
-      : assert(
-            id >= 0,
-            'Handle with id<0 is being constructed. '
-            'These are reserved for invalid handles.');
+    : assert(
+        id >= 0,
+        'Handle with id<0 is being constructed. '
+        'These are reserved for invalid handles.',
+      );
 
   /// Constructs an invalid handle (for APIs that need to return _some_ handle
   /// even during errors).

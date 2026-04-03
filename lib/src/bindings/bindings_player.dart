@@ -12,16 +12,11 @@ import 'package:flutter_soloud/src/sound_hash.dart';
 import 'package:meta/meta.dart';
 
 /// Callback set in `setBufferStream` for the `onBuffering` closure.
-typedef OnBufferingCallbackTFunction = void Function(
-  bool isBuffering,
-  int handle,
-  double time,
-);
+typedef OnBufferingCallbackTFunction =
+    void Function(bool isBuffering, int handle, double time);
 
 /// Callback set in `setBufferStream` for the `onMetadata` closure.
-typedef OnMetadataCallbackTFunction = void Function(
-  dynamic metadata,
-);
+typedef OnMetadataCallbackTFunction = void Function(dynamic metadata);
 
 /// Abstract class defining the interface for the platform-specific
 /// implementations.
@@ -123,11 +118,7 @@ abstract class FlutterSoLoud {
   /// See the [seek] note problem when using [LoadMode] = `LoadMode.disk`.
   /// `soundHash` return hash of the sound.
   @mustBeOverridden
-  void loadFile(
-    String completeFileName,
-    LoadMode mode,
-    int counter,
-  );
+  void loadFile(String completeFileName, LoadMode mode, int counter);
 
   /// Load a new sound stored into [buffer] as file bytes to be played once
   /// or multiple times later.
@@ -194,10 +185,7 @@ abstract class FlutterSoLoud {
   /// [hash] the hash of the sound.
   /// [audioChunk] the audio data to add.
   @mustBeOverridden
-  PlayerErrors addAudioDataStream(
-    int hash,
-    Uint8List audioChunk,
-  );
+  PlayerErrors addAudioDataStream(int hash, Uint8List audioChunk);
 
   /// Set the end of the data stream.
   /// [hash] the hash of the stream sound.

@@ -29,10 +29,7 @@ Stream<T> callbackToStream<J, T>(
     controller.add(unwrapValue(event as J));
   }
 
-  object.setProperty(
-    name.toJS,
-    eventFunction.toJS,
-  );
+  object.setProperty(name.toJS, eventFunction.toJS);
   return controller.stream;
 }
 
