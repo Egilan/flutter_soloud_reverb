@@ -42,6 +42,9 @@
 - renamed `SoLoudOpusOggVorbisLibsNotAvailableException` to `SoLoudXiphLibsNotAvailableException`
 - renamed `areOpusOggLibsAvailable` to `areXiphLibsAvailable`
 
+#### 3.5.4 (22 Mar 2026)
+- remove wasm/js assets for non-web builds#425. Thanks to @adil192
+
 #### 3.5.3 (21 Mar 2026)
 - fix: compilation error on Windows #423
 
