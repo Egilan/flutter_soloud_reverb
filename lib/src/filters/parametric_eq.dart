@@ -1,5 +1,10 @@
 // ignore_for_file: public_member_api_docs
 
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_soloud/src/bindings/soloud_controller.dart';
+import 'package:flutter_soloud/src/enums.dart';
 import 'package:flutter_soloud/src/filters/filters.dart';
 import 'package:flutter_soloud/src/sound_handle.dart';
 import 'package:flutter_soloud/src/sound_hash.dart';
@@ -80,6 +85,64 @@ class ParametricEqParam {
 abstract class _ParametricEqInternal extends FilterBase {
   const _ParametricEqInternal(SoundHash? soundHash, int? busId)
     : super(FilterType.parametricEq, soundHash, busId);
+
+  /// Get the current number of bands from the filter.
+  ///
+  /// [soundHandle] is the handle of the playing sound for single sound filters,
+  /// or `null` for global/bus filters.
+  ///
+  /// Returns the configured number of bands, or 0 if the filter
+  /// is not active or the value cannot be read.
+  @protected
+  int getNumBands(SoundHandle? soundHandle) {
+    if (kIsWeb && soundHash != null) {
+      // Web doesn't support single sound filters
+      return 0;
+    }
+    final ret = SoLoudController().soLoudFFI.getFilterParams(
+      handle: soundHandle,
+      busId: busId,
+      FilterType.parametricEq,
+      ParametricEqParam.numBands,
+    );
+    if (ret.error != PlayerErrors.noError || ret.value > 64) {
+      return 0;
+    }
+    return ret.value.toInt();
+  }
+
+  /// Calculate the center frequency (in Hz) for a specific band.
+  ///
+  /// [bandIndex] should be 0 to [nBands]-1.
+  /// [nBands] is the total number of bands.
+  ///
+  /// Frequencies are distributed logarithmically (geometrically) between
+  /// 30 Hz and 16,000 Hz to match human auditory perception.
+  @protected
+  double calculateBandFrequency(int bandIndex, int nBands) {
+    // This reflects the internal logic of the SoLoud parametric EQ filter,
+    // which uses a logarithmic scale between 30 Hz and 16,000 Hz.
+    // If "ParametricEq::setFreqs" of "parametric_eq_filter.cpp" is updated,
+    // this function should be updated as well.
+    if (bandIndex < 0 || bandIndex >= nBands) {
+      throw ArgumentError('Band index must be between 0 and ${nBands - 1}');
+    }
+    if (nBands < 1 || nBands > ParametricEqParam.maxBands) {
+      throw ArgumentError(
+        'Number of bands must be between 1 and ${ParametricEqParam.maxBands}',
+      );
+    }
+
+    const f0 = 30.0; // Lower bound: 30 Hz
+    const f1 = 16000.0; // Upper bound: 16,000 Hz
+
+    if (nBands == 1) {
+      return 1000; // Special case: single band at 1 kHz
+    }
+
+    final t = bandIndex / (nBands - 1);
+    return f0 * pow(f1 / f0, t);
+  }
 }
 
 class ParametricEqSingle extends _ParametricEqInternal {
@@ -128,6 +191,28 @@ class ParametricEqSingle extends _ParametricEqInternal {
       ParametricEqParam.getMax(paramIndex),
     );
   }
+
+  /// Get the center frequency (in Hz) for a specific band.
+  ///
+  /// [bandIndex] should be 0 to nBands-1.
+  /// [soundHandle] is the handle of the playing sound, or `null` for
+  /// bus filters.
+  ///
+  /// The number of bands is automatically read from the active filter. If the
+  /// filter is not active or the index is out of range, it will
+  /// throw [ArgumentError]
+  ///
+  /// Frequencies are distributed logarithmically (geometrically) between
+  /// 30 Hz and 16,000 Hz to match human auditory perception.
+  ///
+  /// Example with 3 bands:
+  /// - Band 0: 30 Hz
+  /// - Band 1: ~693 Hz
+  /// - Band 2: 16,000 Hz
+  double bandFrequency(int bandIndex, {SoundHandle? soundHandle}) {
+    final nBands = getNumBands(soundHandle);
+    return calculateBandFrequency(bandIndex, nBands);
+  }
 }
 
 class ParametricEqGlobal extends _ParametricEqInternal {
@@ -175,5 +260,25 @@ class ParametricEqGlobal extends _ParametricEqInternal {
       ParametricEqParam.getMin(paramIndex),
       ParametricEqParam.getMax(paramIndex),
     );
+  }
+
+  /// Get the center frequency (in Hz) for a specific band.
+  ///
+  /// [bandIndex] should be 0 to nBands-1.
+  ///
+  /// The number of bands is automatically read from the active filter. If the
+  /// filter is not active or the index is out of range, it will
+  /// throw [ArgumentError]
+  ///
+  /// Frequencies are distributed logarithmically (geometrically) between
+  /// 30 Hz and 16,000 Hz to match human auditory perception.
+  ///
+  /// Example with 3 bands:
+  /// - Band 0: 30 Hz
+  /// - Band 1: ~693 Hz
+  /// - Band 2: 16,000 Hz
+  double bandFrequency(int bandIndex) {
+    final nBands = getNumBands(null);
+    return calculateBandFrequency(bandIndex, nBands);
   }
 }

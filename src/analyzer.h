@@ -47,8 +47,6 @@ private:
 
     float minFreq;    // Minimum frequency to analyze
     float maxFreq;    // Maximum frequency to analyze
-    int minBin;       // Minimum FFT bin corresponding to minFreq
-    int maxBin;       // Maximum FFT bin corresponding to maxFreq
     
     int freqToBin(float frequency) const;
     int mapFrequencyToFFTDataIndex(float freq) const;

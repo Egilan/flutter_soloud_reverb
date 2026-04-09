@@ -102,7 +102,7 @@ FFI_PLUGIN_EXPORT void nativeFree(void *pointer) { free(pointer); }
 /// a voice ends and comes from the audio thread (so on the web, from a
 /// different web worker).
 FFI_PLUGIN_EXPORT void voiceEndedCallback(unsigned int *handle) {
-  bool isHandleFound;
+  bool isHandleFound = false;
   if (player != nullptr) {
     isHandleFound = player->findByHandle(*handle) != nullptr;
     if (isHandleFound)
@@ -423,7 +423,7 @@ setBufferStream(unsigned int *hash, unsigned long maxBufferSize,
   if (format == BufferType::OPUS)
     format = BufferType::AUTO;
 
-  unsigned int bytesPerSample;
+  unsigned int bytesPerSample = 4; // Default to 4 bytes for PCM_F32LE
   switch (format) {
   case BufferType::AUTO:
   case BufferType::PCM_F32LE:
@@ -436,6 +436,9 @@ setBufferStream(unsigned int *hash, unsigned long maxBufferSize,
     bytesPerSample = 2;
     break;
   case BufferType::PCM_S32LE:
+    bytesPerSample = 4;
+    break;
+  default:
     bytesPerSample = 4;
     break;
   }

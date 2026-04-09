@@ -55,6 +55,7 @@ class ParametricEq : public SoLoud::Filter {
 public:
   // Wet param is index 0 in the filter param list; band gains start at index 1
   unsigned int mBands;      // number of EQ bands (user configurable)
+  float mWet;
   std::vector<float> mGain; // per-band gain
   std::vector<float> mFreq; // per-band center frequency
   int mSTFT_WINDOW_SIZE; // Increased for better frequency resolution. Must be a

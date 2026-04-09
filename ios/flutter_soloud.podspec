@@ -34,17 +34,17 @@ Flutter audio plugin using SoLoud library and FFI
   # CMake handles incremental builds internally — if no source files changed,
   # this is a fast no-op.
   build_script = <<-SCRIPT
+    # Check for CMake availability
+    if ! command -v cmake &> /dev/null; then
+      echo "Error: CMake is not installed. Please install CMake to build flutter_soloud."
+      echo "  - On macOS: brew install cmake"
+      echo "  - Or visit: https://cmake.org/download/"
+      exit 1
+    fi
+
     # Build flutter_soloud with CMake
     #{disable_xiph_libs ? 'export NO_XIPH_LIBS=1' : 'unset NO_XIPH_LIBS'}
     bash "${PODS_TARGET_SRCROOT}/build_cmake.sh"
-    
-    # Warn about iOS 26.4+ debug mode requirements
-    if [ "${CONFIGURATION}" = "Debug" ] && [ "${PLATFORM_NAME}" = "iphoneos" ]; then
-      echo "⚠️  flutter_soloud: iOS 26.4+ Debug Mode Notice"
-      echo "    If you encounter EXC_BAD_ACCESS (code=50) crashes in debug mode on iOS 26.4+,"
-      echo "    please see https://docs.page/alnitak/flutter_soloud_docs/get_started/iOS_issue"
-      echo "    for more details."
-    fi
   SCRIPT
 
   s.script_phase = {

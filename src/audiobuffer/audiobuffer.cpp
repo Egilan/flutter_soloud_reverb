@@ -63,7 +63,7 @@ unsigned int BufferStreamInstance::getAudio(float *aBuffer,
     return 0;
   }
 
-  unsigned int bufferSize = mParent->mBuffer.getFloatsBufferSize();
+  unsigned int bufferSize = static_cast<unsigned int>(mParent->mBuffer.getFloatsBufferSize());
   float *buffer = reinterpret_cast<float *>(mParent->mBuffer.buffer.data());
   int samplesToRead = aSamplesToRead;
   if (mOffset + (unsigned int)samplesToRead * mChannels > bufferSize) {
@@ -154,7 +154,7 @@ result BufferStreamInstance::seek(double aSeconds, float *mScratch,
     long samples = mScratchSize / mChannels;
     if (samples > samples_to_discard)
       samples = samples_to_discard;
-    getAudio(mScratch, samples, samples);
+    getAudio(mScratch, static_cast<unsigned int>(samples), static_cast<unsigned int>(samples));
     samples_to_discard -= samples;
   }
   int pos = (int)floor(mBaseSamplerate * mChannels * aSeconds);
@@ -317,7 +317,7 @@ PlayerErrors BufferStream::addData(const void *aData, unsigned int aDataLen,
       if (buffer.size() > 1024 * 32) // 32 KB of data.
       {
         // When using opus,ogg or mp3 we don't need to align.
-        bufferDataToAdd = buffer.size();
+        bufferDataToAdd = static_cast<int32_t>(buffer.size());
       } else {
         // Return if there is not enough data to add.
         return PlayerErrors::noError;
@@ -325,7 +325,7 @@ PlayerErrors BufferStream::addData(const void *aData, unsigned int aDataLen,
     }
 
   } else {
-    bufferDataToAdd = buffer.size();
+    bufferDataToAdd = static_cast<int32_t>(buffer.size());
   }
 
   // It's time to decode the data already stored in the buffer
@@ -391,10 +391,10 @@ PlayerErrors BufferStream::addData(const void *aData, unsigned int aDataLen,
   }
 
   if (mIsBuffering)
-    checkBuffering(bytesWritten);
+    checkBuffering(static_cast<unsigned int>(bytesWritten));
   mUncompressedBytesReceived += bytesWritten;
 
-  mSampleCount += bytesWritten / mPCMformat.bytesPerSample;
+  mSampleCount += static_cast<unsigned int>(bytesWritten / mPCMformat.bytesPerSample);
 
   // data has been added to the buffer, but not all because reached its full
   // capacity. So mark this stream as ended and no more data can be added.

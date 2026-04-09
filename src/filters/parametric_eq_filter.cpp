@@ -26,11 +26,17 @@ ParametricEqInstance::ParametricEqInstance(ParametricEq *aParent) {
     mMixBuffer[i] = nullptr;
   }
 
+  initParams(3 + mParent->mBands);
+
   // Initialize FFT setup and allocate buffers
   initFFTBuffers();
 
   // Initialize band parameters (count, gains, centers, boundaries)
   initBandParameters();
+
+  mParam[0] = mParent->mWet; // Reset wet param (index 0)
+  mParam[1] = mParent->mSTFT_WINDOW_SIZE; // Update window size param (index 1)
+  mParam[2] = mParent->mBands; // Update band count param (index 2)
 }
 
 void ParametricEqInstance::comp2MagPhase(float *aFFTBuffer,
@@ -59,8 +65,7 @@ void ParametricEqInstance::initBandParameters() {
 
   // Re-initialize parameter arrays to match band count
   mNumParams = 3 + mBands;
-  initParams(mNumParams);
-  mParam[0] = 1.0f; // Reset wet param
+  mParam[2] = mBands; // Update band count param (index 2)
 
   // Copy band gains into parameter slots (params[3..3+bands-1])
   for (int i = 0; i < mBands; i++) {
@@ -135,6 +140,8 @@ void ParametricEqInstance::initFFTBuffers() {
                                            sizeof(float));
   mTemp = (float *)pffft_aligned_malloc(mParent->mSTFT_WINDOW_TWICE *
                                         sizeof(float));
+
+  mParam[1] = mParent->mSTFT_WINDOW_SIZE; // Update window size param (index 1)
 }
 
 ParametricEqInstance::~ParametricEqInstance() {
@@ -186,9 +193,16 @@ void ParametricEqInstance::setFilterParameter(unsigned int aAttributeId,
   mParamFader[aAttributeId].mActive = 0;
 
   switch (aAttributeId) {
+  case 0: // wet
+    if (mParent->mWet == aValue)
+      return;
+    mParam[0] = aValue; // Update wet param (index 0)
+    mParent->mWet = aValue;
+    break;
   case 1: // SFTF_WINDOW_SIZE
     if (mParent->mSTFT_WINDOW_SIZE == (int)aValue)
       return;
+    mParam[1] = (int)aValue; // Update window size param (index 1)
     mParent->mSTFT_WINDOW_SIZE = (int)aValue;
     mParent->mSTFT_WINDOW_HALF = mParent->mSTFT_WINDOW_SIZE >> 1;
     mParent->mSTFT_WINDOW_TWICE = mParent->mSTFT_WINDOW_SIZE << 1;
@@ -199,13 +213,19 @@ void ParametricEqInstance::setFilterParameter(unsigned int aAttributeId,
   case 2: // nBands
     if (mParent->mBands == (unsigned int)aValue)
       return;
+    initParams(3 + (int)aValue);
+    // The initParams resets values. Restoring.
+    mBands = mParent->mBands = (int)aValue;
+    mParam[0] = mParent->mWet; // Reset wet param (index 0)
+    mParam[1] = mParent->mSTFT_WINDOW_SIZE; // Update window size param (index 1)
+    mParam[2] = mBands; // Update band count param (index 2)
     // Update parent's band configuration first
     mParent->setFreqs((unsigned int)aValue);
     // Re-initialize band parameters from parent
     initBandParameters();
     break;
 
-  default: // wet and band gains
+  default: // 3..nBands per-band gains
     mParam[aAttributeId] = aValue;
     break;
   }
@@ -442,8 +462,8 @@ void ParametricEq::setFreqs(unsigned int nBands) {
   mFreq.resize(mBands);
 
   // default frequency distribution: geometric spacing between 30Hz and 16000Hz
-  float f0 = 60.0f;
-  float f1 = 10000.0f;
+  float f0 = 30.0f;
+  float f1 = 16000.0f;
   if (mBands == 1) {
     mFreq[0] = 1000.0f;
   } else {
@@ -457,6 +477,8 @@ void ParametricEq::setFreqs(unsigned int nBands) {
 ParametricEq::ParametricEq(SoLoud::Soloud *aSoloud, int bands) {
   mSoloud = aSoloud;
   mChannels = aSoloud->mChannels;
+
+  mWet = 1.0f;
 
   mSTFT_WINDOW_SIZE = 1024;
   mSTFT_WINDOW_HALF = mSTFT_WINDOW_SIZE >> 1;

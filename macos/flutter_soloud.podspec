@@ -39,14 +39,23 @@ Flutter audio plugin using SoLoud library and FFI
   # Build the plugin's native code using CMake with release optimizations.
   # CMake handles incremental builds internally — if no source files changed,
   # this is a fast no-op.
-  script_lines = [
-    (disable_xiph_libs ? 'export NO_XIPH_LIBS=1' : 'unset NO_XIPH_LIBS'),
-    'bash "${PODS_TARGET_SRCROOT}/build_cmake.sh"'
-  ]
+  build_script = <<-SCRIPT
+    # Check for CMake availability
+    if ! command -v cmake &> /dev/null; then
+      echo "Error: CMake is not installed. Please install CMake to build flutter_soloud."
+      echo "  - On macOS: brew install cmake"
+      echo "  - Or visit: https://cmake.org/download/"
+      exit 1
+    fi
+
+    # Build flutter_soloud with CMake
+    #{disable_xiph_libs ? 'export NO_XIPH_LIBS=1' : 'unset NO_XIPH_LIBS'}
+    bash "${PODS_TARGET_SRCROOT}/build_cmake.sh"
+  SCRIPT
 
   s.script_phase = {
     :name => 'Build flutter_soloud with CMake',
-    :script => script_lines.join("\n"),
+    :script => build_script,
     :execution_position => :before_compile,
     :output_files => ['$(PODS_TARGET_SRCROOT)/cmake_build/macosx/libflutter_soloud_plugin.a'],
   }

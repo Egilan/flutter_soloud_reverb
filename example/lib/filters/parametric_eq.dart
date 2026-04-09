@@ -82,9 +82,10 @@ class _ParametricEqState extends State<ParametricEq> {
   void initState() {
     super.initState();
     soloud.loadAsset('assets/audio/8_bit_mentality.mp3').then((s) {
+      soloud.filters.parametricEqFilter.activate();
       source = s;
       soloud.play(source!, looping: true);
-      soloud.filters.parametricEqFilter.activate();
+      setState(() {});
     });
   }
 
@@ -102,6 +103,14 @@ class _ParametricEqState extends State<ParametricEq> {
 
   @override
   Widget build(BuildContext context) {
+    if (source == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -205,31 +214,38 @@ class _ParametricEqState extends State<ParametricEq> {
                     return Column(
                       children: List.generate(
                         value,
-                        (index) => ValueListenableBuilder(
-                          valueListenable: gains[index],
-                          builder: (context, value, child) {
-                            return Row(
-                              children: [
-                                Text('#$index'),
-                                Expanded(
-                                  child: Slider(
-                                    value: value,
-                                    min: minGain,
-                                    max: maxGain,
-                                    label: index.toString(),
-                                    onChanged: (value) {
-                                      gains[index].value = value;
-                                      soloud.filters.parametricEqFilter
-                                          .bandGain(index)
-                                          .value = value;
-                                    },
+                        (index) {
+                          return ValueListenableBuilder(
+                            valueListenable: gains[index],
+                            builder: (context, value, child) {
+                              final bandFreq = soloud.filters.parametricEqFilter
+                                  .bandFrequency(index)
+                                  .toStringAsFixed(1);
+                              return Row(
+                                children: [
+                                  Text(
+                                    '#$index $bandFreq Hz',
                                   ),
-                                ),
-                                Text(value.toStringAsFixed(2)),
-                              ],
-                            );
-                          },
-                        ),
+                                  Expanded(
+                                    child: Slider(
+                                      value: value,
+                                      min: minGain,
+                                      max: maxGain,
+                                      label: index.toString(),
+                                      onChanged: (value) {
+                                        gains[index].value = value;
+                                        soloud.filters.parametricEqFilter
+                                            .bandGain(index)
+                                            .value = value;
+                                      },
+                                    ),
+                                  ),
+                                  Text(value.toStringAsFixed(2)),
+                                ],
+                              );
+                            },
+                          );
+                        },
                       ),
                     );
                   },

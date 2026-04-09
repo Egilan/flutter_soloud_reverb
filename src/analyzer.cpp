@@ -11,12 +11,12 @@
 
 Analyzer::Analyzer(int windowSize, float sampleRate)
     : mWindowSize(windowSize),
-      sampleRate(sampleRate),
       alpha(0.16f),
       a0(0.5f * (1 - alpha)),
       a1(0.5f),
       a2(0.5f * alpha),
-      fftSmoothing(0.8)
+      fftSmoothing(0.8),
+      sampleRate(sampleRate)
 {
     for (float &i : FFTData)
         i = 0.0f;

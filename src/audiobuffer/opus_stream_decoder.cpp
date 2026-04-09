@@ -379,7 +379,7 @@ std::vector<float> OpusDecoderWrapper::decodePacket(ogg_packet* packet)
     // Try decoding the packet
     int samples = opus_decode_float(decoder,
                                     packet->packet,
-                                    packet->bytes,
+                                    static_cast<opus_int32>(packet->bytes),
                                     outputBuffer.data(),
                                     maxFrameSize,
                                     0);

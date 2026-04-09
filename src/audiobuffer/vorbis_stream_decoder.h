@@ -24,9 +24,7 @@ public:
 private:
     AudioMetadata getMetadata();
     std::vector<float> decodePacket(ogg_packet* packet);
-    
-    int engineSamplerate;
-    int engineChannels;
+
     int decodingSamplerate;
     int decodingChannels;
 

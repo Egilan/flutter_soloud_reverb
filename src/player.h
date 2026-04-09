@@ -108,9 +108,10 @@ public:
   /// @param hash return the hash of the sound.
   /// @param maxBufferSize the max buffer size in bytes.
   /// @param bufferingType the buffering type.
-  /// @param isPCM if true, the audio data is PCM.
-  /// @param dataType in case the audio data is PCM, here are the parameters to
-  /// set it up.
+  /// @param bufferingTimeNeeds time needed for buffering.
+  /// @param pcmFormat PCM format configuration.
+  /// @param onBufferingCallback callback for buffering events.
+  /// @param onMetadataCallback callback for metadata events.
   PlayerErrors
   setBufferStream(unsigned int &hash, unsigned long maxBufferSize,
                   BufferingType bufferingType, SoLoud::time bufferingTimeNeeds,

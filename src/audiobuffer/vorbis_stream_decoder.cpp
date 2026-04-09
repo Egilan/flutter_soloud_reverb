@@ -179,8 +179,8 @@ std::pair<std::vector<float>, DecoderError> VorbisDecoderWrapper::decode(std::ve
 
     // Return samplerate/channels to caller (once headers are parsed)
     if (headerParsed && samplerate && channels) {
-        *samplerate = vi.rate;
-        *channels   = vi.channels;
+        *samplerate = static_cast<int>(vi.rate);
+        *channels   = static_cast<int>(vi.channels);
     }
 
     return {decodedData, DecoderError::NoError};

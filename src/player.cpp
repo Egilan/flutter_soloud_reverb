@@ -427,7 +427,7 @@ PlayerErrors Player::setBufferStream(
     newSound.get()->soundType = SoundType::TYPE_BUFFER_STREAM;
     PlayerErrors e = static_cast<SoLoud::BufferStream *>(newSound.get()->sound.get())->setBufferStream(
         this, newSound.get(),
-        maxBufferSize,
+        static_cast<unsigned int>(maxBufferSize),
         bufferingType,
         bufferingTimeNeeds,
         pcmFormat,
@@ -515,8 +515,9 @@ PlayerErrors Player::getBufferSize(unsigned int hash, unsigned int *sizeInBytes)
     if (s == nullptr || s->soundType != SoundType::TYPE_BUFFER_STREAM)
         return PlayerErrors::soundHashNotFound;
 
-    *sizeInBytes = static_cast<SoLoud::BufferStream *>(s->sound.get())->mBuffer.buffer.size() +
-        static_cast<SoLoud::BufferStream *>(s->sound.get())->buffer.size();
+    *sizeInBytes = static_cast<unsigned int>(
+        static_cast<SoLoud::BufferStream *>(s->sound.get())->mBuffer.buffer.size() +
+        static_cast<SoLoud::BufferStream *>(s->sound.get())->buffer.size());
     return PlayerErrors::noError;
 }
 
