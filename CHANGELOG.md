@@ -1,3 +1,8 @@
+#### 4.0.1 (9 Apr 2026)
+- fixed get eq params other than bands values
+- removed some warnings from native build
+- warn mac users to install cmake if not already installed
+
 #### 4.0.0 (3 Apr 2026)
 - fix: some OGG audio files don't trigger `SoundEventType.handleIsNoMoreValid`
 - fix: setBufferStream fails to decode small MP3 files under 32 KB #434. Thanks to @chaudharydeepanshu

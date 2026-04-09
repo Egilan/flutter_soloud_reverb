@@ -120,6 +120,10 @@ abstract class _ParametricEqInternal extends FilterBase {
   /// 30 Hz and 16,000 Hz to match human auditory perception.
   @protected
   double calculateBandFrequency(int bandIndex, int nBands) {
+    // This reflects the internal logic of the SoLoud parametric EQ filter,
+    // which uses a logarithmic scale between 30 Hz and 16,000 Hz.
+    // If "ParametricEq::setFreqs" of "parametric_eq_filter.cpp" is updated,
+    // this function should be updated as well.
     if (bandIndex < 0 || bandIndex >= nBands) {
       throw ArgumentError('Band index must be between 0 and ${nBands - 1}');
     }
@@ -190,12 +194,12 @@ class ParametricEqSingle extends _ParametricEqInternal {
 
   /// Get the center frequency (in Hz) for a specific band.
   ///
-  /// [bandIndex] should be 0 to [nBands]-1.
+  /// [bandIndex] should be 0 to nBands-1.
   /// [soundHandle] is the handle of the playing sound, or `null` for bus filters.
   ///
   /// The number of bands is automatically read from the active filter. If the
-  /// filter is not active or the value cannot be read, [defaultNBands] is used
-  /// (default: 3).
+  /// filter is not active or the index is out of range, it will
+  /// throw [ArgumentError]
   ///
   /// Frequencies are distributed logarithmically (geometrically) between
   /// 30 Hz and 16,000 Hz to match human auditory perception.
