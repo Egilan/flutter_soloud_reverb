@@ -219,7 +219,8 @@ class _ParametricEqState extends State<ParametricEq> {
                             valueListenable: gains[index],
                             builder: (context, value, child) {
                               final bandFreq = soloud.filters.parametricEqFilter
-                                  .bandFrequency(index).toStringAsFixed(1);
+                                  .bandFrequency(index)
+                                  .toStringAsFixed(1);
                               return Row(
                                 children: [
                                   Text(
