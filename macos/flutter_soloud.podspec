@@ -40,6 +40,10 @@ Flutter audio plugin using SoLoud library and FFI
   # CMake handles incremental builds internally — if no source files changed,
   # this is a fast no-op.
   build_script = <<-SCRIPT
+    # Xcode's build environment has a restricted PATH that may not include cmake.
+    # Add common locations where cmake might be installed before checking.
+    export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
     # Check for CMake availability
     if ! command -v cmake &> /dev/null; then
       echo "Error: CMake is not installed. Please install CMake to build flutter_soloud."

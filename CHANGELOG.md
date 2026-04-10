@@ -1,3 +1,6 @@
+#### 4.0.2 (10 Apr 2026)
+- apple: fix building issue with XCode
+
 #### 4.0.1 (9 Apr 2026)
 - fixed get eq params other than bands values
 - added frequency getter to parametric equalizer (ie: `soloud.filters.parametricEqFilter.bandFrequency(index)`)
