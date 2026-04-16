@@ -86,6 +86,7 @@ public:
   void callOnMetadataCallback(AudioMetadata &metadata);
   void callOnBufferingCallback(bool isBuffering, unsigned int handle,
                                double time);
+  void clearDartCallbacks();
   BufferingType getBufferingType();
   virtual AudioSourceInstance *createInstance();
   

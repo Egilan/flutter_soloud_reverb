@@ -262,6 +262,9 @@ public:
   /// @brief Dispose all sounds already loaded.
   void disposeAllSound();
 
+  /// @brief Clear every native->Dart callback pointer held by the player.
+  void clearDartCallbackRegistrations();
+
   /// @brief Ask whether a sound is set to loop or not.
   bool getLooping(unsigned int handle);
 

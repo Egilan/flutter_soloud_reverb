@@ -174,6 +174,19 @@ setDartEventCallback(dartVoiceEndedCallback_t voice_ended_callback,
   dartStateChangedCallback = state_changed_callback;
 }
 
+FFI_PLUGIN_EXPORT void clearDartCallbackRegistrations() {
+  std::lock_guard<std::mutex> guard_init(init_deinit_mutex);
+  std::lock_guard<std::mutex> guard_load(loadMutex);
+
+  dartVoiceEndedCallback = nullptr;
+  dartFileLoadedCallback = nullptr;
+  dartStateChangedCallback = nullptr;
+
+  if (player.get() != nullptr) {
+    player.get()->clearDartCallbackRegistrations();
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////

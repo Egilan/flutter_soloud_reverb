@@ -511,6 +511,11 @@ void BufferStream::callOnBufferingCallback(bool isBuffering,
   mIsBuffering = isBuffering;
 }
 
+void BufferStream::clearDartCallbacks() {
+  mOnBufferingCallback = nullptr;
+  mOnMetadataCallback = nullptr;
+}
+
 BufferingType BufferStream::getBufferingType() { return mBuffer.bufferingType; }
 
 SoLoud::time BufferStream::getLength() {

@@ -54,6 +54,10 @@ abstract class FlutterSoLoud {
   @mustBeOverridden
   void disposeNativeCallables();
 
+  /// Used with FFI only to make native forget every Dart callback pointer.
+  @mustBeOverridden
+  void clearDartCallbackRegistrations();
+
   /// Set Dart functions to call when an event occurs.
   ///
   /// On the web, only the `voiceEndedCallback` is supported. On the other

@@ -891,6 +891,24 @@ void Player::disposeAllSound()
     // Sounds (and their filters) are destroyed here when soundsToDestroy goes out of scope
 }
 
+void Player::clearDartCallbackRegistrations()
+{
+    setVoiceEndedCallback(nullptr);
+    setStateChangedCallback(nullptr);
+
+    std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
+    for (auto &sound : sounds)
+    {
+        if (sound != nullptr &&
+            sound->soundType == SoundType::TYPE_BUFFER_STREAM &&
+            sound->sound != nullptr)
+        {
+            static_cast<SoLoud::BufferStream *>(sound->sound.get())
+                ->clearDartCallbacks();
+        }
+    }
+}
+
 bool Player::getLooping(unsigned int handle)
 {
     return soloud.getLooping(handle);

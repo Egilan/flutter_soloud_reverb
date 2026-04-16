@@ -137,10 +137,18 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   @override
   void disposeNativeCallables() {
+    clearDartCallbackRegistrations();
     nativeVoiceEndedCallable?.close();
+    nativeVoiceEndedCallable = null;
     nativeFileLoadedCallable?.close();
+    nativeFileLoadedCallable = null;
     nativeStateChangedCallable?.close();
-    _setDartEventCallback(ffi.nullptr, ffi.nullptr, ffi.nullptr);
+    nativeStateChangedCallable = null;
+  }
+
+  @override
+  void clearDartCallbackRegistrations() {
+    _clearDartCallbackRegistrations();
   }
 
   @override
@@ -184,6 +192,13 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
           DartStateChangedCallbackT,
         )
       >();
+
+  late final _clearDartCallbackRegistrationsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function()>>(
+        'clearDartCallbackRegistrations',
+      );
+  late final _clearDartCallbackRegistrations =
+      _clearDartCallbackRegistrationsPtr.asFunction<void Function()>();
 
   // ////////////////////////////////////////////////
   // Navtive bindings
