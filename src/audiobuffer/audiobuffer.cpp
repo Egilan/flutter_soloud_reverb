@@ -233,8 +233,8 @@ PlayerErrors BufferStream::setBufferStream(
   mBufferingTimeNeeds = bufferingTimeNeeds;
   mChannels = pcmFormat.channels;
   mBaseSamplerate = (float)pcmFormat.sampleRate;
-  mOnBufferingCallback = onBufferingCallback;
-  mOnMetadataCallback = onMetadataCallback;
+  mOnBufferingCallback.store(onBufferingCallback);
+  mOnMetadataCallback.store(onMetadataCallback);
   buffer = std::vector<unsigned char>();
   mBuffer.setBufferType(bufferingType);
   mIsBuffering = true;
@@ -458,7 +458,8 @@ void BufferStream::checkBuffering(unsigned int afterAddingBytesCount) {
 }
 
 void BufferStream::callOnMetadataCallback(AudioMetadata &metadata) {
-  if (mOnMetadataCallback != nullptr) {
+  auto metadataCb = mOnMetadataCallback.load();
+  if (metadataCb != nullptr) {
     AudioMetadataFFI ffi = this->convertMetadataToFFI(metadata);
     // metadata.debug();
 #ifdef __EMSCRIPTEN__
@@ -478,14 +479,15 @@ void BufferStream::callOnMetadataCallback(AudioMetadata &metadata) {
         },
         &ffi, mParent->soundHash);
 #else
-    mOnMetadataCallback(ffi);
+    metadataCb(ffi);
 #endif
   }
 }
 
 void BufferStream::callOnBufferingCallback(bool isBuffering,
                                            unsigned int handle, double time) {
-  if (mOnBufferingCallback != nullptr) {
+  auto bufferingCb = mOnBufferingCallback.load();
+  if (bufferingCb != nullptr) {
 #ifdef __EMSCRIPTEN__
     // Call the Dart callback stored on globalThis, if it exists.
     // The `dartOnBufferingCallback_$hash` function is created in
@@ -505,10 +507,15 @@ void BufferStream::callOnBufferingCallback(bool isBuffering,
         },
         isBuffering, handle, time, mParent->soundHash);
 #else
-    mOnBufferingCallback(isBuffering, handle, time);
+    bufferingCb(isBuffering, handle, time);
 #endif
   }
   mIsBuffering = isBuffering;
+}
+
+void BufferStream::clearDartCallbacks() {
+  mOnBufferingCallback.store(nullptr);
+  mOnMetadataCallback.store(nullptr);
 }
 
 BufferingType BufferStream::getBufferingType() { return mBuffer.bufferingType; }

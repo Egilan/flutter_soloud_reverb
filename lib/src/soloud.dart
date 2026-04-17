@@ -176,6 +176,13 @@ interface class SoLoud {
   /// Whether or not is it possible to ask for wave and FFT data.
   bool _isVisualizationEnabled = false;
 
+  /// Whether this Dart isolate has registered native callbacks.
+  ///
+  /// After a Flutter hot restart, the native engine can survive while the old
+  /// isolate's callback bindings are gone. Until callbacks are rebound, the
+  /// engine must be treated as not ready from Dart.
+  bool _nativeCallbacksInitialized = false;
+
   /// The current status of the engine. This is `true` when the engine
   /// has been initialized and is immediately ready.
   ///
@@ -189,7 +196,8 @@ interface class SoLoud {
   ///
   /// Use [isInitialized] only if you want to check the current status of
   /// the engine synchronously and you don't care that it might be ready soon.
-  bool get isInitialized => _controller.soLoudFFI.isInited();
+  bool get isInitialized =>
+      _nativeCallbacksInitialized && _controller.soLoudFFI.isInited();
 
   /// Backing of [activeSounds].
   final List<AudioSource> _activeSounds = [];
@@ -260,10 +268,8 @@ interface class SoLoud {
     int bufferSize = 2048,
     Channels channels = Channels.stereo,
   }) async {
+    final nativeIsInitialized = _controller.soLoudFFI.isInited();
     _log.finest('init() called');
-
-    // Initialize native callbacks
-    await _initializeNativeCallbacks();
 
     // Making extra sure no state is dangling after a hot-restart.
     assert(
@@ -289,7 +295,7 @@ interface class SoLoud {
     // the developer may have carried out a hot reload which does not imply
     // the release of the native player.
     // Just deinit the engine to be re-inited later.
-    if (isInitialized) {
+    if (nativeIsInitialized) {
       _log.warning(
         'init() called when the native player is already '
         'initialized. This is expected after a hot restart but not '
@@ -297,11 +303,8 @@ interface class SoLoud {
         'a bug in your code. You may have neglected to deinit() SoLoud '
         'during the current lifetime of the app.',
       );
+      _controller.soLoudFFI.clearDartCallbackRegistrations();
       deinit();
-
-      /// Re-initialize native callbacks because the above call to `deinit()`
-      /// has released them.
-      await _initializeNativeCallbacks();
     }
 
     final error = _controller.soLoudFFI.initEngine(
@@ -320,8 +323,14 @@ interface class SoLoud {
       // Initialize [SoLoudLoader]
       _loader.automaticCleanup = automaticCleanup;
 
+      // Register fresh Dart callbacks only after the native player has been
+      // reset and re-initialized.
+      await _initializeNativeCallbacks();
+      _nativeCallbacksInitialized = true;
+
       await _loader.initialize();
     } else {
+      _nativeCallbacksInitialized = false;
       _log.severe('initialize() failed with error: $error');
       throw SoLoudCppException.fromPlayerError(error);
     }
@@ -363,6 +372,7 @@ interface class SoLoud {
   /// or inside "AppLifecycleListener.onExitRequested".
   void deinit() {
     _log.finest('deinit() called');
+    _nativeCallbacksInitialized = false;
     _controller.soLoudFFI.disposeNativeCallables();
     _controller.soLoudFFI.disposeAllSound();
     _controller.soLoudFFI.deinit();

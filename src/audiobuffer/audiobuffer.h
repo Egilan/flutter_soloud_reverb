@@ -45,8 +45,8 @@ public:
   Player *mThePlayer;
   // Used to access the AudioSource this stream belongs to
   ActiveSound *mParent;
-  dartOnBufferingCallback_t mOnBufferingCallback;
-  dartOnMetadataCallback_t mOnMetadataCallback;
+  std::atomic<dartOnBufferingCallback_t> mOnBufferingCallback{nullptr};
+  std::atomic<dartOnMetadataCallback_t> mOnMetadataCallback{nullptr};
   unsigned int autoTypeChannels;
   float autoTypeSamplerate;
   unsigned int mMaxBufferSize;
@@ -86,6 +86,7 @@ public:
   void callOnMetadataCallback(AudioMetadata &metadata);
   void callOnBufferingCallback(bool isBuffering, unsigned int handle,
                                double time);
+  void clearDartCallbacks();
   BufferingType getBufferingType();
   virtual AudioSourceInstance *createInstance();
   

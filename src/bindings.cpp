@@ -14,6 +14,7 @@
 #include <emscripten/emscripten.h>
 #endif
 
+#include <atomic>
 #include <map>
 #include <memory.h>
 #include <memory>
@@ -38,9 +39,10 @@ typedef void (*dartFileLoadedCallback_t)(enum PlayerErrors *, char *completeFile
 typedef void (*dartStateChangedCallback_t)(enum PlayerStateEvents *);
 
 // to be used by `NativeCallable`, these functions must return void.
-void (*dartVoiceEndedCallback)(unsigned int *) = nullptr;
-void (*dartFileLoadedCallback)(enum PlayerErrors *, char *completeFileName, unsigned int *, uint64_t *counter) = nullptr;
-void (*dartStateChangedCallback)(enum PlayerStateEvents *) = nullptr;
+// Atomic so the audio thread can safely snapshot the pointer before calling.
+std::atomic<dartVoiceEndedCallback_t> dartVoiceEndedCallback{nullptr};
+std::atomic<dartFileLoadedCallback_t> dartFileLoadedCallback{nullptr};
+std::atomic<dartStateChangedCallback_t> dartStateChangedCallback{nullptr};
 
 //////////////////////////////////////////////////////////////
 /// WEB WORKER
@@ -127,7 +129,9 @@ FFI_PLUGIN_EXPORT void voiceEndedCallback(unsigned int *handle) {
 #endif
 
   // The `dartVoiceEndedCallback` is not set on Web.
-  if (dartVoiceEndedCallback == nullptr)
+  // Snapshot the atomic pointer so it can't be nulled between check and call.
+  auto voiceEndedCb = dartVoiceEndedCallback.load();
+  if (voiceEndedCb == nullptr)
     return;
   // So, if the handle was already found before (henche the handle is not
   // found), the callback to Dart has been already called. If this is the fist
@@ -137,13 +141,14 @@ FFI_PLUGIN_EXPORT void voiceEndedCallback(unsigned int *handle) {
   // [n] pointer must be deleted in Dart.
   unsigned int *n = (unsigned int *)malloc(sizeof(unsigned int *));
   *n = *handle;
-  dartVoiceEndedCallback(n);
+  voiceEndedCb(n);
 }
 
     /// The callback to monitor when a file is loaded.
     void fileLoadedCallback(enum PlayerErrors error, char *completeFileName, unsigned int *hash, uint64_t counter)
     {
-        if (dartFileLoadedCallback == nullptr)
+        auto fileLoadedCb = dartFileLoadedCallback.load();
+        if (fileLoadedCb == nullptr)
             return;
         // [e,name,n] pointers must be deleted on Dart.
         PlayerErrors *e = (PlayerErrors *)malloc(sizeof(PlayerErrors *));
@@ -153,14 +158,15 @@ FFI_PLUGIN_EXPORT void voiceEndedCallback(unsigned int *handle) {
         *n = *hash;
         uint64_t *ts = (uint64_t *)malloc(sizeof(uint64_t *));
         *ts = counter;
-        dartFileLoadedCallback(e, name, n, ts);
+        fileLoadedCb(e, name, n, ts);
     }
 
 void stateChangedCallback(unsigned int state) {
+  auto stateChangedCb = dartStateChangedCallback.load();
+  if (stateChangedCb == nullptr) return;
   PlayerStateEvents *type = (PlayerStateEvents *)malloc(sizeof(unsigned int *));
   *type = (PlayerStateEvents)state;
-  if (dartStateChangedCallback != nullptr)
-    dartStateChangedCallback(type);
+  stateChangedCb(type);
 }
 
 /// Set a Dart functions to call when an event occurs.
@@ -169,9 +175,22 @@ FFI_PLUGIN_EXPORT void
 setDartEventCallback(dartVoiceEndedCallback_t voice_ended_callback,
                      dartFileLoadedCallback_t file_loaded_callback,
                      dartStateChangedCallback_t state_changed_callback) {
-  dartVoiceEndedCallback = voice_ended_callback;
-  dartFileLoadedCallback = file_loaded_callback;
-  dartStateChangedCallback = state_changed_callback;
+  dartVoiceEndedCallback.store(voice_ended_callback);
+  dartFileLoadedCallback.store(file_loaded_callback);
+  dartStateChangedCallback.store(state_changed_callback);
+}
+
+FFI_PLUGIN_EXPORT void clearDartCallbackRegistrations() {
+  std::lock_guard<std::mutex> guard_init(init_deinit_mutex);
+  std::lock_guard<std::mutex> guard_load(loadMutex);
+
+  dartVoiceEndedCallback.store(nullptr);
+  dartFileLoadedCallback.store(nullptr);
+  dartStateChangedCallback.store(nullptr);
+
+  if (player.get() != nullptr) {
+    player.get()->clearDartCallbackRegistrations();
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////
