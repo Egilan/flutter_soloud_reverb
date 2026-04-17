@@ -59,6 +59,21 @@ typedef DartdartStateChangedCallbackTFunction =
 
 typedef OnMetadataCallbackTFunction = void Function(NativeAudioMetadata);
 
+final class _BufferStreamNativeCallbacks {
+  _BufferStreamNativeCallbacks({this.onBuffering, this.onMetadata});
+
+  final ffi.NativeCallable<ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)>?
+  onBuffering;
+  final ffi.NativeCallable<ffi.Void Function(NativeAudioMetadata)>? onMetadata;
+
+  bool get hasCallbacks => onBuffering != null || onMetadata != null;
+
+  void close() {
+    onBuffering?.close();
+    onMetadata?.close();
+  }
+}
+
 /// FFI bindings to SoLoud
 @internal
 class FlutterSoLoudFfi extends FlutterSoLoud {
@@ -87,6 +102,19 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   ffi.NativeCallable<DartFileLoadedCallbackTFunction>? nativeFileLoadedCallable;
   ffi.NativeCallable<DartStateChangedCallbackTFunction>?
   nativeStateChangedCallable;
+  final Map<int, _BufferStreamNativeCallbacks> _bufferStreamNativeCallables =
+      {};
+
+  void _disposeBufferStreamCallbacks(SoundHash soundHash) {
+    _bufferStreamNativeCallables.remove(soundHash.hash)?.close();
+  }
+
+  void _disposeAllBufferStreamCallbacks() {
+    for (final callbacks in _bufferStreamNativeCallables.values) {
+      callbacks.close();
+    }
+    _bufferStreamNativeCallables.clear();
+  }
 
   void _voiceEndedCallback(ffi.Pointer<ffi.UnsignedInt> handle) {
     _log.finest(() => 'VOICE ENDED EVENT handle: ${handle.value}');
@@ -137,6 +165,7 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   @override
   void disposeNativeCallables() {
+    _disposeAllBufferStreamCallbacks();
     clearDartCallbackRegistrations();
     nativeVoiceEndedCallable?.close();
     nativeVoiceEndedCallable = null;
@@ -468,25 +497,18 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     OnBufferingCallbackTFunction? onBuffering,
     OnMetadataCallbackTFunction? onMetadata,
   ) {
-    // Create a NativeCallable for the given [onBuffering] callback.
-    ffi.NativeCallable<ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)>?
-    nativeOnBufferingCallable;
-    if (onBuffering != null) {
-      nativeOnBufferingCallable =
-          ffi.NativeCallable<
-            ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)
-          >.listener(onBuffering);
-    }
-
-    // Create a NativeCallable for the given [onMetadata] callback.
-    ffi.NativeCallable<ffi.Void Function(NativeAudioMetadata)>?
-    nativeOnMetadataCallable;
-    if (onMetadata != null) {
-      nativeOnMetadataCallable =
-          ffi.NativeCallable<ffi.Void Function(NativeAudioMetadata)>.listener(
-            onMetadata,
-          );
-    }
+    final nativeCallbacks = _BufferStreamNativeCallbacks(
+      onBuffering: onBuffering == null
+          ? null
+          : ffi.NativeCallable<
+              ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)
+            >.listener(onBuffering),
+      onMetadata: onMetadata == null
+          ? null
+          : ffi.NativeCallable<ffi.Void Function(NativeAudioMetadata)>.listener(
+              onMetadata,
+            ),
+    );
 
     final ffi.Pointer<ffi.UnsignedInt> hash = calloc(
       ffi.sizeOf<ffi.UnsignedInt>(),
@@ -499,11 +521,16 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
       sampleRate,
       channels,
       format,
-      nativeOnBufferingCallable?.nativeFunction ?? ffi.nullptr,
-      nativeOnMetadataCallable?.nativeFunction ?? ffi.nullptr,
+      nativeCallbacks.onBuffering?.nativeFunction ?? ffi.nullptr,
+      nativeCallbacks.onMetadata?.nativeFunction ?? ffi.nullptr,
     );
     final soundHash = SoundHash(hash.value);
     final ret = (error: PlayerErrors.values[e], soundHash: soundHash);
+    if (ret.error == PlayerErrors.noError && nativeCallbacks.hasCallbacks) {
+      _bufferStreamNativeCallables[soundHash.hash] = nativeCallbacks;
+    } else {
+      nativeCallbacks.close();
+    }
     calloc.free(hash);
     return ret;
   }
@@ -919,7 +946,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   @override
   void disposeSound(SoundHash soundHash) {
-    return _disposeSound(soundHash.hash);
+    _disposeSound(soundHash.hash);
+    _disposeBufferStreamCallbacks(soundHash);
   }
 
   late final _disposeSoundPtr =
@@ -930,7 +958,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   @override
   void disposeAllSound() {
-    return _disposeAllSound();
+    _disposeAllSound();
+    _disposeAllBufferStreamCallbacks();
   }
 
   late final _disposeAllSoundPtr =
