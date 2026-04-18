@@ -32,6 +32,168 @@ void main() async {
   );
 }
 
+// ─── Dattorro parameter bundle ────────────────────────────────────────────────
+
+class DattorroParams {
+  final double preDelay;
+  final double decay;
+  final double damping;
+  final double wet;
+  final double dry;
+  final double bandwidth;
+  final double inputDiffusion;
+  final double lfoRate;
+  final double lfoDepth;
+
+  const DattorroParams({
+    required this.preDelay,
+    required this.decay,
+    required this.damping,
+    required this.wet,
+    required this.dry,
+    required this.bandwidth,
+    required this.inputDiffusion,
+    required this.lfoRate,
+    required this.lfoDepth,
+  });
+
+  DattorroParams copyWith({
+    double? preDelay,
+    double? decay,
+    double? damping,
+    double? wet,
+    double? dry,
+    double? bandwidth,
+    double? inputDiffusion,
+    double? lfoRate,
+    double? lfoDepth,
+  }) =>
+      DattorroParams(
+        preDelay: preDelay ?? this.preDelay,
+        decay: decay ?? this.decay,
+        damping: damping ?? this.damping,
+        wet: wet ?? this.wet,
+        dry: dry ?? this.dry,
+        bandwidth: bandwidth ?? this.bandwidth,
+        inputDiffusion: inputDiffusion ?? this.inputDiffusion,
+        lfoRate: lfoRate ?? this.lfoRate,
+        lfoDepth: lfoDepth ?? this.lfoDepth,
+      );
+}
+
+// ─── Presets ──────────────────────────────────────────────────────────────────
+
+class DattorroPreset {
+  final String name;
+  final DattorroParams params;
+  const DattorroPreset(this.name, this.params);
+}
+
+const _presets = [
+  DattorroPreset(
+    'Default',
+    DattorroParams(
+      preDelay: 0.0,
+      decay: 0.70,
+      damping: 0.50,
+      wet: 0.80,
+      dry: 0.50,
+      bandwidth: 1.0,
+      inputDiffusion: 1.0,
+      lfoRate: 1.0,
+      lfoDepth: 1.0,
+    ),
+  ),
+  DattorroPreset(
+    'Floating Bird',
+    // Long ambient Lexicon-style: maximum diffusion, near-infinite decay,
+    // warm damping, slow LFO for that swirling chorused ghostliness.
+    DattorroParams(
+      preDelay: 0.0,
+      decay: 0.97,
+      damping: 0.65,
+      wet: 0.85,
+      dry: 0.30,
+      bandwidth: 0.45,
+      inputDiffusion: 1.0,
+      lfoRate: 0.5,
+      lfoDepth: 1.0,
+    ),
+  ),
+  DattorroPreset(
+    'Large Hall',
+    DattorroParams(
+      preDelay: 0.08,
+      decay: 0.88,
+      damping: 0.35,
+      wet: 0.75,
+      dry: 0.45,
+      bandwidth: 0.75,
+      inputDiffusion: 0.9,
+      lfoRate: 0.8,
+      lfoDepth: 0.8,
+    ),
+  ),
+  DattorroPreset(
+    'Small Room',
+    DattorroParams(
+      preDelay: 0.0,
+      decay: 0.30,
+      damping: 0.70,
+      wet: 0.50,
+      dry: 0.80,
+      bandwidth: 0.9,
+      inputDiffusion: 0.8,
+      lfoRate: 1.5,
+      lfoDepth: 0.4,
+    ),
+  ),
+  DattorroPreset(
+    'Dark Cave',
+    DattorroParams(
+      preDelay: 0.12,
+      decay: 0.92,
+      damping: 0.85,
+      wet: 0.90,
+      dry: 0.20,
+      bandwidth: 0.2,
+      inputDiffusion: 1.0,
+      lfoRate: 0.3,
+      lfoDepth: 0.6,
+    ),
+  ),
+  DattorroPreset(
+    'Metal Plate',
+    DattorroParams(
+      preDelay: 0.0,
+      decay: 0.60,
+      damping: 0.15,
+      wet: 0.70,
+      dry: 0.60,
+      bandwidth: 1.0,
+      inputDiffusion: 0.7,
+      lfoRate: 2.5,
+      lfoDepth: 0.5,
+    ),
+  ),
+  DattorroPreset(
+    'Infinite Wash',
+    DattorroParams(
+      preDelay: 0.15,
+      decay: 0.99,
+      damping: 0.60,
+      wet: 1.0,
+      dry: 0.0,
+      bandwidth: 0.35,
+      inputDiffusion: 1.0,
+      lfoRate: 0.4,
+      lfoDepth: 1.0,
+    ),
+  ),
+];
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+
 enum ReverbMode { none, ir, dattorro, hybrid }
 
 class MultiBusDemo extends StatefulWidget {
@@ -44,15 +206,12 @@ class MultiBusDemo extends StatefulWidget {
 class _MultiBusDemoState extends State<MultiBusDemo> {
   AudioSource? speech;
   AudioSource? music;
-  SoundHandle? speechHandle;
-  SoundHandle? musicHandle;
 
   BusHandle? busA;
   BusHandle? busB;
 
   List<String> _irAssets = [];
 
-  // Per-bus state
   ReverbMode modeA = ReverbMode.ir;
   ReverbMode modeB = ReverbMode.ir;
 
@@ -62,18 +221,8 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
   double volA = 1.0;
   double volB = 1.0;
 
-  // Dattorro params per bus
-  double dattorroPreDelayA = 0.0;
-  double dattorroDecayA = 0.7;
-  double dattorroDampingA = 0.5;
-  double dattorroWetA = 0.8;
-  double dattorroDryA = 0.5;
-
-  double dattorroPreDelayB = 0.0;
-  double dattorroDecayB = 0.7;
-  double dattorroDampingB = 0.5;
-  double dattorroWetB = 0.8;
-  double dattorroDryB = 0.5;
+  DattorroParams paramsA = _presets.first.params;
+  DattorroParams paramsB = _presets.first.params;
 
   bool isReady = false;
 
@@ -84,7 +233,6 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
   }
 
   Future<void> _initDemo() async {
-    // 1. Discover IRs
     final AssetManifest manifest =
         await AssetManifest.loadFromAssetBundle(rootBundle);
     final assets = manifest
@@ -103,16 +251,13 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
       }
     });
 
-    // 2. Load sounds
     speech = await SoLoud.instance
         .loadAsset('assets/audio/speech_20250803074809927_01.mp3');
     music = await SoLoud.instance.loadAsset('assets/audio/8_bit_mentality.mp3');
 
-    // 3. Create buses
     busA = SoLoud.instance.createBus();
     busB = SoLoud.instance.createBus();
 
-    // 4. Setup initial filters (IR mode by default)
     await _applyMode(busA!, modeA, isA: true);
     await _applyMode(busB!, modeB, isA: false);
 
@@ -121,7 +266,6 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
 
   Future<void> _applyMode(BusHandle bus, ReverbMode mode,
       {required bool isA}) async {
-    // Remove existing filters
     try {
       SoLoud.instance.removeBusFilter(bus, FilterType.convolutionFilter);
     } catch (_) {}
@@ -139,39 +283,32 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
           SoLoud.instance.addBusFilter(bus, FilterType.convolutionFilter);
           await _loadIrToBus(bus, ir);
         }
-        break;
       case ReverbMode.dattorro:
         SoLoud.instance.addBusFilter(bus, FilterType.dattorroFilter);
-        _applyDattorroParams(bus, isA: isA);
-        break;
+        _pushDattorroParams(bus, isA ? paramsA : paramsB);
       case ReverbMode.hybrid:
         if (ir.isNotEmpty) {
           SoLoud.instance.addBusFilter(bus, FilterType.convolutionFilter);
           await _loadIrToBus(bus, ir);
         }
         SoLoud.instance.addBusFilter(bus, FilterType.dattorroFilter);
-        _applyDattorroParams(bus, isA: isA);
-        break;
+        _pushDattorroParams(bus, isA ? paramsA : paramsB);
     }
   }
 
-  void _applyDattorroParams(BusHandle bus, {required bool isA}) {
-    final preDelay = isA ? dattorroPreDelayA : dattorroPreDelayB;
-    final decay = isA ? dattorroDecayA : dattorroDecayB;
-    final damping = isA ? dattorroDampingA : dattorroDampingB;
-    final wet = isA ? dattorroWetA : dattorroWetB;
-    final dry = isA ? dattorroDryA : dattorroDryB;
-
-    SoLoud.instance.setBusFilterParameter(
-        bus, FilterType.dattorroFilter, 0, preDelay);
-    SoLoud.instance
-        .setBusFilterParameter(bus, FilterType.dattorroFilter, 1, decay);
-    SoLoud.instance
-        .setBusFilterParameter(bus, FilterType.dattorroFilter, 2, damping);
-    SoLoud.instance
-        .setBusFilterParameter(bus, FilterType.dattorroFilter, 3, wet);
-    SoLoud.instance
-        .setBusFilterParameter(bus, FilterType.dattorroFilter, 4, dry);
+  void _pushDattorroParams(BusHandle bus, DattorroParams p) {
+    void set(int idx, double val) =>
+        SoLoud.instance.setBusFilterParameter(
+            bus, FilterType.dattorroFilter, idx, val);
+    set(0, p.preDelay);
+    set(1, p.decay);
+    set(2, p.damping);
+    set(3, p.wet);
+    set(4, p.dry);
+    set(5, p.bandwidth);
+    set(6, p.inputDiffusion);
+    set(7, p.lfoRate);
+    set(8, p.lfoDepth);
   }
 
   Future<void> _loadIrToBus(BusHandle bus, String assetPath) async {
@@ -209,7 +346,7 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("SoLoud Multi-Bus Reverb Demo")),
+      appBar: AppBar(title: const Text('SoLoud Multi-Bus Reverb Demo')),
       body: !isReady
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -217,12 +354,12 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildBusControl("Bus A", busA!, isA: true),
+                  _buildBusControl('Bus A', busA!, isA: true),
                   const SizedBox(height: 24),
-                  _buildBusControl("Bus B", busB!, isA: false),
+                  _buildBusControl('Bus B', busB!, isA: false),
                   const Divider(height: 48),
                   _buildSoundControl(
-                    "Speech",
+                    'Speech',
                     speech,
                     () => _playSpeech(null),
                     () => _playSpeech(busA),
@@ -230,7 +367,7 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
                   ),
                   const SizedBox(height: 24),
                   _buildSoundControl(
-                    "Music",
+                    'Music',
                     music,
                     () => _playMusic(null),
                     () => _playMusic(busA),
@@ -242,8 +379,7 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
     );
   }
 
-  Widget _buildBusControl(String name, BusHandle handle,
-      {required bool isA}) {
+  Widget _buildBusControl(String name, BusHandle handle, {required bool isA}) {
     final mode = isA ? modeA : modeB;
     final currentIr = isA ? irA : irB;
     final vol = isA ? volA : volB;
@@ -255,59 +391,45 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(name,
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                style: const TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
 
             // Volume
-            Row(
-              children: [
-                const Text("Volume"),
-                Expanded(
-                  child: Slider(
-                    value: vol,
-                    onChanged: (val) {
-                      setState(() {
-                        if (isA) {
-                          volA = val;
-                        } else {
-                          volB = val;
-                        }
-                      });
-                      SoLoud.instance.setBusVolume(handle, val);
-                    },
-                  ),
-                ),
-                Text(vol.toStringAsFixed(2)),
-              ],
+            _slider(
+              'Volume',
+              vol,
+              0.0,
+              1.0,
+              (val) {
+                setState(() => isA ? volA = val : volB = val);
+                SoLoud.instance.setBusVolume(handle, val);
+              },
             ),
 
             // Mode selector
             Row(
               children: [
-                const Text("Mode"),
+                const Text('Mode'),
                 const SizedBox(width: 16),
                 Expanded(
                   child: SegmentedButton<ReverbMode>(
                     segments: const [
                       ButtonSegment(
-                          value: ReverbMode.none, label: Text("None")),
-                      ButtonSegment(value: ReverbMode.ir, label: Text("IR")),
+                          value: ReverbMode.none, label: Text('None')),
                       ButtonSegment(
-                          value: ReverbMode.dattorro, label: Text("Dattorro")),
+                          value: ReverbMode.ir, label: Text('IR')),
                       ButtonSegment(
-                          value: ReverbMode.hybrid, label: Text("Hybrid")),
+                          value: ReverbMode.dattorro,
+                          label: Text('Dattorro')),
+                      ButtonSegment(
+                          value: ReverbMode.hybrid, label: Text('Hybrid')),
                     ],
                     selected: {mode},
                     onSelectionChanged: (selected) async {
                       final newMode = selected.first;
-                      setState(() {
-                        if (isA) {
-                          modeA = newMode;
-                        } else {
-                          modeB = newMode;
-                        }
-                      });
+                      setState(() =>
+                          isA ? modeA = newMode : modeB = newMode);
                       await _applyMode(handle, newMode, isA: isA);
                     },
                   ),
@@ -316,11 +438,11 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
             ),
             const SizedBox(height: 8),
 
-            // IR selector (shown for IR and Hybrid modes)
+            // IR selector
             if (mode == ReverbMode.ir || mode == ReverbMode.hybrid)
               Row(
                 children: [
-                  const Text("IR"),
+                  const Text('IR'),
                   const SizedBox(width: 16),
                   Expanded(
                     child: DropdownButton<String>(
@@ -333,13 +455,8 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
                           .toList(),
                       onChanged: (val) async {
                         if (val == null) return;
-                        setState(() {
-                          if (isA) {
-                            irA = val;
-                          } else {
-                            irB = val;
-                          }
-                        });
+                        setState(
+                            () => isA ? irA = val : irB = val);
                         await _loadIrToBus(handle, val);
                       },
                     ),
@@ -347,7 +464,7 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
                 ],
               ),
 
-            // Dattorro params (shown for Dattorro and Hybrid modes)
+            // Dattorro controls
             if (mode == ReverbMode.dattorro || mode == ReverbMode.hybrid)
               _buildDattorroControls(handle, isA: isA),
           ],
@@ -357,87 +474,127 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
   }
 
   Widget _buildDattorroControls(BusHandle bus, {required bool isA}) {
+    final p = isA ? paramsA : paramsB;
+
+    void update(DattorroParams next) {
+      setState(() => isA ? paramsA = next : paramsB = next);
+      _pushDattorroParams(bus, next);
+    }
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _dattorroSlider("Pre-Delay", isA ? dattorroPreDelayA : dattorroPreDelayB, 0.0, 1.0,
-            (val) {
-          setState(() {
-            if (isA) {
-              dattorroPreDelayA = val;
-            } else {
-              dattorroPreDelayB = val;
-            }
-          });
-          SoLoud.instance
-              .setBusFilterParameter(bus, FilterType.dattorroFilter, 0, val);
-        }),
-        _dattorroSlider(
-            "Decay", isA ? dattorroDecayA : dattorroDecayB, 0.0, 0.99, (val) {
-          setState(() {
-            if (isA) {
-              dattorroDecayA = val;
-            } else {
-              dattorroDecayB = val;
-            }
-          });
-          SoLoud.instance
-              .setBusFilterParameter(bus, FilterType.dattorroFilter, 1, val);
-        }),
-        _dattorroSlider("Damping", isA ? dattorroDampingA : dattorroDampingB,
-            0.0, 0.99, (val) {
-          setState(() {
-            if (isA) {
-              dattorroDampingA = val;
-            } else {
-              dattorroDampingB = val;
-            }
-          });
-          SoLoud.instance
-              .setBusFilterParameter(bus, FilterType.dattorroFilter, 2, val);
-        }),
-        _dattorroSlider("Wet", isA ? dattorroWetA : dattorroWetB, 0.0, 1.0,
-            (val) {
-          setState(() {
-            if (isA) {
-              dattorroWetA = val;
-            } else {
-              dattorroWetB = val;
-            }
-          });
-          SoLoud.instance
-              .setBusFilterParameter(bus, FilterType.dattorroFilter, 3, val);
-        }),
-        _dattorroSlider("Dry", isA ? dattorroDryA : dattorroDryB, 0.0, 1.0,
-            (val) {
-          setState(() {
-            if (isA) {
-              dattorroDryA = val;
-            } else {
-              dattorroDryB = val;
-            }
-          });
-          SoLoud.instance
-              .setBusFilterParameter(bus, FilterType.dattorroFilter, 4, val);
-        }),
-      ],
-    );
-  }
+        const SizedBox(height: 8),
 
-  Widget _dattorroSlider(String label, double value, double min, double max,
-      ValueChanged<double> onChanged) {
-    return Row(
-      children: [
-        SizedBox(width: 80, child: Text(label)),
-        Expanded(
-          child: Slider(value: value, min: min, max: max, onChanged: onChanged),
+        // ── Preset picker ─────────────────────────────────────────────────
+        Row(
+          children: [
+            const Text('Preset',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: DropdownButton<DattorroPreset>(
+                isExpanded: true,
+                hint: const Text('Select preset…'),
+                value: null,
+                items: _presets
+                    .map((preset) => DropdownMenuItem(
+                          value: preset,
+                          child: Text(preset.name),
+                        ))
+                    .toList(),
+                onChanged: (preset) {
+                  if (preset == null) return;
+                  update(preset.params);
+                },
+              ),
+            ),
+          ],
         ),
-        SizedBox(width: 48, child: Text(value.toStringAsFixed(2))),
+
+        const Divider(),
+
+        // ── Signal path ───────────────────────────────────────────────────
+        _sectionLabel('Signal Path'),
+        _slider('Pre-Delay', p.preDelay, 0.0, 1.0,
+            (v) => update(p.copyWith(preDelay: v))),
+        _slider('Bandwidth', p.bandwidth, 0.0, 1.0,
+            (v) => update(p.copyWith(bandwidth: v)),
+            hint: 'Input low-pass before diffusion (0=dark, 1=bright)'),
+        _slider('Input Diffusion', p.inputDiffusion, 0.0, 1.0,
+            (v) => update(p.copyWith(inputDiffusion: v)),
+            hint: 'Smearing of the input signal (0=echoes, 1=cloud)'),
+
+        // ── Tank ──────────────────────────────────────────────────────────
+        _sectionLabel('Tank'),
+        _slider('Decay', p.decay, 0.0, 0.99,
+            (v) => update(p.copyWith(decay: v)),
+            hint: 'Feedback amount — push toward 0.99 for infinite tail'),
+        _slider('Damping', p.damping, 0.0, 0.99,
+            (v) => update(p.copyWith(damping: v)),
+            hint: 'HF roll-off in tank (higher = warmer, darker tail)'),
+
+        // ── Modulation ────────────────────────────────────────────────────
+        _sectionLabel('Modulation (LFO)'),
+        _slider('LFO Rate (Hz)', p.lfoRate, 0.1, 10.0,
+            (v) => update(p.copyWith(lfoRate: v)),
+            hint: '0.5–1 Hz for lush chorus; faster = vibrato effect'),
+        _slider('LFO Depth', p.lfoDepth, 0.0, 1.0,
+            (v) => update(p.copyWith(lfoDepth: v)),
+            hint: 'Modulation depth — the "Lexicon secret sauce"'),
+
+        // ── Mix ───────────────────────────────────────────────────────────
+        _sectionLabel('Mix'),
+        _slider('Wet', p.wet, 0.0, 1.0,
+            (v) => update(p.copyWith(wet: v))),
+        _slider('Dry', p.dry, 0.0, 1.0,
+            (v) => update(p.copyWith(dry: v))),
       ],
     );
   }
 
-  Widget _buildSoundControl(String name, AudioSource? source,
-      VoidCallback onMain, VoidCallback onBusA, VoidCallback onBusB) {
+  Widget _sectionLabel(String label) => Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 2),
+        child: Text(label,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+                color: Colors.white54)),
+      );
+
+  Widget _slider(
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged, {
+    String? hint,
+  }) {
+    return Tooltip(
+      message: hint ?? '',
+      child: Row(
+        children: [
+          SizedBox(width: 110, child: Text(label, style: const TextStyle(fontSize: 13))),
+          Expanded(
+            child: Slider(value: value, min: min, max: max, onChanged: onChanged),
+          ),
+          SizedBox(
+              width: 44,
+              child: Text(value.toStringAsFixed(2),
+                  style: const TextStyle(fontSize: 12))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSoundControl(
+    String name,
+    AudioSource? source,
+    VoidCallback onMain,
+    VoidCallback onBusA,
+    VoidCallback onBusB,
+  ) {
     final isPlaying = source != null && source.handles.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,21 +606,21 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
         Wrap(
           spacing: 8,
           children: [
+            ElevatedButton(onPressed: onMain, child: const Text('Play Main')),
             ElevatedButton(
-                onPressed: onMain, child: const Text("Play Main")),
+                onPressed: onBusA, child: const Text('Play on Bus A')),
             ElevatedButton(
-                onPressed: onBusA, child: const Text("Play on Bus A")),
-            ElevatedButton(
-                onPressed: onBusB, child: const Text("Play on Bus B")),
+                onPressed: onBusB, child: const Text('Play on Bus B')),
             if (isPlaying)
               IconButton(
-                  onPressed: () {
-                    for (final h in source.handles.toList()) {
-                      SoLoud.instance.stop(h);
-                    }
-                    setState(() {});
-                  },
-                  icon: const Icon(Icons.stop, color: Colors.red)),
+                onPressed: () {
+                  for (final h in source.handles.toList()) {
+                    SoLoud.instance.stop(h);
+                  }
+                  setState(() {});
+                },
+                icon: const Icon(Icons.stop, color: Colors.red),
+              ),
           ],
         ),
       ],
