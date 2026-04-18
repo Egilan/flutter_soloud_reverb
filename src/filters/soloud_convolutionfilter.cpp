@@ -110,27 +110,36 @@ namespace SoLoud
         mIrDataL.resize(samples);
         mIrDataR.resize(samples);
 
-        float peak = 0.0001f; // Avoid division by zero
-
         // Read data directly from planar Wav buffers
         for (unsigned int i = 0; i < samples; ++i) {
             mIrDataL[i] = wav.mData[i];
-            float absL = fabsf(mIrDataL[i]);
-            if (absL > peak) peak = absL;
 
             if (channels >= 2) {
                 mIrDataR[i] = wav.mData[samples + i];
-                float absR = fabsf(mIrDataR[i]);
-                if (absR > peak) peak = absR;
             } else {
                 mIrDataR[i] = mIrDataL[i];
             }
         }
-        
-        // Peak normalization
+
+        // L2-norm normalization: IR is a transfer function, not a signal.
+        // Peak normalization only constrains the loudest single sample, but convolution
+        // accumulates energy across ALL IR samples — resulting in huge output gain for
+        // a long reverb tail. RMS (dividing by N) overcorrects the other way since reverb
+        // IRs have most samples near zero, making gain = 1/rms enormous.
+        // L2 norm (sqrt of total sum-of-squares, no averaging) is the correct approach:
+        // it ensures convolution output energy ≈ input energy.
+        double energy = 0.0;
         for (unsigned int i = 0; i < samples; ++i) {
-            mIrDataL[i] /= peak;
-            mIrDataR[i] /= peak;
+            energy += mIrDataL[i] * mIrDataL[i];
+            energy += mIrDataR[i] * mIrDataR[i];
+        }
+
+        float l2norm = sqrtf((float)energy);
+        float gain = l2norm > 0.00001f ? 1.0f / l2norm : 1.0f;
+
+        for (unsigned int i = 0; i < samples; ++i) {
+            mIrDataL[i] *= gain;
+            mIrDataR[i] *= gain;
         }
 
         mIrId++; // Trigger convolvers to reload
