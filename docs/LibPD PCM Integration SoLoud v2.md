@@ -152,21 +152,55 @@ This architecture fully supports:
 
 ## 6. Implementation Checklist
 
-1. [ ] Create `src/synth/soloud_libpd.cpp` - LibPDAudioSource + LibPDInstance
-2. [ ] Add libpd header/library to CMakeLists.txt  
-3. [ ] Add `loadLibPDSource()` in `src/bindings.cpp`
-4. [ ] Add FFI binding in `lib/src/bindings/bindings_player_ffi.dart`
-5. [ ] Add Dart API in `lib/src/soloud.dart`
-6. [ ] Initialize libpd before SoLoud init (or handle ordering)
-7. [ ] Test with basic PD patch generating sine wave
+1. [x] Create `src/synth/soloud_libpd.cpp` - LibPDAudioSource + LibPDInstance
+2. [x] Add libpd header/library to CMakeLists.txt / build files
+3. [x] Add `loadLibPDSource()` in `src/bindings.cpp`
+4. [x] Add FFI binding in `lib/src/bindings/bindings_player_ffi.dart`
+5. [x] Add Dart API in `lib/src/soloud.dart`
+6. [x] Initialize libpd before SoLoud init (or handle ordering) - **Implemented via PdBridge**
+7. [ ] Test with basic PD patch generating sine wave - *No example provided yet*
+
+### Additional Implementation (Not in Original Plan)
+
+8. [x] Create `src/synth/pd_bridge.cpp` - Patch lifecycle and messaging FFI
+9. [x] Add PdBridge Dart class in `lib/src/pd_bridge.dart`
+10. [x] Add PdBridge FFI bindings in `lib/src/bindings/bindings_pd_ffi.dart`
+
+These additional components provide:
+- Patch open/close functionality (`openPatch`, `closePatch`, `closeAllPatches`)
+- Float and bang message sending (`sendFloat`, `sendBang`)
+- Initialization separate from SoLoud (`PdBridge.instance.init()`)
 
 ---
 
 ## References
 
-- Base classes: [`src/soloud/include/soloud_audiosource.h`](src/soloud/include/soloud_audiosource.h)
+### Implementation Files
+
+- Audio source: [`src/synth/soloud_libpd.cpp`](src/synth/soloud_libpd.cpp) - LibPDAudioSource + LibPDInstance
+- Bridge FFI: [`src/synth/pd_bridge.cpp`](src/synth/pd_bridge.cpp) - Patch lifecycle and messaging
+- Player binding: [`src/player.cpp:496`](src/player.cpp:496) - loadLibPDSource()
+- FFI exports: [`src/bindings.cpp:626`](src/bindings.cpp:626) - loadLibPDSource FFI
+
+### Dart Files
+
+- Public API: [`lib/src/soloud.dart:1161`](lib/src/soloud.dart:1161) - loadLibPDSource()
+- PdBridge: [`lib/src/pd_bridge.dart`](lib/src/pd_bridge.dart) - Patch and message management
+- PdBridge FFI: [`lib/src/bindings/bindings_pd_ffi.dart`](lib/src/bindings/bindings_pd_ffi.dart)
+- Player FFI: [`lib/src/bindings/bindings_player_ffi.dart:647`](lib/src/bindings/bindings_player_ffi.dart:647)
+
+### Base Classes
+
+- SoLoud AudioSource: [`src/soloud/include/soloud_audiosource.h`](src/soloud/include/soloud_audiosource.h)
 - Example callback: [`src/synth/basic_wave.cpp`](src/synth/basic_wave.cpp) - shows getAudio pattern
-- Existing audio thread safety: [`src/soloud/src/core/soloud.cpp`](src/soloud/src/core/soloud.cpp)
+
+---
+
+---
+
+## External Documentation
+
+For user-facing documentation and usage examples, see: [`docs/LibPD_Patch_Playback.md`](docs/LibPD_Patch_Playback.md)
 
 ---
 
