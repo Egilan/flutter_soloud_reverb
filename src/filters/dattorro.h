@@ -19,6 +19,10 @@ public:
     void setDamping(float val);
     void setWet(float val);
     void setDry(float val);
+    void setBandwidth(float val);
+    void setInputDiffusion(float val);
+    void setLfoRate(float hz);
+    void setLfoDepth(float val);
 
 private:
     float mSampleRate;
@@ -26,6 +30,8 @@ private:
     float mDamping;
     float mWet;
     float mDry;
+    float mBandwidth;       // input lowpass before diffusion (0=dark, 1=bright)
+    float mInputDiffusion;  // 0-1 scales allpass coefficients (0.75/0.625 at 1.0)
 
     // Pre-delay
     enum { PREDELAY_MAX = 8820 }; // 200ms at 44.1k
@@ -65,10 +71,15 @@ private:
     // Tank feedback storage
     float mTankOutL, mTankOutR;
 
+    // Bandwidth lowpass state (1-pole, applied before input diffusion)
+    float mBandwidthState;
+
     // LFO for tank delay modulation
     float mLfoPhase;
-    float mLfoFreq;       // in Hz (~1 Hz)
-    float mLfoExcursion;  // modulation depth in samples
+    float mLfoFreq;          // in Hz, controlled by setLfoRate
+    float mLfoDepth;         // normalized 0-1, controlled by setLfoDepth
+    float mLfoExcursion;     // derived: mLfoDepth * 16 * sampleRateScale, updated in processSample
+    float mLfoExcursionScale; // 16 * sampleRateScale, set during init()
 
     // Output tap positions (from Dattorro paper, scaled at init)
     // Left output taps

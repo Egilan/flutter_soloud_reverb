@@ -9,6 +9,9 @@ DattorroReverb::DattorroReverb()
     , mDamping(0.5f)
     , mWet(0.5f)
     , mDry(0.5f)
+    , mBandwidth(1.0f)
+    , mInputDiffusion(1.0f)
+    , mBandwidthState(0.0f)
     , mPreDelayLen(1)
     , mPreDelayIdx(0)
     , mDiff1Idx(0), mDiff2Idx(0), mDiff3Idx(0), mDiff4Idx(0)
@@ -18,7 +21,9 @@ DattorroReverb::DattorroReverb()
     , mTankOutL(0.0f), mTankOutR(0.0f)
     , mLfoPhase(0.0f)
     , mLfoFreq(1.0f)
+    , mLfoDepth(1.0f)
     , mLfoExcursion(0.0f)
+    , mLfoExcursionScale(0.0f)
     , mInitialized(false)
 {
     std::memset(mPreDelay, 0, sizeof(mPreDelay));
@@ -71,9 +76,10 @@ void DattorroReverb::init(float sr) {
     mTankDelay3Len = (int)(4217 * scale); if (mTankDelay3Len < 1) mTankDelay3Len = 1; if (mTankDelay3Len > TANK_DELAY3_MAX-1) mTankDelay3Len = TANK_DELAY3_MAX-1;
     mTankDelay4Len = (int)(3163 * scale); if (mTankDelay4Len < 1) mTankDelay4Len = 1; if (mTankDelay4Len > TANK_DELAY4_MAX-1) mTankDelay4Len = TANK_DELAY4_MAX-1;
 
-    // LFO setup: ~1 Hz modulation with excursion of ~16 samples (at 29761 Hz)
-    mLfoFreq = 1.0f;
-    mLfoExcursion = 16.0f * scale;
+    // LFO setup: ~1 Hz, excursion ~16 samples at Dattorro's original sample rate.
+    // mLfoExcursionScale stores the rate-adjusted base; mLfoExcursion is derived
+    // as mLfoDepth * mLfoExcursionScale each sample in processSample.
+    mLfoExcursionScale = 16.0f * scale;
     mLfoPhase = 0.0f;
 
     // Output tap positions (from Dattorro paper)
@@ -153,6 +159,30 @@ void DattorroReverb::setPreDelay(float val) {
     if (mPreDelayLen >= PREDELAY_MAX) mPreDelayLen = PREDELAY_MAX - 1;
 }
 
+void DattorroReverb::setBandwidth(float val) {
+    if (val < 0.0f) val = 0.0f;
+    if (val > 1.0f) val = 1.0f;
+    mBandwidth = val;
+}
+
+void DattorroReverb::setInputDiffusion(float val) {
+    if (val < 0.0f) val = 0.0f;
+    if (val > 1.0f) val = 1.0f;
+    mInputDiffusion = val;
+}
+
+void DattorroReverb::setLfoRate(float hz) {
+    if (hz < 0.1f) hz = 0.1f;
+    if (hz > 10.0f) hz = 10.0f;
+    mLfoFreq = hz;
+}
+
+void DattorroReverb::setLfoDepth(float val) {
+    if (val < 0.0f) val = 0.0f;
+    if (val > 1.0f) val = 1.0f;
+    mLfoDepth = val;
+}
+
 void DattorroReverb::processSample(float inL, float inR, float& outL, float& outR) {
     if (!mInitialized) {
         outL = inL;
@@ -171,15 +201,23 @@ void DattorroReverb::processSample(float inL, float inR, float& outL, float& out
     mPreDelayIdx++;
     if (mPreDelayIdx >= PREDELAY_MAX) mPreDelayIdx = 0;
 
+    // === BANDWIDTH (1-pole lowpass on input, before diffusion) ===
+    // mBandwidth=1.0 is transparent; lower values roll off highs entering the tank
+    mBandwidthState = mBandwidthState * (1.0f - mBandwidth) + preDelayed * mBandwidth;
+    float bandwidthOut = mBandwidthState;
+
     // === INPUT DIFFUSION (4 allpass filters) ===
-    float diffused = preDelayed;
-    diffused = processAllpass(diffused, mDiff1, 512, mDiff1Idx, mDiff1Len, 0.75f);
-    diffused = processAllpass(diffused, mDiff2, 512, mDiff2Idx, mDiff2Len, 0.75f);
-    diffused = processAllpass(diffused, mDiff3, 1024, mDiff3Idx, mDiff3Len, 0.625f);
-    diffused = processAllpass(diffused, mDiff4, 512, mDiff4Idx, mDiff4Len, 0.625f);
+    // Coefficients scale with mInputDiffusion: 0.75/0.625 at 1.0, 0 at 0.0
+    float d1coeff = 0.75f * mInputDiffusion;
+    float d2coeff = 0.625f * mInputDiffusion;
+    float diffused = bandwidthOut;
+    diffused = processAllpass(diffused, mDiff1, 512, mDiff1Idx, mDiff1Len, d1coeff);
+    diffused = processAllpass(diffused, mDiff2, 512, mDiff2Idx, mDiff2Len, d1coeff);
+    diffused = processAllpass(diffused, mDiff3, 1024, mDiff3Idx, mDiff3Len, d2coeff);
+    diffused = processAllpass(diffused, mDiff4, 512, mDiff4Idx, mDiff4Len, d2coeff);
 
     // === LFO ===
-    // Advance LFO phase (sinusoidal, ~1 Hz)
+    mLfoExcursion = mLfoDepth * mLfoExcursionScale;
     mLfoPhase += mLfoFreq / mSampleRate;
     if (mLfoPhase >= 1.0f) mLfoPhase -= 1.0f;
     float lfoSin = sinf(mLfoPhase * 2.0f * 3.14159265f);
@@ -268,9 +306,11 @@ void DattorroReverb::processSample(float inL, float inR, float& outL, float& out
                - readDelay(mTankAP2, 4096, mTankAP2Idx, mTapR_ap2)
                - readDelay(mTankDelay2, TANK_DELAY2_MAX, mTankDelay2Idx, mTapR_d2);
 
-    // Scale output (7 taps summed)
-    wetL *= 0.14f;
-    wetR *= 0.14f;
+    // Scale output (7 taps summed with mixed signs, so they partially cancel).
+    // Increased from 0.14f to 0.35f to better match IR convolution levels and
+    // compensate for mono input summing and conservative feedback loop design.
+    wetL *= 0.35f;
+    wetR *= 0.35f;
 
     // === FINAL MIX ===
     outL = inL * mDry + wetL * mWet;

@@ -36,7 +36,11 @@ namespace SoLoud
             DECAY,
             DAMPING,
             WET,
-            DRY
+            DRY,
+            BANDWIDTH,
+            INPUT_DIFFUSION,
+            LFO_RATE,
+            LFO_DEPTH
         };
 
         float mPreDelay;
@@ -44,6 +48,10 @@ namespace SoLoud
         float mDamping;
         float mWet;
         float mDry;
+        float mBandwidth;
+        float mInputDiffusion;
+        float mLfoRate;
+        float mLfoDepth;
 
         virtual FilterInstance *createInstance();
         DattorroFilter();
