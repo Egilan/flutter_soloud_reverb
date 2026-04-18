@@ -9,11 +9,25 @@ enum DattorroEnum {
   decay,
   damping,
   wet,
-  dry;
+  dry,
+  bandwidth,
+  inputDiffusion,
+  lfoRate,
+  lfoDepth;
 
-  final List<double> _mins = const [0.0, 0.0, 0.0, 0.0, 0.0];
-  final List<double> _maxs = const [1.0, 0.99, 0.99, 1.0, 1.0];
-  final List<double> _defs = const [0.0, 0.7, 0.5, 0.8, 0.5];
+  // ignore: long-parameter-list
+  final List<double> _mins = const [
+    0.0, 0.0, 0.0, 0.0, 0.0, // preDelay, decay, damping, wet, dry
+    0.0, 0.0, 0.1, 0.0,       // bandwidth, inputDiffusion, lfoRate, lfoDepth
+  ];
+  final List<double> _maxs = const [
+    1.0, 0.99, 0.99, 1.0, 1.0, // preDelay, decay, damping, wet, dry
+    1.0, 1.0, 10.0, 1.0,        // bandwidth, inputDiffusion, lfoRate, lfoDepth
+  ];
+  final List<double> _defs = const [
+    0.0, 0.7, 0.5, 0.8, 0.5, // preDelay, decay, damping, wet, dry
+    1.0, 1.0, 1.0, 1.0,       // bandwidth, inputDiffusion, lfoRate, lfoDepth
+  ];
 
   double get min => _mins[index];
   double get max => _maxs[index];
@@ -26,6 +40,10 @@ enum DattorroEnum {
         DattorroEnum.damping => 'Damping',
         DattorroEnum.wet => 'Wet',
         DattorroEnum.dry => 'Dry',
+        DattorroEnum.bandwidth => 'Bandwidth',
+        DattorroEnum.inputDiffusion => 'Input Diffusion',
+        DattorroEnum.lfoRate => 'LFO Rate',
+        DattorroEnum.lfoDepth => 'LFO Depth',
       };
 }
 
@@ -38,6 +56,10 @@ abstract class _DattorroInternal extends FilterBase {
   DattorroEnum get queryDamping => DattorroEnum.damping;
   DattorroEnum get queryWet => DattorroEnum.wet;
   DattorroEnum get queryDry => DattorroEnum.dry;
+  DattorroEnum get queryBandwidth => DattorroEnum.bandwidth;
+  DattorroEnum get queryInputDiffusion => DattorroEnum.inputDiffusion;
+  DattorroEnum get queryLfoRate => DattorroEnum.lfoRate;
+  DattorroEnum get queryLfoDepth => DattorroEnum.lfoDepth;
 }
 
 class DattorroSingle extends _DattorroInternal {
@@ -82,6 +104,38 @@ class DattorroSingle extends _DattorroInternal {
         DattorroEnum.dry.min,
         DattorroEnum.dry.max,
       );
+
+  FilterParam bandwidth({SoundHandle? soundHandle}) => FilterParam(
+        soundHandle,
+        filterType,
+        DattorroEnum.bandwidth.index,
+        DattorroEnum.bandwidth.min,
+        DattorroEnum.bandwidth.max,
+      );
+
+  FilterParam inputDiffusion({SoundHandle? soundHandle}) => FilterParam(
+        soundHandle,
+        filterType,
+        DattorroEnum.inputDiffusion.index,
+        DattorroEnum.inputDiffusion.min,
+        DattorroEnum.inputDiffusion.max,
+      );
+
+  FilterParam lfoRate({SoundHandle? soundHandle}) => FilterParam(
+        soundHandle,
+        filterType,
+        DattorroEnum.lfoRate.index,
+        DattorroEnum.lfoRate.min,
+        DattorroEnum.lfoRate.max,
+      );
+
+  FilterParam lfoDepth({SoundHandle? soundHandle}) => FilterParam(
+        soundHandle,
+        filterType,
+        DattorroEnum.lfoDepth.index,
+        DattorroEnum.lfoDepth.min,
+        DattorroEnum.lfoDepth.max,
+      );
 }
 
 class DattorroGlobal extends _DattorroInternal {
@@ -125,5 +179,37 @@ class DattorroGlobal extends _DattorroInternal {
         DattorroEnum.dry.index,
         DattorroEnum.dry.min,
         DattorroEnum.dry.max,
+      );
+
+  FilterParam get bandwidth => FilterParam(
+        null,
+        filterType,
+        DattorroEnum.bandwidth.index,
+        DattorroEnum.bandwidth.min,
+        DattorroEnum.bandwidth.max,
+      );
+
+  FilterParam get inputDiffusion => FilterParam(
+        null,
+        filterType,
+        DattorroEnum.inputDiffusion.index,
+        DattorroEnum.inputDiffusion.min,
+        DattorroEnum.inputDiffusion.max,
+      );
+
+  FilterParam get lfoRate => FilterParam(
+        null,
+        filterType,
+        DattorroEnum.lfoRate.index,
+        DattorroEnum.lfoRate.min,
+        DattorroEnum.lfoRate.max,
+      );
+
+  FilterParam get lfoDepth => FilterParam(
+        null,
+        filterType,
+        DattorroEnum.lfoDepth.index,
+        DattorroEnum.lfoDepth.min,
+        DattorroEnum.lfoDepth.max,
       );
 }
