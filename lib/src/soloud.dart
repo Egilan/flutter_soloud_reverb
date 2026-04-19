@@ -3074,6 +3074,21 @@ interface class SoLoud {
     return ret.busHandle;
   }
 
+  /// Play the bus on the main SoLoud engine so its output becomes audible.
+  /// Must be called after [createBus] before any sounds routed through the
+  /// bus can be heard.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  SoundHandle busPlayOnEngine(BusHandle busHandle,
+      {double volume = 1.0, bool paused = false}) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final handle = _controller.soLoudFFI
+        .busPlayOnEngine(busHandle, volume, paused);
+    return SoundHandle(handle);
+  }
+
   /// Destroy the bus identified by [busHandle].
   ///
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.

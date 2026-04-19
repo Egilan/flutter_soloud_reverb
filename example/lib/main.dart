@@ -258,7 +258,9 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
     music = await SoLoud.instance.loadAsset('assets/audio/8_bit_mentality.mp3');
 
     busA = SoLoud.instance.createBus();
+    SoLoud.instance.busPlayOnEngine(busA!);
     busB = SoLoud.instance.createBus();
+    SoLoud.instance.busPlayOnEngine(busB!);
 
     await _applyMode(busA!, modeA, isA: true);
     await _applyMode(busB!, modeB, isA: false);
