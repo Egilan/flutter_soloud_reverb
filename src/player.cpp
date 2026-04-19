@@ -1721,7 +1721,6 @@ PlayerErrors Player::loadBusConvolutionIR(unsigned int busId, const char *irPath
     if (!mInited) return backendNotInited;
     auto it = busMap.find(busId);
     if (it == busMap.end()) return busIdNotFound;
-    it->second.filters.addFilter(FilterType::ConvolutionFilter);
     auto *cf = dynamic_cast<SoLoud::ConvolutionFilter *>(
         it->second.filters.getFilter(FilterType::ConvolutionFilter));
     if (!cf) return filterNotFound;
