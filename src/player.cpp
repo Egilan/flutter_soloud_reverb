@@ -1,6 +1,7 @@
 #include "common.h"
 #include "player.h"
 #include "filters/filters.h"
+#include "filters/soloud_convolutionfilter.h"
 #include "soloud.h"
 #include "soloud/include/soloud.h"
 #include "soloud_wav.h"
@@ -575,7 +576,7 @@ PlayerErrors Player::loadLibPDSource(
     sounds.back().get()->soundHash = hash;
     sounds.back().get()->sound = std::make_unique<LibPDAudioSource>(sampleRate, channels);
     sounds.back().get()->soundType = TYPE_LIBPD;
-    sounds.back().get()->filters = std::make_unique<Filters>(&soloud, sounds.back().get());
+    sounds.back().get()->filters = std::make_unique<Filters>(&soloud, sounds.back().get(), nullptr);
 
     return noError;
 }
@@ -1615,8 +1616,6 @@ PlayerErrors Player::playOnBus(unsigned int busId, unsigned int soundHash,
             return PlayerErrors::maxActiveVoiceCountReached;
     }
 
-    soloud.miniaudio_ensureDeviceStarted();
-
     handle = 0;
     SoLoud::handle newHandle = it->second.bus.play(
         *sound->sound.get(), volume, pan, paused);
@@ -1661,8 +1660,6 @@ PlayerErrors Player::play3dOnBus(unsigned int busId, unsigned int soundHash,
         else
             return PlayerErrors::maxActiveVoiceCountReached;
     }
-
-    soloud.miniaudio_ensureDeviceStarted();
 
     handle = 0;
     SoLoud::handle newHandle = it->second.bus.play3d(
@@ -1724,16 +1721,11 @@ PlayerErrors Player::loadBusConvolutionIR(unsigned int busId, const char *irPath
     if (!mInited) return backendNotInited;
     auto it = busMap.find(busId);
     if (it == busMap.end()) return busIdNotFound;
-    // Add ConvolutionFilter if not already present
     it->second.filters.addFilter(FilterType::ConvolutionFilter);
     auto *cf = dynamic_cast<SoLoud::ConvolutionFilter *>(
         it->second.filters.getFilter(FilterType::ConvolutionFilter));
     if (!cf) return filterNotFound;
-    // Load IR into the filter
-    SoLoud::Wav irWav;
-    SoLoud::result res = irWav.load(irPath);
-    if (res != SoLoud::SO_NO_ERROR) return fileLoadFailed;
-    cf->setIR(irWav);
+    if (cf->loadIR(irPath) != SoLoud::SO_NO_ERROR) return fileLoadFailed;
     return noError;
 }
 

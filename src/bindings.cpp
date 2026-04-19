@@ -1853,22 +1853,6 @@ readSamplesFromMem(const unsigned char *buffer, unsigned long dataSize,
 /// Busses are protected by default and marked as "must tick".
 /////////////////////////////////////////
 
-/// Create a new mixing bus.
-/// Returns a unique bus ID (>0) to reference this bus in other calls.
-FFI_PLUGIN_EXPORT unsigned int createBus() {
-  if (player.get() == nullptr)
-    return 0;
-  return player.get()->createBus();
-}
-
-/// Destroy a mixing bus by its ID.
-/// Does not stop voices that were playing through the bus.
-FFI_PLUGIN_EXPORT void destroyBus(unsigned int busId) {
-  if (player.get() == nullptr)
-    return;
-  player.get()->destroyBus(busId);
-}
-
 /// Play the bus itself on the main SoLoud engine so it becomes audible.
 /// You must call this before sounds routed through the bus can be heard.
 ///
@@ -2008,7 +1992,8 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
     {
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
-        return player.get()->createBus(*busHandle);
+        *busHandle = player.get()->createBus();
+        return (*busHandle > 0) ? noError : unknownError;
     }
 
     FFI_PLUGIN_EXPORT void destroyBus(unsigned int busHandle)
@@ -2106,22 +2091,7 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
     {
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
-
-        auto it = player.get()->mBusFilters.find(busHandle);
-        if (it == player.get()->mBusFilters.end())
-            return unknownError;
-
-        SoLoud::ConvolutionFilter* convFilter = static_cast<SoLoud::ConvolutionFilter*>(
-            it->second->getFilter(ConvolutionFilter)
-        );
-
-        if (convFilter == nullptr)
-            return filterNotFound;
-
-        if (convFilter->loadIR(irPath) != SoLoud::SO_NO_ERROR)
-            return fileLoadFailed;
-
-        return noError;
+        return player.get()->loadBusConvolutionIR(busHandle, irPath);
     }
 
     FFI_PLUGIN_EXPORT enum PlayerErrors loadHrtfData(
@@ -2164,12 +2134,12 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
 
-        auto it = player.get()->mBusFilters.find(busHandle);
-        if (it == player.get()->mBusFilters.end())
+        BusData *bd = player.get()->findBusData(busHandle);
+        if (!bd)
             return unknownError;
 
         SoLoud::HrtfFilter *hrtfFilter = static_cast<SoLoud::HrtfFilter *>(
-            it->second->getFilter(HrtfFilter)
+            bd->filters.getFilter(HrtfFilter)
         );
 
         if (hrtfFilter == nullptr)
@@ -2320,12 +2290,12 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         float az = asinf(fmaxf(-1.f, fminf(1.f, x))) * 180.f / M_PI;
         float el = atan2f(z, y) * 180.f / M_PI;
 
-        auto it = player.get()->mBusFilters.find(busHandle);
-        if (it == player.get()->mBusFilters.end())
+        BusData *bd = player.get()->findBusData(busHandle);
+        if (!bd)
             return unknownError;
 
         SoLoud::HrtfFilter *hrtfFilter = static_cast<SoLoud::HrtfFilter *>(
-            it->second->getFilter(HrtfFilter)
+            bd->filters.getFilter(HrtfFilter)
         );
 
         if (hrtfFilter == nullptr)
@@ -2334,9 +2304,9 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         // Update Filter defaults (for future instances) and running instance params.
         hrtfFilter->mAzimuth   = az;
         hrtfFilter->mElevation = el;
-        it->second->setFilterParams(
+        bd->filters.setFilterParams(
             busHandle, HrtfFilter, SoLoud::HrtfFilter::AZIMUTH, az);
-        it->second->setFilterParams(
+        bd->filters.setFilterParams(
             busHandle, HrtfFilter, SoLoud::HrtfFilter::ELEVATION, el);
 
         return noError;
