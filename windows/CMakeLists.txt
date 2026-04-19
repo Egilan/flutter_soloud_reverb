@@ -14,8 +14,7 @@ include(${SRC_DIR}/CMakeLists.txt)
 # Fork-specific sources (buses, reverbs, HRTF, LibPD)
 list(APPEND PLUGIN_SOURCES
   "${SRC_DIR}/synth/soloud_libpd.cpp"
-  "${SRC_DIR}/filters/smbPitchShift.cpp"
-  "${SRC_DIR}/filters/dattorro.cpp"
+"${SRC_DIR}/filters/dattorro.cpp"
   "${SRC_DIR}/filters/soloud_reverbsc.cpp"
   "${SRC_DIR}/filters/soloud_convolutionfilter.cpp"
   "${SRC_DIR}/filters/soloud_dattorro_filter.cpp"
