@@ -5,3 +5,4 @@
 #include "../../src/filters/dattorro.cpp"
 #include "../../src/filters/soloud_reverbsc.cpp"
 #include "../../src/filters/soloud_dattorro_filter.cpp"
+#include "../../src/filters/soloud_hrtf_filter.cpp"

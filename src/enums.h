@@ -130,7 +130,8 @@ typedef enum FilterType
     CompressorFilter,
     ReverbScFilter,
     ConvolutionFilter,
-    DattorroFilter
+    DattorroFilter,
+    HrtfFilter
 } FilterType_t;
 
 /// WARNING: Keep these in sync with `lib/src/enums.dart`.
