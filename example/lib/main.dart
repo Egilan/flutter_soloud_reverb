@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:flutter_soloud_example/nature_sounds/nature_sounds_page.dart';
 import 'package:logging/logging.dart';
 
 void main() async {
@@ -22,7 +23,8 @@ void main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
 
-  await SoLoud.instance.init();
+  await SoLoud.instance.init(bufferSize: 8192, sampleRate: 48000);
+  SoLoud.instance.setMaxActiveVoiceCount(20);
 
   runApp(
     MaterialApp(
@@ -346,7 +348,19 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('SoLoud Multi-Bus Reverb Demo')),
+      appBar: AppBar(
+        title: const Text('SoLoud Multi-Bus Reverb Demo'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.nature),
+            tooltip: 'Nature Sounds (HRTF)',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const NatureSoundsPage()),
+            ),
+          ),
+        ],
+      ),
       body: !isReady
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
