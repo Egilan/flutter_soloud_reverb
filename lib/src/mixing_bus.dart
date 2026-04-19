@@ -1,5 +1,6 @@
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_soloud/src/bindings/soloud_controller.dart';
+import 'package:flutter_soloud/src/bus_handle.dart';
 import 'package:flutter_soloud/src/filters/filters.dart';
 import 'package:logging/logging.dart';
 
@@ -30,7 +31,7 @@ class Buses {
   /// [id] the ID of the bus.
   /// [orElse] the function to call if the bus is not found.
   Bus? byId(int id, {Bus Function()? orElse}) {
-    return buses.firstWhere((bus) => bus.busId == id, orElse: orElse);
+    return buses.firstWhere((bus) => bus.busHandle.id == id, orElse: orElse);
   }
 }
 
@@ -68,12 +69,13 @@ class Buses {
 class Bus {
   /// Creates a new bus.
   Bus({this.name = ''}) {
-    busId = SoLoudController().soLoudFFI.createBus();
-    if (busId > 0) {
+    final result = SoLoudController().soLoudFFI.createBus();
+    busHandle = result.busHandle;
+    if (busHandle.id > 0) {
       _isValid = true;
       Buses().buses.add(this);
     }
-    filters = FiltersSingle(busId: busId);
+    filters = FiltersSingle(busId: busHandle.id);
   }
 
   static final Logger _log = Logger('flutter_soloud.Bus');
@@ -89,9 +91,8 @@ class Bus {
   /// The name of this bus.
   final String name;
 
-  /// The ID of this bus.
-  /// Internally managed on native side. The first bus has ID 1.
-  late final int busId;
+  /// The handle of this bus.
+  late final BusHandle busHandle;
 
   /// Whether this bus is valid.
   bool _isValid = false;
@@ -102,20 +103,20 @@ class Bus {
   /// The number of channels of this bus.
   var _channels = Channels.stereo;
 
-  // The equality comparison is based solely on busId which IS final,
+  // The equality comparison is based solely on busHandle which IS final,
   // so the equality override is safe and correct (!?).
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is Bus && other.busId == busId;
+    return other is Bus && other.busHandle == busHandle;
   }
 
-  // The equality comparison is based solely on busId which IS final,
+  // The equality comparison is based solely on busHandle which IS final,
   // so the equality override is safe and correct (!?).
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => busId.hashCode;
+  int get hashCode => busHandle.hashCode;
 
   /// Destroys this bus.
   ///
@@ -125,11 +126,11 @@ class Bus {
   /// been disposed.
   void dispose() {
     if (!_isValid) {
-      _log.warning('bus $busId is already disposed');
+      _log.warning('bus ${busHandle.id} is already disposed');
       throw const SoLoudBusDisposedDartException();
     }
     Buses().buses.remove(this);
-    SoLoudController().soLoudFFI.destroyBus(busId);
+    SoLoudController().soLoudFFI.destroyBus(busHandle);
     _isValid = false;
     soundHandle = const SoundHandle.error();
   }
@@ -148,11 +149,11 @@ class Bus {
   /// been disposed.
   SoundHandle playOnEngine({double volume = 1.0, bool paused = false}) {
     if (!_isValid) {
-      _log.warning('bus $busId is already disposed');
+      _log.warning('bus ${busHandle.id} is already disposed');
       throw const SoLoudBusDisposedDartException();
     }
     final handle = SoLoudController().soLoudFFI.busPlayOnEngine(
-      busId,
+      busHandle,
       volume,
       paused,
     );
@@ -178,12 +179,12 @@ class Bus {
     Duration loopingStartAt = Duration.zero,
   }) {
     if (!_isValid) {
-      _log.warning('bus $busId is already disposed');
+      _log.warning('bus ${busHandle.id} is already disposed');
       throw const SoLoudBusDisposedDartException();
     }
     return SoLoud.instance.play(
       sound,
-      busId: busId,
+      busId: busHandle.id,
       volume: volume,
       pan: pan,
       paused: paused,
@@ -215,7 +216,7 @@ class Bus {
     Duration loopingStartAt = Duration.zero,
   }) {
     if (!_isValid) {
-      _log.warning('bus $busId is already disposed');
+      _log.warning('bus ${busHandle.id} is already disposed');
       throw const SoLoudBusDisposedDartException();
     }
     return SoLoud.instance.play3d(
@@ -226,7 +227,7 @@ class Bus {
       velX: velX,
       velY: velY,
       velZ: velZ,
-      busId: busId,
+      busId: busHandle.id,
       volume: volume,
       paused: paused,
       looping: looping,
@@ -242,11 +243,11 @@ class Bus {
   /// been disposed.
   void setChannels({Channels channels = Channels.stereo}) {
     if (!_isValid) {
-      _log.warning('bus $busId is already disposed');
+      _log.warning('bus ${busHandle.id} is already disposed');
       throw const SoLoudBusDisposedDartException();
     }
     _channels = channels;
-    SoLoudController().soLoudFFI.busSetChannels(busId, channels.count);
+    SoLoudController().soLoudFFI.busSetChannels(busHandle, channels.count);
   }
 
   /// Get the approximate output volume for a specific channel of this bus.
@@ -260,13 +261,13 @@ class Bus {
   /// been disposed.
   double getChannelVolume(int channel) {
     if (!_isValid) {
-      _log.warning('bus $busId is already disposed');
+      _log.warning('bus ${busHandle.id} is already disposed');
       throw const SoLoudBusDisposedDartException();
     }
     if (channel < 0 || channel >= _channels.count) {
       return 0;
     }
-    return SoLoudController().soLoudFFI.busGetApproximateVolume(busId, channel);
+    return SoLoudController().soLoudFFI.busGetApproximateVolume(busHandle, channel);
   }
 
   /// Move a live voice (identified by its handle) into this bus.
@@ -279,10 +280,10 @@ class Bus {
   /// been disposed.
   void annexSound(SoundHandle handle) {
     if (!_isValid) {
-      _log.warning('bus $busId is already disposed');
+      _log.warning('bus ${busHandle.id} is already disposed');
       throw const SoLoudBusDisposedDartException();
     }
-    SoLoudController().soLoudFFI.busAnnexSound(busId, handle.id);
+    SoLoudController().soLoudFFI.annexSoundToBus(busHandle, handle);
   }
 
   /// Get the number of voices currently playing through this bus.
@@ -290,9 +291,9 @@ class Bus {
   /// Returns the active voice count, or 0 if the bus is not found on not ready.
   int getActiveVoiceCount() {
     if (!isActive) {
-      // _log.warning('bus $busId is already disposed');
+      // _log.warning('bus ${busHandle.id} is already disposed');
       return 0;
     }
-    return SoLoudController().soLoudFFI.busGetActiveVoiceCount(busId);
+    return SoLoudController().soLoudFFI.busGetActiveVoiceCount(busHandle);
   }
 }
