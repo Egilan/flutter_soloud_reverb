@@ -528,6 +528,26 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
       .asFunction<int Function(int, ffi.Pointer<Utf8>)>();
 
   @override
+  PlayerErrors loadHrtfData({
+    required int soundHash,
+    required String path,
+  }) {
+    final ffi.Pointer<Utf8> cString = path.toNativeUtf8();
+    final e = _loadHrtfData(soundHash, cString);
+    calloc.free(cString);
+    return PlayerErrors.values[e];
+  }
+
+  late final _loadHrtfDataPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.Pointer<Utf8>,
+          )>>('loadHrtfData');
+  late final _loadHrtfData =
+      _loadHrtfDataPtr.asFunction<int Function(int, ffi.Pointer<Utf8>)>();
+
+  @override
   ({PlayerErrors error, double value}) getStreamTimeConsumed(
       SoundHash soundHash) {
     final ffi.Pointer<ffi.Float> paramValue = calloc();
@@ -2334,6 +2354,115 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
           )>>('loadBusConvolutionIR');
   late final _loadBusConvolutionIR = _loadBusConvolutionIRPtr
       .asFunction<int Function(int, ffi.Pointer<Utf8>)>();
+
+  @override
+  PlayerErrors loadBusHrtfData({
+    required BusHandle busHandle,
+    required String path,
+  }) {
+    final ffi.Pointer<Utf8> cString = path.toNativeUtf8();
+    final e = _loadBusHrtfData(busHandle.id, cString);
+    calloc.free(cString);
+    return PlayerErrors.values[e];
+  }
+
+  late final _loadBusHrtfDataPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.Pointer<Utf8>,
+          )>>('loadBusHrtfData');
+  late final _loadBusHrtfData = _loadBusHrtfDataPtr
+      .asFunction<int Function(int, ffi.Pointer<Utf8>)>();
+
+  @override
+  PlayerErrors setHrtfSourcePosition({
+    required int soundHash,
+    required double x,
+    required double y,
+    required double z,
+  }) {
+    final e = _setHrtfSourcePosition(soundHash, x, y, z);
+    return PlayerErrors.values[e];
+  }
+
+  late final _setHrtfSourcePositionPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+          )>>('setHrtfSourcePosition');
+  late final _setHrtfSourcePosition = _setHrtfSourcePositionPtr
+      .asFunction<int Function(int, double, double, double)>();
+
+  @override
+  PlayerErrors addSoundHrtfFilter({required int soundHash}) {
+    final e = _addSoundHrtfFilter(soundHash);
+    return PlayerErrors.values[e];
+  }
+
+  late final _addSoundHrtfFilterPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt)>>('addSoundHrtfFilter');
+  late final _addSoundHrtfFilter =
+      _addSoundHrtfFilterPtr.asFunction<int Function(int)>();
+
+  @override
+  PlayerErrors setHrtfVoicePosition({
+    required SoundHandle voiceHandle,
+    required double x,
+    required double y,
+    required double z,
+  }) {
+    final e = _setHrtfVoicePosition(voiceHandle.id, x, y, z);
+    return PlayerErrors.values[e];
+  }
+
+  late final _setHrtfVoicePositionPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+          )>>('setHrtfVoicePosition');
+  late final _setHrtfVoicePosition =
+      _setHrtfVoicePositionPtr.asFunction<int Function(int, double, double, double)>();
+
+  @override
+  PlayerErrors setVoiceHrtfWet({required SoundHandle voiceHandle, required double wet}) {
+    final e = _setVoiceHrtfWet(voiceHandle.id, wet);
+    return PlayerErrors.values[e];
+  }
+
+  late final _setVoiceHrtfWetPtr =
+      _lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Float)>>(
+          'setVoiceHrtfWet');
+  late final _setVoiceHrtfWet = _setVoiceHrtfWetPtr.asFunction<int Function(int, double)>();
+
+  @override
+  PlayerErrors setBusHrtfSourcePosition({
+    required BusHandle busHandle,
+    required double x,
+    required double y,
+    required double z,
+  }) {
+    final e = _setBusHrtfSourcePosition(busHandle.id, x, y, z);
+    return PlayerErrors.values[e];
+  }
+
+  late final _setBusHrtfSourcePositionPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+          )>>('setBusHrtfSourcePosition');
+  late final _setBusHrtfSourcePosition = _setBusHrtfSourcePositionPtr
+      .asFunction<int Function(int, double, double, double)>();
 
   @override
   void annexSoundToBus(BusHandle busHandle, SoundHandle voiceHandle) {

@@ -3153,6 +3153,165 @@ interface class SoLoud {
     }
   }
 
+  /// Load a KEMAR binary HRTF file for a bus HRTF filter.
+  ///
+  /// The HRTF filter must have been added to the bus via [addBusFilter] before
+  /// calling this.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] if the file could not be loaded.
+  void loadBusHrtfData(BusHandle busHandle, String path) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final error = _controller.soLoudFFI.loadBusHrtfData(
+      busHandle: busHandle,
+      path: path,
+    );
+    if (error != PlayerErrors.noError) {
+      _logPlayerError(error, from: 'loadBusHrtfData() result');
+      throw SoLoudCppException.fromPlayerError(error);
+    }
+  }
+
+  /// Sets the HRTF filter's spatial position from world-space XYZ coordinates
+  /// for a sound identified by [handle].
+  ///
+  /// The XYZ position is relative to the listener at the origin.
+  /// Azimuth and elevation are derived automatically via:
+  ///   az = asin(x), el = atan2(z, y) (KEMAR interaural coordinates).
+  ///
+  /// Pass a [SoundHandle] with hash 0 to target the global HRTF filter.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] on error.
+  PlayerErrors setHrtfSourcePosition(
+    SoundHandle handle,
+    double x,
+    double y,
+    double z,
+  ) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final error = _controller.soLoudFFI.setHrtfSourcePosition(
+      soundHash: handle.id,
+      x: x,
+      y: y,
+      z: z,
+    );
+    if (error != PlayerErrors.noError) {
+      _logPlayerError(error, from: 'setHrtfSourcePosition() result');
+      throw SoLoudCppException.fromPlayerError(error);
+    }
+    return error;
+  }
+
+  /// Attaches an HrtfFilter to the loaded sound identified by [soundHash] so
+  /// that every future play of that sound gets its own independent
+  /// HrtfFilterInstance with its own spatial position.
+  ///
+  /// Call [setHrtfVoicePosition] on each returned voice handle after [play]
+  /// to position individual voices.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] on error.
+  PlayerErrors addSoundHrtfFilter(SoundHash soundHash) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final error = _controller.soLoudFFI.addSoundHrtfFilter(
+      soundHash: soundHash.hash,
+    );
+    if (error != PlayerErrors.noError) {
+      _logPlayerError(error, from: 'addSoundHrtfFilter() result');
+      throw SoLoudCppException.fromPlayerError(error);
+    }
+    return error;
+  }
+
+  /// Sets the HRTF spatial position for a specific playing voice identified by
+  /// [handle]. XYZ is relative to the listener at the origin; Y=forward,
+  /// X=right, Z=up. Units: meters.
+  ///
+  /// The XYZ vector is normalised internally. Azimuth and elevation are derived
+  /// via az=asin(x), el=atan2(z,y) (KEMAR interaural coordinates).
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] on error.
+  PlayerErrors setHrtfVoicePosition(
+    SoundHandle handle,
+    double x,
+    double y,
+    double z,
+  ) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final error = _controller.soLoudFFI.setHrtfVoicePosition(
+      voiceHandle: handle,
+      x: x,
+      y: y,
+      z: z,
+    );
+    if (error != PlayerErrors.noError) {
+      _logPlayerError(error, from: 'setHrtfVoicePosition() result');
+      throw SoLoudCppException.fromPlayerError(error);
+    }
+    return error;
+  }
+
+  /// Sets the HRTF wet level on a specific voice.
+  /// Pass wet=0.0 to bypass HRTF on a voice that shares a soundHash but
+  /// should not be spatialized (e.g. the reverb-send voice).
+  PlayerErrors setVoiceHrtfWet(SoundHandle handle, double wet) {
+    if (!isInitialized) throw const SoLoudNotInitializedException();
+    final error = _controller.soLoudFFI.setVoiceHrtfWet(
+      voiceHandle: handle,
+      wet: wet,
+    );
+    if (error != PlayerErrors.noError) {
+      _logPlayerError(error, from: 'setVoiceHrtfWet() result');
+    }
+    return error;
+  }
+
+  /// Sets the HRTF filter's spatial position from world-space XYZ coordinates
+  /// for a bus identified by [busHandle].
+  ///
+  /// The XYZ position is relative to the listener at the origin.
+  /// Azimuth and elevation are derived automatically via:
+  ///   az = asin(x), el = atan2(z, y) (KEMAR interaural coordinates).
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  ///
+  /// Throws [SoLoudCppException] on error.
+  PlayerErrors setBusHrtfSourcePosition(
+    BusHandle busHandle,
+    double x,
+    double y,
+    double z,
+  ) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    final error = _controller.soLoudFFI.setBusHrtfSourcePosition(
+      busHandle: busHandle,
+      x: x,
+      y: y,
+      z: z,
+    );
+    if (error != PlayerErrors.noError) {
+      _logPlayerError(error, from: 'setBusHrtfSourcePosition() result');
+      throw SoLoudCppException.fromPlayerError(error);
+    }
+    return error;
+  }
+
   ///
   /// ```text
   /// [SoLoud] play(): PlayerError.invalidParameter

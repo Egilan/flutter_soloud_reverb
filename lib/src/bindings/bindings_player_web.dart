@@ -297,6 +297,14 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
+  PlayerErrors loadHrtfData({
+    required int soundHash,
+    required String path,
+  }) {
+    return PlayerErrors.notImplemented;
+  }
+
+  @override
   ({PlayerErrors error, double value}) getStreamTimeConsumed(
     SoundHash soundHash,
   ) {
@@ -1249,6 +1257,56 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   PlayerErrors loadBusConvolutionIR({
     required BusHandle busHandle,
     required String irPath,
+  }) {
+    return PlayerErrors.notImplemented;
+  }
+
+  @override
+  PlayerErrors loadBusHrtfData({
+    required BusHandle busHandle,
+    required String path,
+  }) {
+    return PlayerErrors.notImplemented;
+  }
+
+  @override
+  PlayerErrors setHrtfSourcePosition({
+    required int soundHash,
+    required double x,
+    required double y,
+    required double z,
+  }) {
+    return PlayerErrors.notImplemented;
+  }
+
+  @override
+  @override
+  PlayerErrors addSoundHrtfFilter({required int soundHash}) {
+    return PlayerErrors.notImplemented;
+  }
+
+  @override
+  PlayerErrors setHrtfVoicePosition({
+    required SoundHandle voiceHandle,
+    required double x,
+    required double y,
+    required double z,
+  }) {
+    return PlayerErrors.notImplemented;
+  }
+
+  PlayerErrors setVoiceHrtfWet({
+    required SoundHandle voiceHandle,
+    required double wet,
+  }) {
+    return PlayerErrors.notImplemented;
+  }
+
+  PlayerErrors setBusHrtfSourcePosition({
+    required BusHandle busHandle,
+    required double x,
+    required double y,
+    required double z,
   }) {
     return PlayerErrors.notImplemented;
   }

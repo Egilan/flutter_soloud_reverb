@@ -179,6 +179,12 @@ abstract class FlutterSoLoud {
     required String irPath,
   });
 
+  /// Load a KEMAR binary HRTF data file for the HRTF filter.
+  PlayerErrors loadHrtfData({
+    required int soundHash,
+    required String path,
+  });
+
   /// Get the current stream time consumed in seconds of this sound of
   /// type `BufferingType.RELEASED` with hash [hash].
   @mustBeOverridden
@@ -889,6 +895,53 @@ abstract class FlutterSoLoud {
   PlayerErrors loadBusConvolutionIR({
     required BusHandle busHandle,
     required String irPath,
+  });
+
+  /// Load a KEMAR binary HRTF file for a bus HRTF filter.
+  @mustBeOverridden
+  PlayerErrors loadBusHrtfData({
+    required BusHandle busHandle,
+    required String path,
+  });
+
+  /// Sets HRTF azimuth/elevation from a 3D world-space position.
+  @mustBeOverridden
+  PlayerErrors setHrtfSourcePosition({
+    required int soundHash,
+    required double x,
+    required double y,
+    required double z,
+  });
+
+  /// Adds a HrtfFilter to the AudioSource identified by [soundHash], so every
+  /// future play of that sound gets its own HrtfFilterInstance.
+  @mustBeOverridden
+  PlayerErrors addSoundHrtfFilter({required int soundHash});
+
+  /// Sets the HRTF spatial position for a specific playing voice by handle.
+  @mustBeOverridden
+  PlayerErrors setHrtfVoicePosition({
+    required SoundHandle voiceHandle,
+    required double x,
+    required double y,
+    required double z,
+  });
+
+  /// Sets the HRTF wet level for a specific voice. Use wet=0 to bypass HRTF
+  /// on a voice that shares a soundHash but should not be spatialized (e.g. reverb send).
+  @mustBeOverridden
+  PlayerErrors setVoiceHrtfWet({
+    required SoundHandle voiceHandle,
+    required double wet,
+  });
+
+  /// Sets HRTF azimuth/elevation from a 3D world-space position for a bus.
+  @mustBeOverridden
+  PlayerErrors setBusHrtfSourcePosition({
+    required BusHandle busHandle,
+    required double x,
+    required double y,
+    required double z,
   });
 
   /// Annex an already playing voice to the bus.

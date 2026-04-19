@@ -3,7 +3,9 @@
 #include "soloud_thread.h"
 #include "player.h"
 #include "filters/soloud_convolutionfilter.h"
+#include "filters/soloud_hrtf_filter.h"
 #include <algorithm>
+#include <cmath>
 #include "analyzer.h"
 #include "synth/basic_wave.h"
 #include "synth/soloud_libpd.h"
@@ -2072,6 +2074,224 @@ extern "C"
 
         if (convFilter->loadIR(irPath) != SoLoud::SO_NO_ERROR)
             return fileLoadFailed;
+
+        return noError;
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors loadHrtfData(
+        unsigned int soundHash,
+        const char *path)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+
+        SoLoud::HrtfFilter *hrtfFilter = nullptr;
+
+        if (soundHash != 0) {
+            ActiveSound *sound = player.get()->findByHash(soundHash);
+            if (sound == nullptr)
+                return soundHashNotFound;
+            if (sound->filters) {
+                hrtfFilter = static_cast<SoLoud::HrtfFilter *>(
+                    sound->filters->getFilter(HrtfFilter)
+                );
+            }
+        } else {
+            hrtfFilter = static_cast<SoLoud::HrtfFilter *>(
+                player.get()->mFilters.getFilter(HrtfFilter)
+            );
+        }
+
+        if (hrtfFilter == nullptr)
+            return filterNotFound;
+
+        if (hrtfFilter->loadKemarBinary(path) != 0)
+            return fileLoadFailed;
+
+        return noError;
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors loadBusHrtfData(
+        unsigned int busHandle,
+        const char *path)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+
+        auto it = player.get()->mBusFilters.find(busHandle);
+        if (it == player.get()->mBusFilters.end())
+            return unknownError;
+
+        SoLoud::HrtfFilter *hrtfFilter = static_cast<SoLoud::HrtfFilter *>(
+            it->second->getFilter(HrtfFilter)
+        );
+
+        if (hrtfFilter == nullptr)
+            return filterNotFound;
+
+        if (hrtfFilter->loadKemarBinary(path) != 0)
+            return fileLoadFailed;
+
+        return noError;
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors setHrtfSourcePosition(
+        unsigned int soundHash,
+        float x, float y, float z)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+
+        float len = sqrtf(x*x + y*y + z*z);
+        if (len < 1e-6f) return noError;
+        x /= len; y /= len; z /= len;
+
+        float az = asinf(fmaxf(-1.f, fminf(1.f, x))) * 180.f / M_PI;
+        float el = atan2f(z, y) * 180.f / M_PI;
+
+        SoLoud::HrtfFilter *hrtfFilter = nullptr;
+
+        if (soundHash != 0) {
+            ActiveSound *sound = player.get()->findByHash(soundHash);
+            if (sound == nullptr)
+                return soundHashNotFound;
+            if (sound->filters) {
+                hrtfFilter = static_cast<SoLoud::HrtfFilter *>(
+                    sound->filters->getFilter(HrtfFilter)
+                );
+            }
+        } else {
+            hrtfFilter = static_cast<SoLoud::HrtfFilter *>(
+                player.get()->mFilters.getFilter(HrtfFilter)
+            );
+        }
+
+        if (hrtfFilter == nullptr)
+            return filterNotFound;
+
+        // Update Filter defaults (for future instances) and running instance params.
+        hrtfFilter->mAzimuth   = az;
+        hrtfFilter->mElevation = el;
+        if (soundHash != 0) {
+            ActiveSound *sound = player.get()->findByHash(soundHash);
+            if (sound && sound->filters) {
+                for (auto &ah : sound->handle) {
+                    sound->filters->setFilterParams(
+                        ah.handle, HrtfFilter, SoLoud::HrtfFilter::AZIMUTH, az);
+                    sound->filters->setFilterParams(
+                        ah.handle, HrtfFilter, SoLoud::HrtfFilter::ELEVATION, el);
+                }
+            }
+        } else {
+            player.get()->mFilters.setFilterParams(
+                0, HrtfFilter, SoLoud::HrtfFilter::AZIMUTH, az);
+            player.get()->mFilters.setFilterParams(
+                0, HrtfFilter, SoLoud::HrtfFilter::ELEVATION, el);
+        }
+
+        return noError;
+    }
+
+    /// Add a HrtfFilter to the AudioSource identified by [soundHash], so every
+    /// future play of that sound gets its own HrtfFilterInstance with independent
+    /// spatial parameters.
+    ///
+    /// Returns [PlayerErrors.noError] if no errors.
+    FFI_PLUGIN_EXPORT enum PlayerErrors addSoundHrtfFilter(unsigned int soundHash)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+
+        auto const s = player.get()->findByHash(soundHash);
+        if (s == nullptr)
+            return soundHashNotFound;
+
+        return s->filters->addFilter(HrtfFilter);
+    }
+
+    /// Set the HRTF spatial position for a specific playing voice identified by
+    /// [voiceHandle]. Normalises XYZ, then computes azimuth and elevation in
+    /// KEMAR interaural coordinates and updates the running FilterInstance.
+    ///
+    /// Returns [PlayerErrors.noError] if no errors.
+    FFI_PLUGIN_EXPORT enum PlayerErrors setHrtfVoicePosition(
+        unsigned int voiceHandle,
+        float x, float y, float z)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+
+        float len = sqrtf(x*x + y*y + z*z);
+        if (len < 1e-6f) return noError;
+        x /= len; y /= len; z /= len;
+
+        float az = asinf(fmaxf(-1.f, fminf(1.f, x))) * 180.f / M_PI;
+        float el = atan2f(z, y) * 180.f / M_PI;
+
+        auto const &s = player.get()->findByHandle(voiceHandle);
+        if (s == nullptr)
+            return soundHandleNotFound;
+
+        if (!s->filters)
+            return filterNotFound;
+
+        s->filters.get()->setFilterParams(voiceHandle, HrtfFilter, SoLoud::HrtfFilter::AZIMUTH, az);
+        s->filters.get()->setFilterParams(voiceHandle, HrtfFilter, SoLoud::HrtfFilter::ELEVATION, el);
+
+        return noError;
+    }
+
+    /// Set the wet (mix) level of the HRTF filter on a specific voice.
+    /// Call with wet=0 to bypass HRTF on a voice (e.g. a reverb send voice).
+    FFI_PLUGIN_EXPORT enum PlayerErrors setVoiceHrtfWet(
+        unsigned int voiceHandle,
+        float wet)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+
+        auto const &s = player.get()->findByHandle(voiceHandle);
+        if (s == nullptr)
+            return soundHandleNotFound;
+        if (!s->filters)
+            return filterNotFound;
+
+        s->filters.get()->setFilterParams(voiceHandle, HrtfFilter, SoLoud::HrtfFilter::WET, wet);
+        return noError;
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors setBusHrtfSourcePosition(
+        unsigned int busHandle,
+        float x, float y, float z)
+    {
+        if (player.get() == nullptr || !player.get()->isInited())
+            return backendNotInited;
+
+        float len = sqrtf(x*x + y*y + z*z);
+        if (len < 1e-6f) return noError;
+        x /= len; y /= len; z /= len;
+
+        float az = asinf(fmaxf(-1.f, fminf(1.f, x))) * 180.f / M_PI;
+        float el = atan2f(z, y) * 180.f / M_PI;
+
+        auto it = player.get()->mBusFilters.find(busHandle);
+        if (it == player.get()->mBusFilters.end())
+            return unknownError;
+
+        SoLoud::HrtfFilter *hrtfFilter = static_cast<SoLoud::HrtfFilter *>(
+            it->second->getFilter(HrtfFilter)
+        );
+
+        if (hrtfFilter == nullptr)
+            return filterNotFound;
+
+        // Update Filter defaults (for future instances) and running instance params.
+        hrtfFilter->mAzimuth   = az;
+        hrtfFilter->mElevation = el;
+        it->second->setFilterParams(
+            busHandle, HrtfFilter, SoLoud::HrtfFilter::AZIMUTH, az);
+        it->second->setFilterParams(
+            busHandle, HrtfFilter, SoLoud::HrtfFilter::ELEVATION, el);
 
         return noError;
     }

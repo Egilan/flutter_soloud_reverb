@@ -17,6 +17,7 @@ import 'package:flutter_soloud/src/filters/pitchshift_filter.dart';
 import 'package:flutter_soloud/src/filters/reverbsc_filter.dart';
 import 'package:flutter_soloud/src/filters/convolution_filter.dart';
 import 'package:flutter_soloud/src/filters/dattorro_filter.dart';
+import 'package:flutter_soloud/src/filters/hrtf_filter.dart';
 import 'package:flutter_soloud/src/filters/robotize_filter.dart';
 import 'package:flutter_soloud/src/filters/wave_shaper_filter.dart';
 import 'package:flutter_soloud/src/soloud.dart';
@@ -217,6 +218,20 @@ final class FiltersSingle {
   /// - `wet`: Volume of the reverb tail (0.0 to 1.0)
   /// - `dry`: Volume of the original sound (0.0 to 1.0)
   DattorroSingle get dattorroFilter => DattorroSingle(soundHash);
+
+  /// The `HRTF` (Head-Related Transfer Function) spatialization filter.
+  ///
+  /// Positions a mono sound source in 3D space using binaural audio.
+  /// Requires headphones for correct effect.
+  ///
+  /// **Parameters**:
+  /// - `azimuth`: Horizontal angle in degrees (-90 = full left, 0 = front, 90 = full right)
+  /// - `elevation`: Vertical angle in degrees (-90 = below, 0 = ear level, 90 = above)
+  /// - `wet`: HRTF mix level (0.0 to 1.0)
+  /// - `crossoverFreq`: Bass/treble split frequency in Hz (default 150 Hz)
+  ///
+  /// Call [HrtfSingle.loadHrtfData] with a KEMAR binary file path after activating.
+  HrtfSingle get hrtfFilter => HrtfSingle(soundHash);
 }
 
 /// Filters instance used in [SoLoud.filters]. This differentiate from the
@@ -360,6 +375,20 @@ final class FiltersGlobal {
   /// - `wet`: Volume of the reverb tail (0.0 to 1.0)
   /// - `dry`: Volume of the original sound (0.0 to 1.0)
   DattorroGlobal get dattorroFilter => const DattorroGlobal();
+
+  /// The `HRTF` (Head-Related Transfer Function) spatialization filter used globally.
+  ///
+  /// Positions a mono sound source in 3D space using binaural audio.
+  /// Requires headphones for correct effect.
+  ///
+  /// **Parameters**:
+  /// - `azimuth`: Horizontal angle in degrees (-90 = full left, 0 = front, 90 = full right)
+  /// - `elevation`: Vertical angle in degrees (-90 = below, 0 = ear level, 90 = above)
+  /// - `wet`: HRTF mix level (0.0 to 1.0)
+  /// - `crossoverFreq`: Bass/treble split frequency in Hz (default 150 Hz)
+  ///
+  /// Call [HrtfGlobal.loadHrtfData] with a KEMAR binary file path after activating.
+  HrtfGlobal get hrtfFilter => const HrtfGlobal();
 }
 
 /// Common class for single and global filters.
@@ -501,7 +530,10 @@ enum FilterType {
   convolutionFilter,
 
   /// Dattorro plate reverb filter
-  dattorroFilter;
+  dattorroFilter,
+
+  /// HRTF (Head-Related Transfer Function) spatialization filter
+  hrtfFilter;
 
   @override
   String toString() => switch (this) {
@@ -520,6 +552,7 @@ enum FilterType {
         FilterType.reverbScFilter => 'ReverbSc',
         FilterType.convolutionFilter => 'Convolution',
         FilterType.dattorroFilter => 'Dattorro',
+        FilterType.hrtfFilter => 'HRTF',
       };
 
   /// The number of parameter this filter owns.
@@ -539,6 +572,7 @@ enum FilterType {
         FilterType.reverbScFilter => 4,
         FilterType.convolutionFilter => 2,
         FilterType.dattorroFilter => 5,
+        FilterType.hrtfFilter => 4,
       };
 
   /// Activate this filter. If [soundHash] is null this filter is applied
