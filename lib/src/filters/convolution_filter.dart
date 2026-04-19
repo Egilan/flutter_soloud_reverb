@@ -30,7 +30,7 @@ enum ConvolutionEnum {
 
 abstract class _ConvolutionInternal extends FilterBase {
   const _ConvolutionInternal(this.soundHash)
-      : super(FilterType.convolutionFilter, soundHash);
+      : super(FilterType.convolutionFilter, soundHash, null);
 
   final SoundHash? soundHash;
 
@@ -61,6 +61,7 @@ class ConvolutionSingle extends _ConvolutionInternal {
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         ConvolutionEnum.wet.index,
         ConvolutionEnum.wet.min,
@@ -69,6 +70,7 @@ class ConvolutionSingle extends _ConvolutionInternal {
 
   FilterParam dry({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         ConvolutionEnum.dry.index,
         ConvolutionEnum.dry.min,
@@ -81,6 +83,7 @@ class ConvolutionGlobal extends _ConvolutionInternal {
 
   FilterParam get wet => FilterParam(
         null,
+        null,
         filterType,
         ConvolutionEnum.wet.index,
         ConvolutionEnum.wet.min,
@@ -88,6 +91,7 @@ class ConvolutionGlobal extends _ConvolutionInternal {
       );
 
   FilterParam get dry => FilterParam(
+        null,
         null,
         filterType,
         ConvolutionEnum.dry.index,

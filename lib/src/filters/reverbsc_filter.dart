@@ -30,7 +30,7 @@ enum ReverbScEnum {
 
 abstract class _ReverbScInternal extends FilterBase {
   const _ReverbScInternal(SoundHash? soundHash)
-      : super(FilterType.reverbScFilter, soundHash);
+      : super(FilterType.reverbScFilter, soundHash, null);
 
   ReverbScEnum get queryFeedback => ReverbScEnum.feedback;
   ReverbScEnum get queryLpFreq => ReverbScEnum.lpFreq;
@@ -43,6 +43,7 @@ class ReverbScSingle extends _ReverbScInternal {
 
   FilterParam feedback({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         ReverbScEnum.feedback.index,
         ReverbScEnum.feedback.min,
@@ -51,6 +52,7 @@ class ReverbScSingle extends _ReverbScInternal {
 
   FilterParam lpFreq({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         ReverbScEnum.lpFreq.index,
         ReverbScEnum.lpFreq.min,
@@ -59,6 +61,7 @@ class ReverbScSingle extends _ReverbScInternal {
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         ReverbScEnum.wet.index,
         ReverbScEnum.wet.min,
@@ -67,6 +70,7 @@ class ReverbScSingle extends _ReverbScInternal {
 
   FilterParam dry({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         ReverbScEnum.dry.index,
         ReverbScEnum.dry.min,
@@ -79,6 +83,7 @@ class ReverbScGlobal extends _ReverbScInternal {
 
   FilterParam get feedback => FilterParam(
         null,
+        null,
         filterType,
         ReverbScEnum.feedback.index,
         ReverbScEnum.feedback.min,
@@ -86,6 +91,7 @@ class ReverbScGlobal extends _ReverbScInternal {
       );
 
   FilterParam get lpFreq => FilterParam(
+        null,
         null,
         filterType,
         ReverbScEnum.lpFreq.index,
@@ -95,6 +101,7 @@ class ReverbScGlobal extends _ReverbScInternal {
 
   FilterParam get wet => FilterParam(
         null,
+        null,
         filterType,
         ReverbScEnum.wet.index,
         ReverbScEnum.wet.min,
@@ -102,6 +109,7 @@ class ReverbScGlobal extends _ReverbScInternal {
       );
 
   FilterParam get dry => FilterParam(
+        null,
         null,
         filterType,
         ReverbScEnum.dry.index,

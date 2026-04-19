@@ -33,7 +33,7 @@ enum HrtfEnum {
 
 abstract class _HrtfInternal extends FilterBase {
   const _HrtfInternal(this.soundHash)
-      : super(FilterType.hrtfFilter, soundHash);
+      : super(FilterType.hrtfFilter, soundHash, null);
 
   final SoundHash? soundHash;
 
@@ -63,6 +63,7 @@ class HrtfSingle extends _HrtfInternal {
 
   FilterParam azimuth({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         HrtfEnum.azimuth.index,
         HrtfEnum.azimuth.min,
@@ -71,6 +72,7 @@ class HrtfSingle extends _HrtfInternal {
 
   FilterParam elevation({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         HrtfEnum.elevation.index,
         HrtfEnum.elevation.min,
@@ -79,6 +81,7 @@ class HrtfSingle extends _HrtfInternal {
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         HrtfEnum.wet.index,
         HrtfEnum.wet.min,
@@ -87,6 +90,7 @@ class HrtfSingle extends _HrtfInternal {
 
   FilterParam crossoverFreq({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         HrtfEnum.crossoverFreq.index,
         HrtfEnum.crossoverFreq.min,
@@ -99,6 +103,7 @@ class HrtfGlobal extends _HrtfInternal {
 
   FilterParam get azimuth => FilterParam(
         null,
+        null,
         filterType,
         HrtfEnum.azimuth.index,
         HrtfEnum.azimuth.min,
@@ -106,6 +111,7 @@ class HrtfGlobal extends _HrtfInternal {
       );
 
   FilterParam get elevation => FilterParam(
+        null,
         null,
         filterType,
         HrtfEnum.elevation.index,
@@ -115,6 +121,7 @@ class HrtfGlobal extends _HrtfInternal {
 
   FilterParam get wet => FilterParam(
         null,
+        null,
         filterType,
         HrtfEnum.wet.index,
         HrtfEnum.wet.min,
@@ -122,6 +129,7 @@ class HrtfGlobal extends _HrtfInternal {
       );
 
   FilterParam get crossoverFreq => FilterParam(
+        null,
         null,
         filterType,
         HrtfEnum.crossoverFreq.index,

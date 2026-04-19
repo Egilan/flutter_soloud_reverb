@@ -49,7 +49,7 @@ enum DattorroEnum {
 
 abstract class _DattorroInternal extends FilterBase {
   const _DattorroInternal(SoundHash? soundHash)
-      : super(FilterType.dattorroFilter, soundHash);
+      : super(FilterType.dattorroFilter, soundHash, null);
 
   DattorroEnum get queryPreDelay => DattorroEnum.preDelay;
   DattorroEnum get queryDecay => DattorroEnum.decay;
@@ -67,6 +67,7 @@ class DattorroSingle extends _DattorroInternal {
 
   FilterParam preDelay({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         DattorroEnum.preDelay.index,
         DattorroEnum.preDelay.min,
@@ -75,6 +76,7 @@ class DattorroSingle extends _DattorroInternal {
 
   FilterParam decay({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         DattorroEnum.decay.index,
         DattorroEnum.decay.min,
@@ -83,6 +85,7 @@ class DattorroSingle extends _DattorroInternal {
 
   FilterParam damping({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         DattorroEnum.damping.index,
         DattorroEnum.damping.min,
@@ -91,6 +94,7 @@ class DattorroSingle extends _DattorroInternal {
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         DattorroEnum.wet.index,
         DattorroEnum.wet.min,
@@ -99,6 +103,7 @@ class DattorroSingle extends _DattorroInternal {
 
   FilterParam dry({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         DattorroEnum.dry.index,
         DattorroEnum.dry.min,
@@ -107,6 +112,7 @@ class DattorroSingle extends _DattorroInternal {
 
   FilterParam bandwidth({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         DattorroEnum.bandwidth.index,
         DattorroEnum.bandwidth.min,
@@ -115,6 +121,7 @@ class DattorroSingle extends _DattorroInternal {
 
   FilterParam inputDiffusion({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         DattorroEnum.inputDiffusion.index,
         DattorroEnum.inputDiffusion.min,
@@ -123,6 +130,7 @@ class DattorroSingle extends _DattorroInternal {
 
   FilterParam lfoRate({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         DattorroEnum.lfoRate.index,
         DattorroEnum.lfoRate.min,
@@ -131,6 +139,7 @@ class DattorroSingle extends _DattorroInternal {
 
   FilterParam lfoDepth({SoundHandle? soundHandle}) => FilterParam(
         soundHandle,
+        null,
         filterType,
         DattorroEnum.lfoDepth.index,
         DattorroEnum.lfoDepth.min,
@@ -143,6 +152,7 @@ class DattorroGlobal extends _DattorroInternal {
 
   FilterParam get preDelay => FilterParam(
         null,
+        null,
         filterType,
         DattorroEnum.preDelay.index,
         DattorroEnum.preDelay.min,
@@ -150,6 +160,7 @@ class DattorroGlobal extends _DattorroInternal {
       );
 
   FilterParam get decay => FilterParam(
+        null,
         null,
         filterType,
         DattorroEnum.decay.index,
@@ -159,6 +170,7 @@ class DattorroGlobal extends _DattorroInternal {
 
   FilterParam get damping => FilterParam(
         null,
+        null,
         filterType,
         DattorroEnum.damping.index,
         DattorroEnum.damping.min,
@@ -166,6 +178,7 @@ class DattorroGlobal extends _DattorroInternal {
       );
 
   FilterParam get wet => FilterParam(
+        null,
         null,
         filterType,
         DattorroEnum.wet.index,
@@ -175,6 +188,7 @@ class DattorroGlobal extends _DattorroInternal {
 
   FilterParam get dry => FilterParam(
         null,
+        null,
         filterType,
         DattorroEnum.dry.index,
         DattorroEnum.dry.min,
@@ -182,6 +196,7 @@ class DattorroGlobal extends _DattorroInternal {
       );
 
   FilterParam get bandwidth => FilterParam(
+        null,
         null,
         filterType,
         DattorroEnum.bandwidth.index,
@@ -191,6 +206,7 @@ class DattorroGlobal extends _DattorroInternal {
 
   FilterParam get inputDiffusion => FilterParam(
         null,
+        null,
         filterType,
         DattorroEnum.inputDiffusion.index,
         DattorroEnum.inputDiffusion.min,
@@ -199,6 +215,7 @@ class DattorroGlobal extends _DattorroInternal {
 
   FilterParam get lfoRate => FilterParam(
         null,
+        null,
         filterType,
         DattorroEnum.lfoRate.index,
         DattorroEnum.lfoRate.min,
@@ -206,6 +223,7 @@ class DattorroGlobal extends _DattorroInternal {
       );
 
   FilterParam get lfoDepth => FilterParam(
+        null,
         null,
         filterType,
         DattorroEnum.lfoDepth.index,
