@@ -24,6 +24,7 @@ dependencies:
     path: ../
 
   http: ^1.5.0
+  path_provider: ^2.1.5
   logging: ^1.2.0
 
   web_socket_channel: ^3.0.1
@@ -39,4 +40,7 @@ flutter:
 
   assets:
     - assets/audio/
+    - assets/audio/12Bands/
     - assets/audio/IR/
+    - assets/audio/nature/
+    - assets/audio/kemar.bin
