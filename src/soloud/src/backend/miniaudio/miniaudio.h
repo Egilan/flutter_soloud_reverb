@@ -38463,6 +38463,12 @@ error_disconnected:
         deviceConfig.aaudio.inputPreset             = pDevice->aaudio.inputPreset;
         deviceConfig.aaudio.allowedCapturePolicy    = pDevice->aaudio.allowedCapturePolicy;
         deviceConfig.aaudio.noAutoStartAfterReroute = pDevice->aaudio.noAutoStartAfterReroute;
+        /* flutter_soloud_reverb patch: preserve conservative performance profile and
+           allowSetBufferCapacity across device reroute (BT connect/disconnect, etc.).
+           Upstream miniaudio drops these on reinit, causing the stream to fall back to
+           LOW_LATENCY with tiny HW-burst callbacks — too tight for multi-voice HRTF DSP. */
+        deviceConfig.performanceProfile             = ma_performance_profile_conservative;
+        deviceConfig.aaudio.allowSetBufferCapacity  = MA_TRUE;
         deviceConfig.periods                        = 1;
 
         /* Try to get an accurate period size. */
@@ -38508,8 +38514,14 @@ error_disconnected:
         /* We'll only ever do this in response to a reroute. */
         ma_device__on_notification_rerouted(pDevice);
 
-        /* If the device is started, start the streams. Maybe make this configurable? */
-        if (ma_device_get_state(pDevice) == ma_device_state_started) {
+        /* If the device is started (or transitioning to started), start the streams.
+           flutter_soloud_reverb patch: also accept ma_device_state_starting so that a
+           reroute event arriving mid-startup (e.g., first BT disconnect shortly after
+           app launch on Samsung S24U) still restarts the stream. Upstream only accepts
+           `started`, which leaves audio permanently silent if the reroute races with
+           device init. */
+        if (ma_device_get_state(pDevice) == ma_device_state_started ||
+            ma_device_get_state(pDevice) == ma_device_state_starting) {
             if (pDevice->aaudio.noAutoStartAfterReroute == MA_FALSE) {
                 result = ma_device_start__aaudio(pDevice);
                 if (result != MA_SUCCESS) {

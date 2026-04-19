@@ -59,6 +59,10 @@ namespace SoLoud
 #include "miniaudio.h"
 #ifdef __ANDROID__
 #include <android/api-level.h>
+#include <android/log.h>
+#define MA_LOG(...) __android_log_print(ANDROID_LOG_INFO, "miniaudio_init", __VA_ARGS__)
+#else
+#define MA_LOG(...) do {} while(0)
 #endif
 #include <math.h>
 #include <thread>
@@ -221,6 +225,15 @@ namespace SoLoud
         gDeviceStartDeferred = false;
         
 #elif defined(__ANDROID__)
+        // Use conservative performance profile so AAudio opens in AAUDIO_PERFORMANCE_MODE_NONE
+        // rather than LOW_LATENCY. LOW_LATENCY enforces 192-frame (4ms) callbacks via the
+        // FastMixer, which is too tight for CPU-heavy DSP like multi-voice HRTF convolution.
+        // NONE gives the normal mixer path with 20–50ms callbacks and adequate scheduling slack.
+        deviceConfig.performanceProfile = ma_performance_profile_conservative;
+        // allowSetBufferCapacity lets miniaudio explicitly call setFramesPerDataCallback so
+        // AAudio honors our requested period size instead of defaulting to 192 frames.
+        deviceConfig.aaudio.allowSetBufferCapacity = MA_TRUE;
+
         ma_backend backends[] = { ma_backend_aaudio, ma_backend_opensl };
         ma_uint32 backendCount = 2;
         if (android_get_device_api_level() <= 29) {
@@ -237,6 +250,11 @@ namespace SoLoud
             return UNKNOWN_ERROR;
         }
         gDeviceInitialized = true;
+        MA_LOG("AAudio opened: sampleRate=%u periodFrames=%u channels=%u perfProfile=%s",
+               gDevice.sampleRate,
+               gDevice.playback.internalPeriodSizeInFrames,
+               gDevice.playback.channels,
+               (deviceConfig.performanceProfile == ma_performance_profile_conservative) ? "conservative" : "low_latency");
         aSoloud->postinit_internal(gDevice.sampleRate, gDevice.playback.internalPeriodSizeInFrames, aFlags, gDevice.playback.channels);
         ma_device_start(&gDevice);
         gDeviceInitDeferred = false;
