@@ -570,6 +570,9 @@ enum FilterType {
   /// A compressor filter.
   compressorFilter,
 
+  /// A parametric N bands equalizer filter.
+  parametricEq,
+
   /// ReverbSc (Costello) filter
   reverbScFilter,
 
@@ -580,10 +583,7 @@ enum FilterType {
   dattorroFilter,
 
   /// HRTF (Head-Related Transfer Function) spatialization filter
-  hrtfFilter,
-
-  /// A parametric N bands equalizer filter.
-  parametricEq;
+  hrtfFilter;
 
   @override
   String toString() => switch (this) {
