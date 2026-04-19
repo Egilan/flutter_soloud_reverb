@@ -327,7 +327,7 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
 
   void _playSpeech(BusHandle? bus) async {
     if (bus == null) {
-      await SoLoud.instance.play(speech!, looping: true);
+      SoLoud.instance.play(speech!, looping: true);
     } else {
       await SoLoud.instance.playOnBus(bus, speech!, looping: true);
     }
@@ -336,7 +336,7 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
 
   void _playMusic(BusHandle? bus) async {
     if (bus == null) {
-      await SoLoud.instance.play(music!, looping: true);
+      SoLoud.instance.play(music!, looping: true);
     } else {
       await SoLoud.instance.playOnBus(bus, music!, looping: true);
     }

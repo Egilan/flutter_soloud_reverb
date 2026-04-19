@@ -28,7 +28,7 @@ Future<StringBuffer> testMixingBus() async {
 
   // Create a mixing bus
   final bus1 = SoLoud.instance.createMixingBus(name: 'SFX Bus');
-  strBuf.writeln('Created bus: ${bus1.name}, ID: ${bus1.busId}');
+  strBuf.writeln('Created bus: ${bus1.name}, ID: ${bus1.busHandle.id}');
 
   // Verify bus was added to Buses singleton
   assert(
@@ -36,8 +36,8 @@ Future<StringBuffer> testMixingBus() async {
     'Bus should be added to Buses',
   );
   assert(Buses().byName('SFX Bus') != null, 'Should find bus by name');
-  assert(Buses().byId(bus1.busId) != null, 'Should find bus by ID');
-  assert(bus1.busId > 0, 'Bus should have valid ID');
+  assert(Buses().byId(bus1.busHandle.id) != null, 'Should find bus by ID');
+  assert(bus1.busHandle.id > 0, 'Bus should have valid ID');
   assert(!bus1.isActive, 'Bus should not be active before playOnEngine');
 
   // Play the bus on the engine (required for audio output)
@@ -79,9 +79,9 @@ Future<StringBuffer> testMixingBus() async {
 
   // Create second bus with pitch shift filter
   final bus2 = SoLoud.instance.createMixingBus(name: 'Music Bus');
-  strBuf.writeln('Created bus: ${bus2.name}, ID: ${bus2.busId}');
+  strBuf.writeln('Created bus: ${bus2.name}, ID: ${bus2.busHandle.id}');
 
-  assert(bus2.busId != bus1.busId, 'Each bus should have unique ID');
+  assert(bus2.busHandle.id != bus1.busHandle.id, 'Each bus should have unique ID');
   assert(
     Buses().buses.length == initialBusCount + 2,
     'Second bus should be added',
@@ -203,7 +203,7 @@ Future<StringBuffer> testMixingBus() async {
 
   // Create a third bus that will play ON bus1
   final bus3 = SoLoud.instance.createMixingBus(name: 'Nested Bus');
-  strBuf.writeln('Created nested bus: ${bus3.name}, ID: ${bus3.busId}');
+  strBuf.writeln('Created nested bus: ${bus3.name}, ID: ${bus3.busHandle.id}');
 
   assert(
     Buses().buses.length == initialBusCount + 3,
@@ -268,7 +268,7 @@ Future<StringBuffer> testMixingBus() async {
 
   // Test finding buses
   final foundByName = Buses().byName('SFX Bus');
-  final foundById = Buses().byId(bus2.busId);
+  final foundById = Buses().byId(bus2.busHandle.id);
   final notFound = Buses().byName('Nonexistent Bus', orElse: () => bus1);
 
   assert(foundByName == bus1, 'Should find SFX Bus by name');
