@@ -1,4 +1,4 @@
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
 
 #include "flac_stream_decoder.h"
 #include "../common.h"
@@ -8,11 +8,11 @@
 FlacDecoderWrapper::FlacDecoderWrapper()
     : m_pFlacDecoder(nullptr),
       m_streamInfoProcessed(false),
+      m_read_pos(0),
       m_streamInitialized(false),
       m_channels(0),
       m_samplerate(0),
       m_bitsPerSample(0),
-      m_read_pos(0),
       mIcyMetaInt(0),
       mAudioBytesCount(0),
       mIcyMetaSize(0)
@@ -301,4 +301,4 @@ void FlacDecoderWrapper::getMetadata()
     }
 }
 
-#endif // #if !defined(NO_OPUS_OGG_LIBS)
+#endif // #if !defined(NO_XIPH_LIBS)

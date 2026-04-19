@@ -30,6 +30,12 @@ distribution.
 #include "soloud.h"
 #include "soloud_file.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 namespace SoLoud
 {
 	unsigned int File::read8()
@@ -105,7 +111,22 @@ mFileHandle(fp)
 	{
 		if (!aFilename)
 			return INVALID_PARAMETER;
+#ifdef _WIN32
+		// On Windows, convert UTF-8 to wide string and use _wfopen
+		int wideLen = MultiByteToWideChar(CP_UTF8, 0, aFilename, -1, NULL, 0);
+		if (wideLen == 0)
+			return FILE_NOT_FOUND;
+		wchar_t *wideName = new wchar_t[wideLen];
+		if (MultiByteToWideChar(CP_UTF8, 0, aFilename, -1, wideName, wideLen) == 0)
+		{
+			delete[] wideName;
+			return FILE_NOT_FOUND;
+		}
+		mFileHandle = _wfopen(wideName, L"rb");
+		delete[] wideName;
+#else
 		mFileHandle = fopen(aFilename, "rb");
+#endif
 		if (!mFileHandle)
 			return FILE_NOT_FOUND;
 		return SO_NO_ERROR;

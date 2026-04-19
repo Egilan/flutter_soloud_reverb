@@ -1,4 +1,4 @@
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
 
 #ifndef miniaudio_libvorbis_c
 #define miniaudio_libvorbis_c
@@ -557,7 +557,7 @@ MA_API ma_result ma_libvorbis_get_data_format(ma_libvorbis* pVorbis, ma_format* 
         }
 
         if (pSampleRate != NULL) {
-            *pSampleRate = pInfo->rate;
+            *pSampleRate = static_cast<ma_uint32>(pInfo->rate);
         }
 
         if (pChannelMap != NULL) {

@@ -1,4 +1,4 @@
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
 
 #include "opus_stream_decoder.h"
 #include <algorithm>
@@ -379,7 +379,7 @@ std::vector<float> OpusDecoderWrapper::decodePacket(ogg_packet* packet)
     // Try decoding the packet
     int samples = opus_decode_float(decoder,
                                     packet->packet,
-                                    packet->bytes,
+                                    static_cast<opus_int32>(packet->bytes),
                                     outputBuffer.data(),
                                     maxFrameSize,
                                     0);
@@ -448,4 +448,4 @@ std::vector<float> OpusDecoderWrapper::decodePacket(ogg_packet* packet)
     }
     return packetPcm;
 }
-#endif // #if defined(NO_OPUS_OGG_LIBS)
+#endif // #if defined(NO_XIPH_LIBS)

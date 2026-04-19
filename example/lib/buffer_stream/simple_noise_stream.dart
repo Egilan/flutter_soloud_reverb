@@ -125,7 +125,7 @@ class _SimpleNoiseState extends State<SimpleNoise> {
                     setState(() {});
                   },
                 );
-                await SoLoud.instance.play(noise!);
+                SoLoud.instance.play(noise!);
 
                 /// Just to rebuild [BufferBar] widgets
                 setState(() {});

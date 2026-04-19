@@ -21,40 +21,59 @@ import 'package:flutter_soloud/src/bus_handle.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
-typedef DartVoiceEndedCallbackT
-    = ffi.Pointer<ffi.NativeFunction<DartVoiceEndedCallbackTFunction>>;
+typedef DartVoiceEndedCallbackT =
+    ffi.Pointer<ffi.NativeFunction<DartVoiceEndedCallbackTFunction>>;
 
-typedef DartVoiceEndedCallbackTFunction = ffi.Void Function(
-    ffi.Pointer<ffi.UnsignedInt>);
+typedef DartVoiceEndedCallbackTFunction =
+    ffi.Void Function(ffi.Pointer<ffi.UnsignedInt>);
 
-typedef DartdartVoiceEndedCallbackTFunction = void Function(
-    ffi.Pointer<ffi.UnsignedInt>);
+typedef DartdartVoiceEndedCallbackTFunction =
+    void Function(ffi.Pointer<ffi.UnsignedInt>);
 
-typedef DartFileLoadedCallbackT
-    = ffi.Pointer<ffi.NativeFunction<DartFileLoadedCallbackTFunction>>;
+typedef DartFileLoadedCallbackT =
+    ffi.Pointer<ffi.NativeFunction<DartFileLoadedCallbackTFunction>>;
 
-typedef DartFileLoadedCallbackTFunction = ffi.Void Function(
-    ffi.Pointer<ffi.Int32>,
-    ffi.Pointer<ffi.Char>,
-    ffi.Pointer<ffi.UnsignedInt>,
-    ffi.Pointer<ffi.Uint64>);
+typedef DartFileLoadedCallbackTFunction =
+    ffi.Void Function(
+      ffi.Pointer<ffi.Int32>,
+      ffi.Pointer<ffi.Char>,
+      ffi.Pointer<ffi.UnsignedInt>,
+      ffi.Pointer<ffi.Uint64>,
+    );
 
-typedef DartdartFileLoadedCallbackTFunction = void Function(
-    ffi.Pointer<ffi.Int32>,
-    ffi.Pointer<ffi.Char>,
-    ffi.Pointer<ffi.UnsignedInt>,
-    ffi.Pointer<ffi.Uint64>);
+typedef DartdartFileLoadedCallbackTFunction =
+    void Function(
+      ffi.Pointer<ffi.Int32>,
+      ffi.Pointer<ffi.Char>,
+      ffi.Pointer<ffi.UnsignedInt>,
+      ffi.Pointer<ffi.Uint64>,
+    );
 
-typedef DartStateChangedCallbackT
-    = ffi.Pointer<ffi.NativeFunction<DartStateChangedCallbackTFunction>>;
+typedef DartStateChangedCallbackT =
+    ffi.Pointer<ffi.NativeFunction<DartStateChangedCallbackTFunction>>;
 
-typedef DartStateChangedCallbackTFunction = ffi.Void Function(
-    ffi.Pointer<ffi.Int32>);
+typedef DartStateChangedCallbackTFunction =
+    ffi.Void Function(ffi.Pointer<ffi.Int32>);
 
-typedef DartdartStateChangedCallbackTFunction = void Function(
-    ffi.Pointer<ffi.Int32>);
+typedef DartdartStateChangedCallbackTFunction =
+    void Function(ffi.Pointer<ffi.Int32>);
 
 typedef OnMetadataCallbackTFunction = void Function(NativeAudioMetadata);
+
+final class _BufferStreamNativeCallbacks {
+  _BufferStreamNativeCallbacks({this.onBuffering, this.onMetadata});
+
+  final ffi.NativeCallable<ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)>?
+  onBuffering;
+  final ffi.NativeCallable<ffi.Void Function(NativeAudioMetadata)>? onMetadata;
+
+  bool get hasCallbacks => onBuffering != null || onMetadata != null;
+
+  void close() {
+    onBuffering?.close();
+    onMetadata?.close();
+  }
+}
 
 /// FFI bindings to SoLoud
 @internal
@@ -63,12 +82,12 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   /// Holds the symbol lookup function.
   final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
-      _lookup;
+  _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
   // ignore: sort_constructors_first
   FlutterSoLoudFfi(ffi.DynamicLibrary dynamicLibrary)
-      : _lookup = dynamicLibrary.lookup;
+    : _lookup = dynamicLibrary.lookup;
 
   /// The symbols are looked up with [lookup].
   // ignore: sort_constructors_first
@@ -83,10 +102,24 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   ffi.NativeCallable<DartVoiceEndedCallbackTFunction>? nativeVoiceEndedCallable;
   ffi.NativeCallable<DartFileLoadedCallbackTFunction>? nativeFileLoadedCallable;
   ffi.NativeCallable<DartStateChangedCallbackTFunction>?
-      nativeStateChangedCallable;
+  nativeStateChangedCallable;
+  final Map<int, _BufferStreamNativeCallbacks> _bufferStreamNativeCallables =
+      {};
+
+  void _disposeBufferStreamCallbacks(SoundHash soundHash) {
+    _bufferStreamNativeCallables.remove(soundHash.hash)?.close();
+  }
+
+  void _disposeAllBufferStreamCallbacks() {
+    for (final callbacks in _bufferStreamNativeCallables.values) {
+      callbacks.close();
+    }
+    _bufferStreamNativeCallables.clear();
+  }
 
   void _voiceEndedCallback(ffi.Pointer<ffi.UnsignedInt> handle) {
     _log.finest(() => 'VOICE ENDED EVENT handle: ${handle.value}');
+
     voiceEndedEventController.add(handle.value);
     // Must free a pointer made on cpp. On Windows this must be freed
     // there and cannot use `calloc.free(...)`
@@ -100,11 +133,13 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     ffi.Pointer<ffi.UnsignedInt> hash,
     ffi.Pointer<ffi.Uint64> counter,
   ) {
-    _log.finest(() =>
-        'FILE LOADED EVENT error: ${PlayerErrors.values[error.value].name}  '
-        'hash: ${hash.value}  '
-        'file: ${completeFileName.cast<Utf8>().toDartString()}  '
-        'counter: ${counter.value}');
+    _log.finest(
+      () =>
+          'FILE LOADED EVENT error: ${PlayerErrors.values[error.value].name}  '
+          'hash: ${hash.value}  '
+          'file: ${completeFileName.cast<Utf8>().toDartString()}  '
+          'counter: ${counter.value}',
+    );
     final result = <String, dynamic>{
       'error': error.value,
       'completeFileName': completeFileName.cast<Utf8>().toDartString(),
@@ -131,10 +166,19 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   @override
   void disposeNativeCallables() {
+    _disposeAllBufferStreamCallbacks();
+    clearDartCallbackRegistrations();
     nativeVoiceEndedCallable?.close();
+    nativeVoiceEndedCallable = null;
     nativeFileLoadedCallable?.close();
+    nativeFileLoadedCallable = null;
     nativeStateChangedCallable?.close();
-    _setDartEventCallback(ffi.nullptr, ffi.nullptr, ffi.nullptr);
+    nativeStateChangedCallable = null;
+  }
+
+  @override
+  void clearDartCallbackRegistrations() {
+    _clearDartCallbackRegistrations();
   }
 
   @override
@@ -142,16 +186,16 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     // Create a NativeCallable for the Dart functions
     nativeVoiceEndedCallable =
         ffi.NativeCallable<DartVoiceEndedCallbackTFunction>.listener(
-      _voiceEndedCallback,
-    );
+          _voiceEndedCallback,
+        );
     nativeFileLoadedCallable =
         ffi.NativeCallable<DartFileLoadedCallbackTFunction>.listener(
-      _fileLoadedCallback,
-    );
+          _fileLoadedCallback,
+        );
     nativeStateChangedCallable =
         ffi.NativeCallable<DartStateChangedCallbackTFunction>.listener(
-      _stateChangedCallback,
-    );
+          _stateChangedCallback,
+        );
 
     _setDartEventCallback(
       nativeVoiceEndedCallable!.nativeFunction,
@@ -160,29 +204,45 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     );
   }
 
-  late final _setDartEventCallbackPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(DartVoiceEndedCallbackT, DartFileLoadedCallbackT,
-              DartStateChangedCallbackT)>>('setDartEventCallback');
-  late final _setDartEventCallback = _setDartEventCallbackPtr.asFunction<
-      void Function(DartVoiceEndedCallbackT, DartFileLoadedCallbackT,
-          DartStateChangedCallbackT)>();
+  late final _setDartEventCallbackPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            DartVoiceEndedCallbackT,
+            DartFileLoadedCallbackT,
+            DartStateChangedCallbackT,
+          )
+        >
+      >('setDartEventCallback');
+  late final _setDartEventCallback = _setDartEventCallbackPtr
+      .asFunction<
+        void Function(
+          DartVoiceEndedCallbackT,
+          DartFileLoadedCallbackT,
+          DartStateChangedCallbackT,
+        )
+      >();
+
+  late final _clearDartCallbackRegistrationsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function()>>(
+        'clearDartCallbackRegistrations',
+      );
+  late final _clearDartCallbackRegistrations =
+      _clearDartCallbackRegistrationsPtr.asFunction<void Function()>();
 
   // ////////////////////////////////////////////////
   // Navtive bindings
   // ////////////////////////////////////////////////
 
   @override
-  bool areOpusOggLibsAvailable() {
-    return _areOpusOggLibsAvailable();
+  bool areXiphLibsAvailable() {
+    return _areXiphLibsAvailable();
   }
 
-  late final _areOpusOggLibsAvailablePtr =
-      _lookup<ffi.NativeFunction<ffi.Bool Function()>>(
-    'areOpusOggLibsAvailable',
-  );
-  late final _areOpusOggLibsAvailable =
-      _areOpusOggLibsAvailablePtr.asFunction<bool Function()>();
+  late final _areXiphLibsAvailablePtr =
+      _lookup<ffi.NativeFunction<ffi.Bool Function()>>('areXiphLibsAvailable');
+  late final _areXiphLibsAvailable = _areXiphLibsAvailablePtr
+      .asFunction<bool Function()>();
 
   /// When allocating memory in C code, more attention must be given when
   /// we are on Windows OS. It's not good to call `calloc.free()` because
@@ -195,9 +255,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _nativeFreePtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'nativeFree');
-  late final _nativeFree =
-      _nativeFreePtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+        'nativeFree',
+      );
+  late final _nativeFree = _nativeFreePtr
+      .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   @override
   PlayerErrors initEngine(
@@ -206,21 +267,23 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     int bufferSize,
     Channels channels,
   ) {
-    final ret = _initEngine(
-      deviceId,
-      sampleRate,
-      bufferSize,
-      channels.count,
-    );
+    final ret = _initEngine(deviceId, sampleRate, bufferSize, channels.count);
     return PlayerErrors.values[ret];
   }
 
-  late final _initEnginePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.Int, ffi.UnsignedInt, ffi.UnsignedInt,
-              ffi.UnsignedInt)>>('initEngine');
-  late final _initEngine =
-      _initEnginePtr.asFunction<int Function(int, int, int, int)>();
+  late final _initEnginePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.Int,
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+          )
+        >
+      >('initEngine');
+  late final _initEngine = _initEnginePtr
+      .asFunction<int Function(int, int, int, int)>();
 
   @override
   PlayerErrors changeDevice(int deviceId) {
@@ -230,26 +293,25 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _changeDevicePtr =
       _lookup<ffi.NativeFunction<ffi.UnsignedInt Function(ffi.Int)>>(
-          'changeDevice');
+        'changeDevice',
+      );
   late final _changeDevice = _changeDevicePtr.asFunction<int Function(int)>();
 
   @override
   List<PlaybackDevice> listPlaybackDevices() {
     final ret = <PlaybackDevice>[];
-    final ffi.Pointer<ffi.Pointer<ffi.Char>> deviceNames =
-        calloc(ffi.sizeOf<ffi.Pointer<ffi.Pointer<ffi.Char>>>() * 255);
-    final ffi.Pointer<ffi.Pointer<ffi.Int>> deviceIds =
-        calloc(ffi.sizeOf<ffi.Pointer<ffi.Pointer<ffi.Int>>>() * 50);
-    final ffi.Pointer<ffi.Pointer<ffi.Int>> deviceIsDefault =
-        calloc(ffi.sizeOf<ffi.Pointer<ffi.Pointer<ffi.Int>>>() * 50);
+    final ffi.Pointer<ffi.Pointer<ffi.Char>> deviceNames = calloc(
+      ffi.sizeOf<ffi.Pointer<ffi.Pointer<ffi.Char>>>() * 255,
+    );
+    final ffi.Pointer<ffi.Pointer<ffi.Int>> deviceIds = calloc(
+      ffi.sizeOf<ffi.Pointer<ffi.Pointer<ffi.Int>>>() * 50,
+    );
+    final ffi.Pointer<ffi.Pointer<ffi.Int>> deviceIsDefault = calloc(
+      ffi.sizeOf<ffi.Pointer<ffi.Pointer<ffi.Int>>>() * 50,
+    );
     final ffi.Pointer<ffi.Int> nDevices = calloc();
 
-    _listPlaybackDevices(
-      deviceNames,
-      deviceIds,
-      deviceIsDefault,
-      nDevices,
-    );
+    _listPlaybackDevices(deviceNames, deviceIds, deviceIsDefault, nDevices);
 
     final ndev = nDevices.value;
     for (var i = 0; i < ndev; i++) {
@@ -268,12 +330,7 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     //   calloc.free(devices.elementAt(i).value.ref.name);
     //   calloc.free(devices.elementAt(i).value);
     // }
-    _freeListPlaybackDevices(
-      deviceNames,
-      deviceIds,
-      deviceIsDefault,
-      ndev,
-    );
+    _freeListPlaybackDevices(deviceNames, deviceIds, deviceIsDefault, ndev);
 
     calloc
       ..free(deviceNames)
@@ -282,19 +339,26 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return ret;
   }
 
-  late final _listPlaybackDevicesPtr = _lookup<
-      ffi.NativeFunction<
+  late final _listPlaybackDevicesPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.Void Function(
-              ffi.Pointer<ffi.Pointer<ffi.Char>>,
-              ffi.Pointer<ffi.Pointer<ffi.Int>>,
-              ffi.Pointer<ffi.Pointer<ffi.Int>>,
-              ffi.Pointer<ffi.Int>)>>('listPlaybackDevices');
-  late final _listPlaybackDevices = _listPlaybackDevicesPtr.asFunction<
-      void Function(
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+            ffi.Pointer<ffi.Pointer<ffi.Int>>,
+            ffi.Pointer<ffi.Pointer<ffi.Int>>,
+            ffi.Pointer<ffi.Int>,
+          )
+        >
+      >('listPlaybackDevices');
+  late final _listPlaybackDevices = _listPlaybackDevicesPtr
+      .asFunction<
+        void Function(
           ffi.Pointer<ffi.Pointer<ffi.Char>>,
           ffi.Pointer<ffi.Pointer<ffi.Int>>,
           ffi.Pointer<ffi.Pointer<ffi.Int>>,
-          ffi.Pointer<ffi.Int>)>();
+          ffi.Pointer<ffi.Int>,
+        )
+      >();
 
   void freeListPlaybackDevices(
     ffi.Pointer<ffi.Pointer<ffi.Char>> devicesName,
@@ -302,35 +366,38 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     ffi.Pointer<ffi.Pointer<ffi.Int>> isDefault,
     int nDevices,
   ) {
-    return _freeListPlaybackDevices(
-      devicesName,
-      deviceId,
-      isDefault,
-      nDevices,
-    );
+    return _freeListPlaybackDevices(devicesName, deviceId, isDefault, nDevices);
   }
 
-  late final _freeListPlaybackDevicesPtr = _lookup<
-      ffi.NativeFunction<
+  late final _freeListPlaybackDevicesPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.Void Function(
-              ffi.Pointer<ffi.Pointer<ffi.Char>>,
-              ffi.Pointer<ffi.Pointer<ffi.Int>>,
-              ffi.Pointer<ffi.Pointer<ffi.Int>>,
-              ffi.Int)>>('freeListPlaybackDevices');
-  late final _freeListPlaybackDevices = _freeListPlaybackDevicesPtr.asFunction<
-      void Function(
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+            ffi.Pointer<ffi.Pointer<ffi.Int>>,
+            ffi.Pointer<ffi.Pointer<ffi.Int>>,
+            ffi.Int,
+          )
+        >
+      >('freeListPlaybackDevices');
+  late final _freeListPlaybackDevices = _freeListPlaybackDevicesPtr
+      .asFunction<
+        void Function(
           ffi.Pointer<ffi.Pointer<ffi.Char>>,
           ffi.Pointer<ffi.Pointer<ffi.Int>>,
           ffi.Pointer<ffi.Pointer<ffi.Int>>,
-          int)>();
+          int,
+        )
+      >();
 
   @override
   void deinit() {
     return _dispose();
   }
 
-  late final _disposePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function()>>('dispose');
+  late final _disposePtr = _lookup<ffi.NativeFunction<ffi.Void Function()>>(
+    'dispose',
+  );
   late final _dispose = _disposePtr.asFunction<void Function()>();
 
   @override
@@ -347,33 +414,25 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   /// Dart function defined with [_setDartEventCallback] which gives back
   /// the error and the new hash.
   @override
-  void loadFile(
-    String completeFileName,
-    LoadMode mode,
-    int counter,
-  ) {
-    final ffi.Pointer<ffi.UnsignedInt> h =
-        calloc(ffi.sizeOf<ffi.UnsignedInt>());
-    final ffi.Pointer<Utf8> cString = completeFileName.toNativeUtf8();
-    _loadFile(
-      cString,
-      mode == LoadMode.memory ? 1 : 0,
-      counter,
+  void loadFile(String completeFileName, LoadMode mode, int counter) {
+    final ffi.Pointer<ffi.UnsignedInt> h = calloc(
+      ffi.sizeOf<ffi.UnsignedInt>(),
     );
+    final ffi.Pointer<Utf8> cString = completeFileName.toNativeUtf8();
+    _loadFile(cString, mode == LoadMode.memory ? 1 : 0, counter);
     calloc
       ..free(cString)
       ..free(h);
   }
 
-  late final _loadFilePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Pointer<Utf8>,
-            ffi.Int,
-            ffi.Uint64,
-          )>>('loadFile');
-  late final _loadFile =
-      _loadFilePtr.asFunction<void Function(ffi.Pointer<Utf8>, int, int)>();
+  late final _loadFilePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Pointer<Utf8>, ffi.Int, ffi.Uint64)
+        >
+      >('loadFile');
+  late final _loadFile = _loadFilePtr
+      .asFunction<void Function(ffi.Pointer<Utf8>, int, int)>();
 
   @override
   ({PlayerErrors error, SoundHash soundHash}) loadMem(
@@ -381,8 +440,9 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     Uint8List buffer,
     LoadMode mode,
   ) {
-    final ffi.Pointer<ffi.UnsignedInt> hash =
-        calloc(ffi.sizeOf<ffi.UnsignedInt>());
+    final ffi.Pointer<ffi.UnsignedInt> hash = calloc(
+      ffi.sizeOf<ffi.UnsignedInt>(),
+    );
     final ffi.Pointer<ffi.Uint8> bufferPtr = calloc(buffer.length);
     for (var i = 0; i < buffer.length; i++) {
       bufferPtr[i] = buffer[i];
@@ -404,13 +464,28 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return ret;
   }
 
-  late final _loadMemPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Pointer<ffi.Uint8>, ffi.Int,
-              ffi.Int, ffi.Pointer<ffi.UnsignedInt>)>>('loadMem');
-  late final _loadMem = _loadMemPtr.asFunction<
-      int Function(ffi.Pointer<Utf8>, ffi.Pointer<ffi.Uint8>, int, int,
-          ffi.Pointer<ffi.UnsignedInt>)>();
+  late final _loadMemPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.Pointer<Utf8>,
+            ffi.Pointer<ffi.Uint8>,
+            ffi.Int,
+            ffi.Int,
+            ffi.Pointer<ffi.UnsignedInt>,
+          )
+        >
+      >('loadMem');
+  late final _loadMem = _loadMemPtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<Utf8>,
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          int,
+          ffi.Pointer<ffi.UnsignedInt>,
+        )
+      >();
 
   @override
   ({PlayerErrors error, SoundHash soundHash}) setBufferStream(
@@ -423,28 +498,22 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     OnBufferingCallbackTFunction? onBuffering,
     OnMetadataCallbackTFunction? onMetadata,
   ) {
-    // Create a NativeCallable for the given [onBuffering] callback.
-    ffi.NativeCallable<ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)>?
-        nativeOnBufferingCallable;
-    if (onBuffering != null) {
-      nativeOnBufferingCallable = ffi.NativeCallable<
-          ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)>.listener(
-        onBuffering,
-      );
-    }
+    final nativeCallbacks = _BufferStreamNativeCallbacks(
+      onBuffering: onBuffering == null
+          ? null
+          : ffi.NativeCallable<
+              ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)
+            >.listener(onBuffering),
+      onMetadata: onMetadata == null
+          ? null
+          : ffi.NativeCallable<ffi.Void Function(NativeAudioMetadata)>.listener(
+              onMetadata,
+            ),
+    );
 
-    // Create a NativeCallable for the given [onMetadata] callback.
-    ffi.NativeCallable<ffi.Void Function(NativeAudioMetadata)>?
-        nativeOnMetadataCallable;
-    if (onMetadata != null) {
-      nativeOnMetadataCallable =
-          ffi.NativeCallable<ffi.Void Function(NativeAudioMetadata)>.listener(
-        onMetadata,
-      );
-    }
-
-    final ffi.Pointer<ffi.UnsignedInt> hash =
-        calloc(ffi.sizeOf<ffi.UnsignedInt>());
+    final ffi.Pointer<ffi.UnsignedInt> hash = calloc(
+      ffi.sizeOf<ffi.UnsignedInt>(),
+    );
     final e = _setBufferStream(
       hash,
       maxBufferSize,
@@ -453,35 +522,46 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
       sampleRate,
       channels,
       format,
-      nativeOnBufferingCallable?.nativeFunction ?? ffi.nullptr,
-      nativeOnMetadataCallable?.nativeFunction ?? ffi.nullptr,
+      nativeCallbacks.onBuffering?.nativeFunction ?? ffi.nullptr,
+      nativeCallbacks.onMetadata?.nativeFunction ?? ffi.nullptr,
     );
     final soundHash = SoundHash(hash.value);
     final ret = (error: PlayerErrors.values[e], soundHash: soundHash);
+    if (ret.error == PlayerErrors.noError && nativeCallbacks.hasCallbacks) {
+      _bufferStreamNativeCallables[soundHash.hash] = nativeCallbacks;
+    } else {
+      nativeCallbacks.close();
+    }
     calloc.free(hash);
     return ret;
   }
 
-  late final _setBufferStreamPtr = _lookup<
-      ffi.NativeFunction<
+  late final _setBufferStreamPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.UnsignedInt Function(
-              ffi.Pointer<ffi.UnsignedInt>,
-              ffi.UnsignedLong,
-              ffi.UnsignedInt,
-              ffi.Double,
-              ffi.UnsignedInt,
-              ffi.UnsignedInt,
-              ffi.Int,
-              ffi.Pointer<
-                  ffi.NativeFunction<
-                      ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)>>,
-              ffi.Pointer<
-                  ffi.NativeFunction<
-                      ffi.Void Function(
-                          NativeAudioMetadata)>>)>>('setBufferStream');
+            ffi.Pointer<ffi.UnsignedInt>,
+            ffi.UnsignedLong,
+            ffi.UnsignedInt,
+            ffi.Double,
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Int,
+            ffi.Pointer<
+              ffi.NativeFunction<
+                ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)
+              >
+            >,
+            ffi.Pointer<
+              ffi.NativeFunction<ffi.Void Function(NativeAudioMetadata)>
+            >,
+          )
+        >
+      >('setBufferStream');
 
-  late final _setBufferStream = _setBufferStreamPtr.asFunction<
-      int Function(
+  late final _setBufferStream = _setBufferStreamPtr
+      .asFunction<
+        int Function(
           ffi.Pointer<ffi.UnsignedInt>,
           int,
           int,
@@ -490,10 +570,13 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
           int,
           int,
           ffi.Pointer<
-              ffi.NativeFunction<
-                  ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)>>,
+            ffi.NativeFunction<ffi.Void Function(ffi.Bool, ffi.Int, ffi.Double)>
+          >,
           ffi.Pointer<
-              ffi.NativeFunction<ffi.Void Function(NativeAudioMetadata)>>)>();
+            ffi.NativeFunction<ffi.Void Function(NativeAudioMetadata)>
+          >,
+        )
+      >();
 
   @override
   PlayerErrors resetBufferStream(SoundHash soundHash) {
@@ -503,9 +586,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _resetBufferStreamPtr =
       _lookup<ffi.NativeFunction<ffi.UnsignedInt Function(ffi.UnsignedInt)>>(
-          'resetBufferStream');
-  late final _resetBufferStream =
-      _resetBufferStreamPtr.asFunction<int Function(int)>();
+        'resetBufferStream',
+      );
+  late final _resetBufferStream = _resetBufferStreamPtr
+      .asFunction<int Function(int)>();
 
   @override
   PlayerErrors loadConvolutionIR({
@@ -549,21 +633,21 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   @override
   ({PlayerErrors error, double value}) getStreamTimeConsumed(
-      SoundHash soundHash) {
+    SoundHash soundHash,
+  ) {
     final ffi.Pointer<ffi.Float> paramValue = calloc();
-    final error = _getStreamTimeConsumed(
-      soundHash.hash,
-      paramValue,
-    );
+    final error = _getStreamTimeConsumed(soundHash.hash, paramValue);
     final ret = paramValue.value;
     calloc.free(paramValue);
     return (error: PlayerErrors.values[error], value: ret);
   }
 
-  late final _getStreamTimeConsumedPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt,
-              ffi.Pointer<ffi.Float>)>>('getStreamTimeConsumed');
+  late final _getStreamTimeConsumedPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.Pointer<ffi.Float>)
+        >
+      >('getStreamTimeConsumed');
   late final _getStreamTimeConsumed = _getStreamTimeConsumedPtr
       .asFunction<int Function(int, ffi.Pointer<ffi.Float>)>();
 
@@ -573,35 +657,34 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _setBufferIcyMetaIntPtr = _lookup<
-          ffi
-          .NativeFunction<ffi.UnsignedInt Function(ffi.UnsignedInt, ffi.Int)>>(
-      'setBufferIcyMetaInt');
-  late final _setBufferIcyMetaInt =
-      _setBufferIcyMetaIntPtr.asFunction<int Function(int, int)>();
+  late final _setBufferIcyMetaIntPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.UnsignedInt Function(ffi.UnsignedInt, ffi.Int)>
+      >('setBufferIcyMetaInt');
+  late final _setBufferIcyMetaInt = _setBufferIcyMetaIntPtr
+      .asFunction<int Function(int, int)>();
 
   @override
-  PlayerErrors addAudioDataStream(
-    int hash,
-    Uint8List audioChunk,
-  ) {
+  PlayerErrors addAudioDataStream(int hash, Uint8List audioChunk) {
     final ffi.Pointer<ffi.Uint8> audioChunkPtr = calloc(audioChunk.length);
     for (var i = 0; i < audioChunk.length; i++) {
       audioChunkPtr[i] = audioChunk[i];
     }
-    final e = _addAudioDataStream(
-      hash,
-      audioChunkPtr,
-      audioChunk.length,
-    );
+    final e = _addAudioDataStream(hash, audioChunkPtr, audioChunk.length);
     calloc.free(audioChunkPtr);
     return PlayerErrors.values[e];
   }
 
-  late final _addAudioDataStreamPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Pointer<ffi.Uint8>,
-              ffi.UnsignedInt)>>('addAudioDataStream');
+  late final _addAudioDataStreamPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.Pointer<ffi.Uint8>,
+            ffi.UnsignedInt,
+          )
+        >
+      >('addAudioDataStream');
   late final _addAudioDataStream = _addAudioDataStreamPtr
       .asFunction<int Function(int, ffi.Pointer<ffi.Uint8>, int)>();
 
@@ -613,24 +696,31 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _setDataIsEndedPtr =
       _lookup<ffi.NativeFunction<ffi.UnsignedInt Function(ffi.UnsignedInt)>>(
-          'setDataIsEnded');
-  late final _setDataIsEnded =
-      _setDataIsEndedPtr.asFunction<int Function(int)>();
+        'setDataIsEnded',
+      );
+  late final _setDataIsEnded = _setDataIsEndedPtr
+      .asFunction<int Function(int)>();
 
   @override
   ({PlayerErrors error, int sizeInBytes}) getBufferSize(SoundHash soundHash) {
-    final ffi.Pointer<ffi.UnsignedInt> size =
-        calloc(ffi.sizeOf<ffi.UnsignedInt>());
+    final ffi.Pointer<ffi.UnsignedInt> size = calloc(
+      ffi.sizeOf<ffi.UnsignedInt>(),
+    );
     final e = _getBufferSize(soundHash.hash, size);
     final ret = (error: PlayerErrors.values[e], sizeInBytes: size.value);
     calloc.free(size);
     return ret;
   }
 
-  late final _getBufferSizePtr = _lookup<
-      ffi.NativeFunction<
+  late final _getBufferSizePtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.UnsignedInt Function(
-              ffi.UnsignedInt, ffi.Pointer<ffi.UnsignedInt>)>>('getBufferSize');
+            ffi.UnsignedInt,
+            ffi.Pointer<ffi.UnsignedInt>,
+          )
+        >
+      >('getBufferSize');
   late final _getBufferSize = _getBufferSizePtr
       .asFunction<int Function(int, ffi.Pointer<ffi.UnsignedInt>)>();
 
@@ -641,8 +731,9 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     double scale,
     double detune,
   ) {
-    final ffi.Pointer<ffi.UnsignedInt> h =
-        calloc(ffi.sizeOf<ffi.UnsignedInt>());
+    final ffi.Pointer<ffi.UnsignedInt> h = calloc(
+      ffi.sizeOf<ffi.UnsignedInt>(),
+    );
     final e = _loadWaveform(
       waveform.index,
       superWave ? 1 : 0,
@@ -656,12 +747,22 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return ret;
   }
 
-  late final _loadWaveformPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.Int, ffi.Int, ffi.Float, ffi.Float,
-              ffi.Pointer<ffi.UnsignedInt>)>>('loadWaveform');
-  late final _loadWaveform = _loadWaveformPtr.asFunction<
-      int Function(int, int, double, double, ffi.Pointer<ffi.UnsignedInt>)>();
+  late final _loadWaveformPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.Int,
+            ffi.Int,
+            ffi.Float,
+            ffi.Float,
+            ffi.Pointer<ffi.UnsignedInt>,
+          )
+        >
+      >('loadWaveform');
+  late final _loadWaveform = _loadWaveformPtr
+      .asFunction<
+        int Function(int, int, double, double, ffi.Pointer<ffi.UnsignedInt>)
+      >();
 
   @override
   ({PlayerErrors error, SoundHash soundHash}) loadLibPDSource({
@@ -691,33 +792,36 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _setWaveformScale(hash.hash, newScale);
   }
 
-  late final _setWaveformScalePtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>>(
-      'setWaveformScale');
-  late final _setWaveformScale =
-      _setWaveformScalePtr.asFunction<void Function(int, double)>();
+  late final _setWaveformScalePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>
+      >('setWaveformScale');
+  late final _setWaveformScale = _setWaveformScalePtr
+      .asFunction<void Function(int, double)>();
 
   @override
   void setWaveformDetune(SoundHash hash, double newDetune) {
     return _setWaveformDetune(hash.hash, newDetune);
   }
 
-  late final _setWaveformDetunePtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>>(
-      'setWaveformDetune');
-  late final _setWaveformDetune =
-      _setWaveformDetunePtr.asFunction<void Function(int, double)>();
+  late final _setWaveformDetunePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>
+      >('setWaveformDetune');
+  late final _setWaveformDetune = _setWaveformDetunePtr
+      .asFunction<void Function(int, double)>();
 
   @override
   void setWaveformFreq(SoundHash hash, double newFreq) {
     return _setWaveformFreq(hash.hash, newFreq);
   }
 
-  late final _setWaveformFreqPtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>>(
-      'setWaveformFreq');
-  late final _setWaveformFreq =
-      _setWaveformFreqPtr.asFunction<void Function(int, double)>();
+  late final _setWaveformFreqPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>
+      >('setWaveformFreq');
+  late final _setWaveformFreq = _setWaveformFreqPtr
+      .asFunction<void Function(int, double)>();
 
   @override
   void setWaveformSuperWave(SoundHash hash, int superwave) {
@@ -726,9 +830,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _setSuperWavePtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Int)>>(
-          'setSuperWave');
-  late final _setSuperWave =
-      _setSuperWavePtr.asFunction<void Function(int, int)>();
+        'setSuperWave',
+      );
+  late final _setSuperWave = _setSuperWavePtr
+      .asFunction<void Function(int, int)>();
 
   @override
   void setWaveform(SoundHash hash, WaveForm newWaveform) {
@@ -737,32 +842,34 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _setWaveformPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Int)>>(
-          'setWaveform');
-  late final _setWaveform =
-      _setWaveformPtr.asFunction<void Function(int, int)>();
+        'setWaveform',
+      );
+  late final _setWaveform = _setWaveformPtr
+      .asFunction<void Function(int, int)>();
 
   @override
   ({PlayerErrors error, SoundHandle handle}) speechText(String textToSpeech) {
     final ffi.Pointer<ffi.UnsignedInt> handle = calloc();
     final ffi.Pointer<Utf8> cString = textToSpeech.toNativeUtf8();
-    final e = _speechText(
-      cString,
-      handle,
+    final e = _speechText(cString, handle);
+    final ret = (
+      error: PlayerErrors.values[e],
+      handle: SoundHandle(handle.value),
     );
-    final ret =
-        (error: PlayerErrors.values[e], handle: SoundHandle(handle.value));
     calloc.free(handle);
     return ret;
   }
 
-  late final _speechTextPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(
-            ffi.Pointer<Utf8>,
-            ffi.Pointer<ffi.UnsignedInt>,
-          )>>('speechText');
-  late final _speechText = _speechTextPtr.asFunction<
-      int Function(ffi.Pointer<Utf8>, ffi.Pointer<ffi.UnsignedInt>)>();
+  late final _speechTextPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Pointer<ffi.UnsignedInt>)
+        >
+      >('speechText');
+  late final _speechText = _speechTextPtr
+      .asFunction<
+        int Function(ffi.Pointer<Utf8>, ffi.Pointer<ffi.UnsignedInt>)
+      >();
 
   @override
   void pauseSwitch(SoundHandle handle) {
@@ -771,8 +878,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _pauseSwitchPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt)>>(
-    'pauseSwitch',
-  );
+        'pauseSwitch',
+      );
   late final _pauseSwitch = _pauseSwitchPtr.asFunction<void Function(int)>();
 
   @override
@@ -782,7 +889,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _setPausePtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Int)>>(
-          'setPause');
+        'setPause',
+      );
   late final _setPause = _setPausePtr.asFunction<void Function(int, int)>();
 
   @override
@@ -792,8 +900,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getPausePtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.UnsignedInt)>>(
-    'getPause',
-  );
+        'getPause',
+      );
   late final _getPause = _getPausePtr.asFunction<int Function(int)>();
 
   @override
@@ -801,15 +909,13 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _setRelativePlaySpeed(handle.id, speed);
   }
 
-  late final _setRelativePlaySpeedPtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>>(
-      'setRelativePlaySpeed');
-  late final _setRelativePlaySpeed =
-      _setRelativePlaySpeedPtr.asFunction<void Function(int, double)>();
+  late final _setRelativePlaySpeedPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>
+      >('setRelativePlaySpeed');
+  late final _setRelativePlaySpeed = _setRelativePlaySpeedPtr
+      .asFunction<void Function(int, double)>();
 
-  /// Return the current play speed.
-  ///
-  /// [handle] the sound handle
   @override
   double getRelativePlaySpeed(SoundHandle handle) {
     return _getRelativePlaySpeed(handle.id);
@@ -817,13 +923,27 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getRelativePlaySpeedPtr =
       _lookup<ffi.NativeFunction<ffi.Float Function(ffi.UnsignedInt)>>(
-          'getRelativePlaySpeed');
-  late final _getRelativePlaySpeed =
-      _getRelativePlaySpeedPtr.asFunction<double Function(int)>();
+        'getRelativePlaySpeed',
+      );
+  late final _getRelativePlaySpeed = _getRelativePlaySpeedPtr
+      .asFunction<double Function(int)>();
+
+  @override
+  double getApproximateVolume(int channel) {
+    return _getApproximateVolume(channel);
+  }
+
+  late final _getApproximateVolumePtr =
+      _lookup<ffi.NativeFunction<ffi.Float Function(ffi.UnsignedInt)>>(
+        'getApproximateVolume',
+      );
+  late final _getApproximateVolume = _getApproximateVolumePtr
+      .asFunction<double Function(int)>();
 
   @override
   ({PlayerErrors error, SoundHandle newHandle}) play(
     SoundHash soundHash, {
+    int busId = 0,
     double volume = 1,
     double pan = 0,
     bool paused = false,
@@ -834,6 +954,7 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     final hash = soundHash.hash;
     final e = _play(
       hash,
+      busId,
       volume,
       pan,
       paused ? 1 : 0,
@@ -841,19 +962,42 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
       loopingStartAt.toDouble(),
       handle,
     );
-    final ret =
-        (error: PlayerErrors.values[e], newHandle: SoundHandle(handle.value));
+    final ret = (
+      error: PlayerErrors.values[e],
+      newHandle: SoundHandle(handle.value),
+    );
     calloc.free(handle);
     return ret;
   }
 
-  late final _playPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float, ffi.Int,
-              ffi.Int, ffi.Double, ffi.Pointer<ffi.UnsignedInt>)>>('play');
-  late final _play = _playPtr.asFunction<
-      int Function(int, double, double, int, int, double,
-          ffi.Pointer<ffi.UnsignedInt>)>();
+  late final _playPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Float,
+            ffi.Float,
+            ffi.Int,
+            ffi.Int,
+            ffi.Double,
+            ffi.Pointer<ffi.UnsignedInt>,
+          )
+        >
+      >('play');
+  late final _play = _playPtr
+      .asFunction<
+        int Function(
+          int,
+          int,
+          double,
+          double,
+          int,
+          int,
+          double,
+          ffi.Pointer<ffi.UnsignedInt>,
+        )
+      >();
 
   @override
   void stop(SoundHandle handle) {
@@ -866,24 +1010,26 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   @override
   void disposeSound(SoundHash soundHash) {
-    return _disposeSound(soundHash.hash);
+    _disposeSound(soundHash.hash);
+    _disposeBufferStreamCallbacks(soundHash);
   }
 
   late final _disposeSoundPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt)>>(
-    'disposeSound',
-  );
+        'disposeSound',
+      );
   late final _disposeSound = _disposeSoundPtr.asFunction<void Function(int)>();
 
   @override
   void disposeAllSound() {
-    return _disposeAllSound();
+    _disposeAllSound();
+    _disposeAllBufferStreamCallbacks();
   }
 
   late final _disposeAllSoundPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function()>>('disposeAllSound');
-  late final _disposeAllSound =
-      _disposeAllSoundPtr.asFunction<void Function()>();
+  late final _disposeAllSound = _disposeAllSoundPtr
+      .asFunction<void Function()>();
 
   @override
   bool getLooping(SoundHandle handle) {
@@ -892,7 +1038,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getLoopingPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.UnsignedInt)>>(
-          'getLooping');
+        'getLooping',
+      );
   late final _getLooping = _getLoopingPtr.asFunction<int Function(int)>();
 
   @override
@@ -902,8 +1049,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _setLoopingPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Int)>>(
-    'setLooping',
-  );
+        'setLooping',
+      );
   late final _setLooping = _setLoopingPtr.asFunction<void Function(int, int)>();
 
   @override
@@ -913,34 +1060,34 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getLoopPointPtr =
       _lookup<ffi.NativeFunction<ffi.Double Function(ffi.UnsignedInt)>>(
-          'getLoopPoint');
-  late final _getLoopPoint =
-      _getLoopPointPtr.asFunction<double Function(int)>();
+        'getLoopPoint',
+      );
+  late final _getLoopPoint = _getLoopPointPtr
+      .asFunction<double Function(int)>();
 
   @override
   void setLoopPoint(SoundHandle handle, Duration timestamp) {
     _setLoopPoint(handle.id, timestamp.toDouble());
   }
 
-  late final _setLoopPointPtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Double)>>(
-      'setLoopPoint');
-  late final _setLoopPoint =
-      _setLoopPointPtr.asFunction<void Function(int, double)>();
+  late final _setLoopPointPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Double)>
+      >('setLoopPoint');
+  late final _setLoopPoint = _setLoopPointPtr
+      .asFunction<void Function(int, double)>();
 
   @override
   void setVisualizationEnabled(bool enabled) {
-    return _setVisualizationEnabled(
-      enabled ? 1 : 0,
-    );
+    return _setVisualizationEnabled(enabled ? 1 : 0);
   }
 
   late final _setVisualizationEnabledPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>(
-    'setVisualizationEnabled',
-  );
-  late final _setVisualizationEnabled =
-      _setVisualizationEnabledPtr.asFunction<void Function(int)>();
+        'setVisualizationEnabled',
+      );
+  late final _setVisualizationEnabled = _setVisualizationEnabledPtr
+      .asFunction<void Function(int)>();
 
   @override
   bool getVisualizationEnabled() {
@@ -949,9 +1096,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getVisualizationEnabledPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function()>>(
-          'getVisualizationEnabled');
-  late final _getVisualizationEnabled =
-      _getVisualizationEnabledPtr.asFunction<int Function()>();
+        'getVisualizationEnabled',
+      );
+  late final _getVisualizationEnabled = _getVisualizationEnabledPtr
+      .asFunction<int Function()>();
 
   @override
   bool getFft(AudioData fft) {
@@ -962,13 +1110,22 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return ret;
   }
 
-  late final _getFftPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(ffi.Pointer<ffi.Pointer<ffi.Float>>,
-              ffi.Pointer<ffi.Bool>)>>('getFft');
-  late final _getFft = _getFftPtr.asFunction<
-      void Function(
-          ffi.Pointer<ffi.Pointer<ffi.Float>>, ffi.Pointer<ffi.Bool>)>();
+  late final _getFftPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Pointer<ffi.Pointer<ffi.Float>>,
+            ffi.Pointer<ffi.Bool>,
+          )
+        >
+      >('getFft');
+  late final _getFft = _getFftPtr
+      .asFunction<
+        void Function(
+          ffi.Pointer<ffi.Pointer<ffi.Float>>,
+          ffi.Pointer<ffi.Bool>,
+        )
+      >();
 
   @override
   bool getWave(AudioData wave) {
@@ -979,13 +1136,22 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return ret;
   }
 
-  late final _getWavePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(ffi.Pointer<ffi.Pointer<ffi.Float>>,
-              ffi.Pointer<ffi.Bool>)>>('getWave');
-  late final _getWave = _getWavePtr.asFunction<
-      void Function(
-          ffi.Pointer<ffi.Pointer<ffi.Float>>, ffi.Pointer<ffi.Bool>)>();
+  late final _getWavePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Pointer<ffi.Pointer<ffi.Float>>,
+            ffi.Pointer<ffi.Bool>,
+          )
+        >
+      >('getWave');
+  late final _getWave = _getWavePtr
+      .asFunction<
+        void Function(
+          ffi.Pointer<ffi.Pointer<ffi.Float>>,
+          ffi.Pointer<ffi.Bool>,
+        )
+      >();
 
   @override
   void setFftSmoothing(double smooth) {
@@ -994,10 +1160,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _setFftSmoothingPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Float)>>(
-    'setFftSmoothing',
-  );
-  late final _setFftSmoothing =
-      _setFftSmoothingPtr.asFunction<void Function(double)>();
+        'setFftSmoothing',
+      );
+  late final _setFftSmoothing = _setFftSmoothingPtr
+      .asFunction<void Function(double)>();
 
   @override
   bool getAudioTexture(AudioData samples) {
@@ -1008,15 +1174,22 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return ret;
   }
 
-  late final _getAudioTexturePtr = _lookup<
-      ffi.NativeFunction<
+  late final _getAudioTexturePtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.Void Function(
-              ffi.Pointer<ffi.Pointer<ffi.Float>>, ffi.Pointer<ffi.Bool>)>>(
-    'getAudioTexture',
-  );
-  late final _getAudioTexture = _getAudioTexturePtr.asFunction<
-      void Function(
-          ffi.Pointer<ffi.Pointer<ffi.Float>>, ffi.Pointer<ffi.Bool>)>();
+            ffi.Pointer<ffi.Pointer<ffi.Float>>,
+            ffi.Pointer<ffi.Bool>,
+          )
+        >
+      >('getAudioTexture');
+  late final _getAudioTexture = _getAudioTexturePtr
+      .asFunction<
+        void Function(
+          ffi.Pointer<ffi.Pointer<ffi.Float>>,
+          ffi.Pointer<ffi.Bool>,
+        )
+      >();
 
   @override
   bool getAudioTexture2D(AudioData samples) {
@@ -1027,13 +1200,19 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return ret;
   }
 
-  late final _getAudioTexture2DPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.Pointer<ffi.Pointer<ffi.Float>>,
-              ffi.Pointer<ffi.Bool>)>>('getAudioTexture2D');
-  late final _getAudioTexture2D = _getAudioTexture2DPtr.asFunction<
-      int Function(
-          ffi.Pointer<ffi.Pointer<ffi.Float>>, ffi.Pointer<ffi.Bool>)>();
+  late final _getAudioTexture2DPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.Pointer<ffi.Pointer<ffi.Float>>,
+            ffi.Pointer<ffi.Bool>,
+          )
+        >
+      >('getAudioTexture2D');
+  late final _getAudioTexture2D = _getAudioTexture2DPtr
+      .asFunction<
+        int Function(ffi.Pointer<ffi.Pointer<ffi.Float>>, ffi.Pointer<ffi.Bool>)
+      >();
 
   @override
   double getTextureValue(int row, int column) {
@@ -1042,9 +1221,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getTextureValuePtr =
       _lookup<ffi.NativeFunction<ffi.Float Function(ffi.Int, ffi.Int)>>(
-          'getTextureValue');
-  late final _getTextureValue =
-      _getTextureValuePtr.asFunction<double Function(int, int)>();
+        'getTextureValue',
+      );
+  late final _getTextureValue = _getTextureValuePtr
+      .asFunction<double Function(int, int)>();
 
   @override
   Duration getLength(SoundHash soundHash) {
@@ -1053,8 +1233,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getLengthPtr =
       _lookup<ffi.NativeFunction<ffi.Double Function(ffi.UnsignedInt)>>(
-    'getLength',
-  );
+        'getLength',
+      );
   late final _getLength = _getLengthPtr.asFunction<double Function(int)>();
 
   @override
@@ -1062,10 +1242,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _seek(handle.id, time.toDouble());
   }
 
-  late final _seekPtr = _lookup<
-      ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Float)>>(
-    'seek',
-  );
+  late final _seekPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Float)>
+      >('seek');
   late final _seek = _seekPtr.asFunction<int Function(int, double)>();
 
   @override
@@ -1075,8 +1255,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getPositionPtr =
       _lookup<ffi.NativeFunction<ffi.Double Function(ffi.UnsignedInt)>>(
-    'getPosition',
-  );
+        'getPosition',
+      );
   late final _getPosition = _getPositionPtr.asFunction<double Function(int)>();
 
   @override
@@ -1086,8 +1266,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getGlobalVolumePtr =
       _lookup<ffi.NativeFunction<ffi.Double Function()>>('getGlobalVolume');
-  late final _getGlobalVolume =
-      _getGlobalVolumePtr.asFunction<double Function()>();
+  late final _getGlobalVolume = _getGlobalVolumePtr
+      .asFunction<double Function()>();
 
   @override
   int setGlobalVolume(double volume) {
@@ -1096,9 +1276,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _setGlobalVolumePtr =
       _lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.Float)>>(
-          'setGlobalVolume');
-  late final _setGlobalVolume =
-      _setGlobalVolumePtr.asFunction<int Function(double)>();
+        'setGlobalVolume',
+      );
+  late final _setGlobalVolume = _setGlobalVolumePtr
+      .asFunction<int Function(double)>();
 
   @override
   double getVolume(SoundHandle handle) {
@@ -1107,7 +1288,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getVolumePtr =
       _lookup<ffi.NativeFunction<ffi.Double Function(ffi.UnsignedInt)>>(
-          'getVolume');
+        'getVolume',
+      );
   late final _getVolume = _getVolumePtr.asFunction<double Function(int)>();
 
   @override
@@ -1115,9 +1297,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _setVolume(handle.id, volume);
   }
 
-  late final _setVolumePtr = _lookup<
-          ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Float)>>(
-      'setVolume');
+  late final _setVolumePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Float)>
+      >('setVolume');
   late final _setVolume = _setVolumePtr.asFunction<int Function(int, double)>();
 
   /// Get a sound's current pan setting.
@@ -1134,7 +1317,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getPanPtr =
       _lookup<ffi.NativeFunction<ffi.Double Function(ffi.UnsignedInt)>>(
-          'getPan');
+        'getPan',
+      );
   late final _getPan = _getPanPtr.asFunction<double Function(int)>();
 
   /// Set a sound's current pan setting.
@@ -1147,9 +1331,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _setPan(handle.id, pan);
   }
 
-  late final _setPanPtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Double)>>(
-      'setPan');
+  late final _setPanPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Double)>
+      >('setPan');
   late final _setPan = _setPanPtr.asFunction<void Function(int, double)>();
 
   /// Set the left/right volumes directly.
@@ -1163,12 +1348,14 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _setPanAbsolute(handle.id, panLeft, panRight);
   }
 
-  late final _setPanAbsolutePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-              ffi.UnsignedInt, ffi.Double, ffi.Double)>>('setPanAbsolute');
-  late final _setPanAbsolute =
-      _setPanAbsolutePtr.asFunction<void Function(int, double, double)>();
+  late final _setPanAbsolutePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.UnsignedInt, ffi.Double, ffi.Double)
+        >
+      >('setPanAbsolute');
+  late final _setPanAbsolute = _setPanAbsolutePtr
+      .asFunction<void Function(int, double, double)>();
 
   /// Check if a handle is still valid.
   ///
@@ -1181,10 +1368,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getIsValidVoiceHandlePtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.UnsignedInt)>>(
-    'getIsValidVoiceHandle',
-  );
-  late final _getIsValidVoiceHandle =
-      _getIsValidVoiceHandlePtr.asFunction<int Function(int)>();
+        'getIsValidVoiceHandle',
+      );
+  late final _getIsValidVoiceHandle = _getIsValidVoiceHandlePtr
+      .asFunction<int Function(int)>();
 
   @override
   int getActiveVoiceCount() {
@@ -1193,9 +1380,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getActiveVoiceCountPtr =
       _lookup<ffi.NativeFunction<ffi.UnsignedInt Function()>>(
-          'getActiveVoiceCount');
-  late final _getActiveVoiceCount =
-      _getActiveVoiceCountPtr.asFunction<int Function()>();
+        'getActiveVoiceCount',
+      );
+  late final _getActiveVoiceCount = _getActiveVoiceCountPtr
+      .asFunction<int Function()>();
 
   @override
   int countAudioSource(SoundHash soundHash) {
@@ -1204,9 +1392,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _countAudioSourcePtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.UnsignedInt)>>(
-          'countAudioSource');
-  late final _countAudioSource =
-      _countAudioSourcePtr.asFunction<int Function(int)>();
+        'countAudioSource',
+      );
+  late final _countAudioSource = _countAudioSourcePtr
+      .asFunction<int Function(int)>();
 
   @override
   int getVoiceCount() {
@@ -1224,9 +1413,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getProtectVoicePtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.UnsignedInt)>>(
-          'getProtectVoice');
-  late final _getProtectVoice =
-      _getProtectVoicePtr.asFunction<int Function(int)>();
+        'getProtectVoice',
+      );
+  late final _getProtectVoice = _getProtectVoicePtr
+      .asFunction<int Function(int)>();
 
   @override
   void setProtectVoice(SoundHandle handle, bool protect) {
@@ -1235,29 +1425,24 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _setProtectVoicePtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Int)>>(
-          'setProtectVoice');
-  late final _setProtectVoice =
-      _setProtectVoicePtr.asFunction<void Function(int, int)>();
+        'setProtectVoice',
+      );
+  late final _setProtectVoice = _setProtectVoicePtr
+      .asFunction<void Function(int, int)>();
 
   @override
-  void setInaudibleBehavior(
-    SoundHandle handle,
-    bool mustTick,
-    bool kill,
-  ) {
-    return _setInaudibleBehavior(
-      handle.id,
-      mustTick,
-      kill,
-    );
+  void setInaudibleBehavior(SoundHandle handle, bool mustTick, bool kill) {
+    return _setInaudibleBehavior(handle.id, mustTick, kill);
   }
 
-  late final _setInaudibleBehaviorPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-              ffi.UnsignedInt, ffi.Bool, ffi.Bool)>>('setInaudibleBehavior');
-  late final _setInaudibleBehavior =
-      _setInaudibleBehaviorPtr.asFunction<void Function(int, bool, bool)>();
+  late final _setInaudibleBehaviorPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.UnsignedInt, ffi.Bool, ffi.Bool)
+        >
+      >('setInaudibleBehavior');
+  late final _setInaudibleBehavior = _setInaudibleBehaviorPtr
+      .asFunction<void Function(int, bool, bool)>();
 
   @override
   int getMaxActiveVoiceCount() {
@@ -1266,9 +1451,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _getMaxActiveVoiceCountPtr =
       _lookup<ffi.NativeFunction<ffi.UnsignedInt Function()>>(
-          'getMaxActiveVoiceCount');
-  late final _getMaxActiveVoiceCount =
-      _getMaxActiveVoiceCountPtr.asFunction<int Function()>();
+        'getMaxActiveVoiceCount',
+      );
+  late final _getMaxActiveVoiceCount = _getMaxActiveVoiceCountPtr
+      .asFunction<int Function()>();
 
   @override
   void setMaxActiveVoiceCount(int maxVoiceCount) {
@@ -1277,9 +1463,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _setMaxActiveVoiceCountPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt)>>(
-          'setMaxActiveVoiceCount');
-  late final _setMaxActiveVoiceCount =
-      _setMaxActiveVoiceCountPtr.asFunction<void Function(int)>();
+        'setMaxActiveVoiceCount',
+      );
+  late final _setMaxActiveVoiceCount = _setMaxActiveVoiceCountPtr
+      .asFunction<void Function(int)>();
 
   /////////////////////////////////////////
   /// voice groups
@@ -1293,9 +1480,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _createVoiceGroupPtr =
       _lookup<ffi.NativeFunction<ffi.UnsignedInt Function()>>(
-          'createVoiceGroup');
-  late final _createVoiceGroup =
-      _createVoiceGroupPtr.asFunction<int Function()>();
+        'createVoiceGroup',
+      );
+  late final _createVoiceGroup = _createVoiceGroupPtr
+      .asFunction<int Function()>();
 
   @override
   void destroyVoiceGroup(SoundHandle handle) {
@@ -1304,9 +1492,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _destroyVoiceGroupPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt)>>(
-          'destroyVoiceGroup');
-  late final _destroyVoiceGroup =
-      _destroyVoiceGroupPtr.asFunction<void Function(int)>();
+        'destroyVoiceGroup',
+      );
+  late final _destroyVoiceGroup = _destroyVoiceGroupPtr
+      .asFunction<void Function(int)>();
 
   @override
   void addVoicesToGroup(
@@ -1318,12 +1507,12 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     }
   }
 
-  late final _addVoiceToGroupPtr = _lookup<
-          ffi
-          .NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.UnsignedInt)>>(
-      'addVoiceToGroup');
-  late final _addVoiceToGroup =
-      _addVoiceToGroupPtr.asFunction<void Function(int, int)>();
+  late final _addVoiceToGroupPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.UnsignedInt)>
+      >('addVoiceToGroup');
+  late final _addVoiceToGroup = _addVoiceToGroupPtr
+      .asFunction<void Function(int, int)>();
 
   @override
   bool isVoiceGroup(SoundHandle handle) {
@@ -1332,7 +1521,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _isVoiceGroupPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.UnsignedInt)>>(
-          'isVoiceGroup');
+        'isVoiceGroup',
+      );
   late final _isVoiceGroup = _isVoiceGroupPtr.asFunction<int Function(int)>();
 
   @override
@@ -1342,9 +1532,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _isVoiceGroupEmptyPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.UnsignedInt)>>(
-          'isVoiceGroupEmpty');
-  late final _isVoiceGroupEmpty =
-      _isVoiceGroupEmptyPtr.asFunction<int Function(int)>();
+        'isVoiceGroupEmpty',
+      );
+  late final _isVoiceGroupEmpty = _isVoiceGroupEmptyPtr
+      .asFunction<int Function(int)>();
 
   /////////////////////////////////////////
   /// faders
@@ -1358,9 +1549,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _fadeGlobalVolumePtr =
       _lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.Float, ffi.Float)>>(
-          'fadeGlobalVolume');
-  late final _fadeGlobalVolume =
-      _fadeGlobalVolumePtr.asFunction<int Function(double, double)>();
+        'fadeGlobalVolume',
+      );
+  late final _fadeGlobalVolume = _fadeGlobalVolumePtr
+      .asFunction<int Function(double, double)>();
 
   @override
   PlayerErrors fadeVolume(SoundHandle handle, double to, Duration duration) {
@@ -1368,12 +1560,14 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _fadeVolumePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(
-              ffi.UnsignedInt, ffi.Float, ffi.Float)>>('fadeVolume');
-  late final _fadeVolume =
-      _fadeVolumePtr.asFunction<int Function(int, double, double)>();
+  late final _fadeVolumePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float)
+        >
+      >('fadeVolume');
+  late final _fadeVolume = _fadeVolumePtr
+      .asFunction<int Function(int, double, double)>();
 
   @override
   PlayerErrors fadePan(SoundHandle handle, double to, Duration duration) {
@@ -1381,12 +1575,14 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _fadePanPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(
-              ffi.UnsignedInt, ffi.Float, ffi.Float)>>('fadePan');
-  late final _fadePan =
-      _fadePanPtr.asFunction<int Function(int, double, double)>();
+  late final _fadePanPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float)
+        >
+      >('fadePan');
+  late final _fadePan = _fadePanPtr
+      .asFunction<int Function(int, double, double)>();
 
   @override
   PlayerErrors fadeRelativePlaySpeed(
@@ -1398,12 +1594,14 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _fadeRelativePlaySpeedPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(
-              ffi.UnsignedInt, ffi.Float, ffi.Float)>>('fadeRelativePlaySpeed');
-  late final _fadeRelativePlaySpeed =
-      _fadeRelativePlaySpeedPtr.asFunction<int Function(int, double, double)>();
+  late final _fadeRelativePlaySpeedPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float)
+        >
+      >('fadeRelativePlaySpeed');
+  late final _fadeRelativePlaySpeed = _fadeRelativePlaySpeedPtr
+      .asFunction<int Function(int, double, double)>();
 
   @override
   PlayerErrors schedulePause(SoundHandle handle, Duration duration) {
@@ -1411,11 +1609,12 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _schedulePausePtr = _lookup<
-          ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Float)>>(
-      'schedulePause');
-  late final _schedulePause =
-      _schedulePausePtr.asFunction<int Function(int, double)>();
+  late final _schedulePausePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Float)>
+      >('schedulePause');
+  late final _schedulePause = _schedulePausePtr
+      .asFunction<int Function(int, double)>();
 
   @override
   PlayerErrors scheduleStop(SoundHandle handle, Duration duration) {
@@ -1423,23 +1622,30 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _scheduleStopPtr = _lookup<
-          ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Float)>>(
-      'scheduleStop');
-  late final _scheduleStop =
-      _scheduleStopPtr.asFunction<int Function(int, double)>();
+  late final _scheduleStopPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Float)>
+      >('scheduleStop');
+  late final _scheduleStop = _scheduleStopPtr
+      .asFunction<int Function(int, double)>();
 
   @override
   PlayerErrors oscillateVolume(
-      SoundHandle handle, double from, double to, Duration time) {
+    SoundHandle handle,
+    double from,
+    double to,
+    Duration time,
+  ) {
     final e = _oscillateVolume(handle.id, from, to, time.toDouble());
     return PlayerErrors.values[e];
   }
 
-  late final _oscillateVolumePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float,
-              ffi.Float)>>('oscillateVolume');
+  late final _oscillateVolumePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float, ffi.Float)
+        >
+      >('oscillateVolume');
   late final _oscillateVolume = _oscillateVolumePtr
       .asFunction<int Function(int, double, double, double)>();
 
@@ -1454,24 +1660,32 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _oscillatePanPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float,
-              ffi.Float)>>('oscillatePan');
-  late final _oscillatePan =
-      _oscillatePanPtr.asFunction<int Function(int, double, double, double)>();
+  late final _oscillatePanPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float, ffi.Float)
+        >
+      >('oscillatePan');
+  late final _oscillatePan = _oscillatePanPtr
+      .asFunction<int Function(int, double, double, double)>();
 
   @override
   PlayerErrors oscillateRelativePlaySpeed(
-      SoundHandle handle, double from, double to, Duration time) {
+    SoundHandle handle,
+    double from,
+    double to,
+    Duration time,
+  ) {
     final e = _oscillateRelativePlaySpeed(handle.id, from, to, time.toDouble());
     return PlayerErrors.values[e];
   }
 
-  late final _oscillateRelativePlaySpeedPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float,
-              ffi.Float)>>('oscillateRelativePlaySpeed');
+  late final _oscillateRelativePlaySpeedPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.Float, ffi.Float, ffi.Float)
+        >
+      >('oscillateRelativePlaySpeed');
   late final _oscillateRelativePlaySpeed = _oscillateRelativePlaySpeedPtr
       .asFunction<int Function(int, double, double, double)>();
 
@@ -1481,10 +1695,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _oscillateGlobalVolumePtr = _lookup<
-          ffi
-          .NativeFunction<ffi.Int32 Function(ffi.Float, ffi.Float, ffi.Float)>>(
-      'oscillateGlobalVolume');
+  late final _oscillateGlobalVolumePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int32 Function(ffi.Float, ffi.Float, ffi.Float)>
+      >('oscillateGlobalVolume');
   late final _oscillateGlobalVolume = _oscillateGlobalVolumePtr
       .asFunction<int Function(double, double, double)>();
 
@@ -1495,9 +1709,11 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     double to,
     double time, {
     SoundHandle? handle,
+    int? busId,
   }) {
     final e = _fadeFilterParameter(
       handle?.id ?? 0,
+      busId ?? 0,
       filterType.index,
       attributeId,
       to,
@@ -1506,12 +1722,21 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _fadeFilterParameterPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Int32, ffi.Int, ffi.Float,
-              ffi.Float)>>('fadeFilterParameter');
+  late final _fadeFilterParameterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Int32,
+            ffi.Int,
+            ffi.Float,
+            ffi.Float,
+          )
+        >
+      >('fadeFilterParameter');
   late final _fadeFilterParameter = _fadeFilterParameterPtr
-      .asFunction<int Function(int, int, int, double, double)>();
+      .asFunction<int Function(int, int, int, int, double, double)>();
 
   @override
   PlayerErrors oscillateFilterParameter(
@@ -1521,9 +1746,11 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     double to,
     double time, {
     SoundHandle? handle,
+    int? busId,
   }) {
     final e = _oscillateFilterParameter(
       handle?.id ?? 0,
+      busId ?? 0,
       filterType.index,
       attributeId,
       from,
@@ -1533,12 +1760,22 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _oscillateFilterParameterPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Int32, ffi.Int, ffi.Float,
-              ffi.Float, ffi.Float)>>('oscillateFilterParameter');
+  late final _oscillateFilterParameterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Int32,
+            ffi.Int,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+          )
+        >
+      >('oscillateFilterParameter');
   late final _oscillateFilterParameter = _oscillateFilterParameterPtr
-      .asFunction<int Function(int, int, int, double, double, double)>();
+      .asFunction<int Function(int, int, int, int, double, double, double)>();
 
   // ///////////////////////////////////////
   //  Filters
@@ -1548,41 +1785,57 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   ({PlayerErrors error, int index}) isFilterActive(
     FilterType filterType, {
     SoundHash? soundHash,
+    int? busId,
   }) {
     final ffi.Pointer<ffi.Int> id = calloc(ffi.sizeOf<ffi.Int>());
-    final e = _isFilterActive(soundHash?.hash ?? 0, filterType.index, id);
+    final e = _isFilterActive(
+      soundHash?.hash ?? 0,
+      busId ?? 0,
+      filterType.index,
+      id,
+    );
     final ret = (error: PlayerErrors.values[e], index: id.value);
     calloc.free(id);
     return ret;
   }
 
-  late final _isFilterActivePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Int32,
-              ffi.Pointer<ffi.Int>)>>('isFilterActive');
+  late final _isFilterActivePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Int32,
+            ffi.Pointer<ffi.Int>,
+          )
+        >
+      >('isFilterActive');
   late final _isFilterActive = _isFilterActivePtr
-      .asFunction<int Function(int, int, ffi.Pointer<ffi.Int>)>();
+      .asFunction<int Function(int, int, int, ffi.Pointer<ffi.Int>)>();
 
   @override
   ({PlayerErrors error, List<String> names}) getFilterParamNames(
-      FilterType filterType) {
+    FilterType filterType,
+  ) {
     final ffi.Pointer<ffi.Int> paramsCount = calloc(ffi.sizeOf<ffi.Int>());
-    final ffi.Pointer<ffi.Pointer<ffi.Char>> names =
-        calloc(ffi.sizeOf<ffi.Char>() * 30);
-    _log.fine(() =>
-        'PARAMS NAME paramsCount: ${paramsCount.address.toRadixString(16)}  '
-        'names: ${names.address.toRadixString(16)}');
-
-    final e = _getFilterParamNames(
-      filterType.index,
-      paramsCount,
-      names,
+    final ffi.Pointer<ffi.Pointer<ffi.Char>> names = calloc(
+      ffi.sizeOf<ffi.Char>() * 30,
     );
+    _log.fine(
+      () =>
+          'PARAMS NAME paramsCount: ${paramsCount.address.toRadixString(16)}  '
+          'names: ${names.address.toRadixString(16)}',
+    );
+
+    final e = _getFilterParamNames(filterType.index, paramsCount, names);
     final pNames = <String>[];
     for (var i = 0; i < paramsCount.value; i++) {
-      _log.fine(() => 'PARAMS NAME $i ${names + i}   '
-          '${names[i].cast<Utf8>().toDartString()}    '
-          'names[i]: ${names[i].address.toRadixString(16)}');
+      _log.fine(
+        () =>
+            'PARAMS NAME $i ${names + i}   '
+            '${names[i].cast<Utf8>().toDartString()}    '
+            'names[i]: ${names[i].address.toRadixString(16)}',
+      );
       pNames.add(names[i].cast<Utf8>().toDartString());
     }
     final ret = (error: PlayerErrors.values[e], names: pNames);
@@ -1594,42 +1847,62 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return ret;
   }
 
-  late final _getFilterParamNamesPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.Int32, ffi.Pointer<ffi.Int>,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>)>>('getFilterParamNames');
-  late final _getFilterParamNames = _getFilterParamNamesPtr.asFunction<
-      int Function(
-          int, ffi.Pointer<ffi.Int>, ffi.Pointer<ffi.Pointer<ffi.Char>>)>();
+  late final _getFilterParamNamesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.Int32,
+            ffi.Pointer<ffi.Int>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('getFilterParamNames');
+  late final _getFilterParamNames = _getFilterParamNamesPtr
+      .asFunction<
+        int Function(
+          int,
+          ffi.Pointer<ffi.Int>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
 
   @override
   PlayerErrors addFilter(
     FilterType filterType, {
     SoundHash? soundHash,
+    int? busId,
   }) {
-    final e = _addFilter(soundHash?.hash ?? 0, filterType.index);
+    final e = _addFilter(soundHash?.hash ?? 0, busId ?? 0, filterType.index);
     return PlayerErrors.values[e];
   }
 
-  late final _addFilterPtr = _lookup<
-          ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Int32)>>(
-      'addFilter');
-  late final _addFilter = _addFilterPtr.asFunction<int Function(int, int)>();
+  late final _addFilterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.UnsignedInt, ffi.Int32)
+        >
+      >('addFilter');
+  late final _addFilter = _addFilterPtr
+      .asFunction<int Function(int, int, int)>();
 
   @override
   PlayerErrors removeFilter(
     FilterType filterType, {
     SoundHash? soundHash,
+    int? busId,
   }) {
-    final e = _removeFilter(soundHash?.hash ?? 0, filterType.index);
+    final e = _removeFilter(soundHash?.hash ?? 0, busId ?? 0, filterType.index);
     return PlayerErrors.values[e];
   }
 
-  late final _removeFilterPtr = _lookup<
-          ffi.NativeFunction<ffi.Int32 Function(ffi.UnsignedInt, ffi.Int32)>>(
-      'removeFilter');
-  late final _removeFilter =
-      _removeFilterPtr.asFunction<int Function(int, int)>();
+  late final _removeFilterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(ffi.UnsignedInt, ffi.UnsignedInt, ffi.Int32)
+        >
+      >('removeFilter');
+  late final _removeFilter = _removeFilterPtr
+      .asFunction<int Function(int, int, int)>();
 
   @override
   PlayerErrors setFilterParams(
@@ -1637,9 +1910,11 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     int attributeId,
     double value, {
     SoundHandle? handle,
+    int? busId,
   }) {
     final e = _setFilterParams(
       handle?.id ?? 0,
+      busId ?? 0,
       filterType.index,
       attributeId,
       value,
@@ -1647,22 +1922,32 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return PlayerErrors.values[e];
   }
 
-  late final _setFilterParamsPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Int32, ffi.Int,
-              ffi.Float)>>('setFilterParams');
-  late final _setFilterParams =
-      _setFilterParamsPtr.asFunction<int Function(int, int, int, double)>();
+  late final _setFilterParamsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Int32,
+            ffi.Int,
+            ffi.Float,
+          )
+        >
+      >('setFilterParams');
+  late final _setFilterParams = _setFilterParamsPtr
+      .asFunction<int Function(int, int, int, int, double)>();
 
   @override
   ({PlayerErrors error, double value}) getFilterParams(
     FilterType filterType,
     int attributeId, {
     SoundHandle? handle,
+    int? busId,
   }) {
     final ffi.Pointer<ffi.Float> paramValue = calloc();
     final error = _getFilterParams(
       handle?.id ?? 0,
+      busId ?? 0,
       filterType.index,
       attributeId,
       paramValue,
@@ -1672,12 +1957,20 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return (error: PlayerErrors.values[error], value: ret);
   }
 
-  late final _getFilterParamsPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int32 Function(ffi.UnsignedInt, ffi.Int32, ffi.Int,
-              ffi.Pointer<ffi.Float>)>>('getFilterParams');
+  late final _getFilterParamsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Int32,
+            ffi.Int,
+            ffi.Pointer<ffi.Float>,
+          )
+        >
+      >('getFilterParams');
   late final _getFilterParams = _getFilterParamsPtr
-      .asFunction<int Function(int, int, int, ffi.Pointer<ffi.Float>)>();
+      .asFunction<int Function(int, int, int, int, ffi.Pointer<ffi.Float>)>();
 
   /////////////////////////////////////////
   /// 3D audio methods
@@ -1689,6 +1982,7 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     double posX,
     double posY,
     double posZ, {
+    int busId = 0,
     double velX = 0,
     double velY = 0,
     double velZ = 0,
@@ -1700,6 +1994,7 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     final ffi.Pointer<ffi.UnsignedInt> handle = calloc();
     final e = _play3d(
       soundHash.hash,
+      busId,
       posX,
       posY,
       posZ,
@@ -1712,30 +2007,52 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
       loopingStartAt.toDouble(),
       handle,
     );
-    final ret =
-        (error: PlayerErrors.values[e], newHandle: SoundHandle(handle.value));
+    final ret = (
+      error: PlayerErrors.values[e],
+      newHandle: SoundHandle(handle.value),
+    );
     calloc.free(handle);
     return ret;
   }
 
-  late final _play3dPtr = _lookup<
-      ffi.NativeFunction<
+  late final _play3dPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.UnsignedInt Function(
-              ffi.UnsignedInt,
-              ffi.Float,
-              ffi.Float,
-              ffi.Float,
-              ffi.Float,
-              ffi.Float,
-              ffi.Float,
-              ffi.Float,
-              ffi.Int,
-              ffi.Int,
-              ffi.Double,
-              ffi.Pointer<ffi.UnsignedInt>)>>('play3d');
-  late final _play3d = _play3dPtr.asFunction<
-      int Function(int, double, double, double, double, double, double, double,
-          int, int, double, ffi.Pointer<ffi.UnsignedInt>)>();
+            ffi.UnsignedInt,
+            ffi.UnsignedInt,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Float,
+            ffi.Int,
+            ffi.Int,
+            ffi.Double,
+            ffi.Pointer<ffi.UnsignedInt>,
+          )
+        >
+      >('play3d');
+  late final _play3d = _play3dPtr
+      .asFunction<
+        int Function(
+          int,
+          int,
+          double,
+          double,
+          double,
+          double,
+          double,
+          double,
+          double,
+          int,
+          int,
+          double,
+          ffi.Pointer<ffi.UnsignedInt>,
+        )
+      >();
 
   @override
   void set3dSoundSpeed(double speed) {
@@ -1744,10 +2061,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _set3dSoundSpeedPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Float)>>(
-    'set3dSoundSpeed',
-  );
-  late final _set3dSoundSpeed =
-      _set3dSoundSpeedPtr.asFunction<void Function(double)>();
+        'set3dSoundSpeed',
+      );
+  late final _set3dSoundSpeed = _set3dSoundSpeedPtr
+      .asFunction<void Function(double)>();
 
   @override
   double get3dSoundSpeed() {
@@ -1756,8 +2073,8 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
 
   late final _get3dSoundSpeedPtr =
       _lookup<ffi.NativeFunction<ffi.Float Function()>>('get3dSoundSpeed');
-  late final _get3dSoundSpeed =
-      _get3dSoundSpeedPtr.asFunction<double Function()>();
+  late final _get3dSoundSpeed = _get3dSoundSpeedPtr
+      .asFunction<double Function()>();
 
   @override
   void set3dListenerParameters(
@@ -1790,8 +2107,9 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     );
   }
 
-  late final _set3dListenerParametersPtr = _lookup<
-      ffi.NativeFunction<
+  late final _set3dListenerParametersPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.Void Function(
             ffi.Float,
             ffi.Float,
@@ -1805,35 +2123,36 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
             ffi.Float,
             ffi.Float,
             ffi.Float,
-          )>>('set3dListenerParameters');
-  late final _set3dListenerParameters = _set3dListenerParametersPtr.asFunction<
-      void Function(
-        double,
-        double,
-        double,
-        double,
-        double,
-        double,
-        double,
-        double,
-        double,
-        double,
-        double,
-        double,
-      )>();
+          )
+        >
+      >('set3dListenerParameters');
+  late final _set3dListenerParameters = _set3dListenerParametersPtr
+      .asFunction<
+        void Function(
+          double,
+          double,
+          double,
+          double,
+          double,
+          double,
+          double,
+          double,
+          double,
+          double,
+          double,
+          double,
+        )
+      >();
 
   @override
   void set3dListenerPosition(double posX, double posY, double posZ) {
     return _set3dListenerPosition(posX, posY, posZ);
   }
 
-  late final _set3dListenerPositionPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Float,
-            ffi.Float,
-            ffi.Float,
-          )>>('set3dListenerPosition');
+  late final _set3dListenerPositionPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Float, ffi.Float, ffi.Float)>
+      >('set3dListenerPosition');
   late final _set3dListenerPosition = _set3dListenerPositionPtr
       .asFunction<void Function(double, double, double)>();
 
@@ -1842,30 +2161,24 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _set3dListenerAt(atX, atY, atZ);
   }
 
-  late final _set3dListenerAtPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Float,
-            ffi.Float,
-            ffi.Float,
-          )>>('set3dListenerAt');
-  late final _set3dListenerAt =
-      _set3dListenerAtPtr.asFunction<void Function(double, double, double)>();
+  late final _set3dListenerAtPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Float, ffi.Float, ffi.Float)>
+      >('set3dListenerAt');
+  late final _set3dListenerAt = _set3dListenerAtPtr
+      .asFunction<void Function(double, double, double)>();
 
   @override
   void set3dListenerUp(double upX, double upY, double upZ) {
     return _set3dListenerUp(upX, upY, upZ);
   }
 
-  late final _set3dListenerUpPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Float,
-            ffi.Float,
-            ffi.Float,
-          )>>('set3dListenerUp');
-  late final _set3dListenerUp =
-      _set3dListenerUpPtr.asFunction<void Function(double, double, double)>();
+  late final _set3dListenerUpPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Float, ffi.Float, ffi.Float)>
+      >('set3dListenerUp');
+  late final _set3dListenerUp = _set3dListenerUpPtr
+      .asFunction<void Function(double, double, double)>();
 
   @override
   void set3dListenerVelocity(
@@ -1876,13 +2189,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _set3dListenerVelocity(velocityX, velocityY, velocityZ);
   }
 
-  late final _set3dListenerVelocityPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Float,
-            ffi.Float,
-            ffi.Float,
-          )>>('set3dListenerVelocity');
+  late final _set3dListenerVelocityPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Float, ffi.Float, ffi.Float)>
+      >('set3dListenerVelocity');
   late final _set3dListenerVelocity = _set3dListenerVelocityPtr
       .asFunction<void Function(double, double, double)>();
 
@@ -1907,8 +2217,9 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     );
   }
 
-  late final _set3dSourceParametersPtr = _lookup<
-      ffi.NativeFunction<
+  late final _set3dSourceParametersPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.Void Function(
             ffi.UnsignedInt,
             ffi.Float,
@@ -1917,24 +2228,30 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
             ffi.Float,
             ffi.Float,
             ffi.Float,
-          )>>('set3dSourceParameters');
-  late final _set3dSourceParameters = _set3dSourceParametersPtr.asFunction<
-      void Function(int, double, double, double, double, double, double)>();
+          )
+        >
+      >('set3dSourceParameters');
+  late final _set3dSourceParameters = _set3dSourceParametersPtr
+      .asFunction<
+        void Function(int, double, double, double, double, double, double)
+      >();
 
   @override
   void set3dSourcePosition(
-      SoundHandle handle, double posX, double posY, double posZ) {
+    SoundHandle handle,
+    double posX,
+    double posY,
+    double posZ,
+  ) {
     return _set3dSourcePosition(handle.id, posX, posY, posZ);
   }
 
-  late final _set3dSourcePositionPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.UnsignedInt,
-            ffi.Float,
-            ffi.Float,
-            ffi.Float,
-          )>>('set3dSourcePosition');
+  late final _set3dSourcePositionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.UnsignedInt, ffi.Float, ffi.Float, ffi.Float)
+        >
+      >('set3dSourcePosition');
   late final _set3dSourcePosition = _set3dSourcePositionPtr
       .asFunction<void Function(int, double, double, double)>();
 
@@ -1948,14 +2265,12 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _set3dSourceVelocity(handle.id, velocityX, velocityY, velocityZ);
   }
 
-  late final _set3dSourceVelocityPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.UnsignedInt,
-            ffi.Float,
-            ffi.Float,
-            ffi.Float,
-          )>>('set3dSourceVelocity');
+  late final _set3dSourceVelocityPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.UnsignedInt, ffi.Float, ffi.Float, ffi.Float)
+        >
+      >('set3dSourceVelocity');
   late final _set3dSourceVelocity = _set3dSourceVelocityPtr
       .asFunction<void Function(int, double, double, double)>();
 
@@ -1968,13 +2283,12 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     return _set3dSourceMinMaxDistance(handle.id, minDistance, maxDistance);
   }
 
-  late final _set3dSourceMinMaxDistancePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.UnsignedInt,
-            ffi.Float,
-            ffi.Float,
-          )>>('set3dSourceMinMaxDistance');
+  late final _set3dSourceMinMaxDistancePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.UnsignedInt, ffi.Float, ffi.Float)
+        >
+      >('set3dSourceMinMaxDistance');
   late final _set3dSourceMinMaxDistance = _set3dSourceMinMaxDistancePtr
       .asFunction<void Function(int, double, double)>();
 
@@ -1991,27 +2305,26 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     );
   }
 
-  late final _set3dSourceAttenuationPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.UnsignedInt,
-            ffi.UnsignedInt,
-            ffi.Float,
-          )>>('set3dSourceAttenuation');
-  late final _set3dSourceAttenuation =
-      _set3dSourceAttenuationPtr.asFunction<void Function(int, int, double)>();
+  late final _set3dSourceAttenuationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.UnsignedInt, ffi.UnsignedInt, ffi.Float)
+        >
+      >('set3dSourceAttenuation');
+  late final _set3dSourceAttenuation = _set3dSourceAttenuationPtr
+      .asFunction<void Function(int, int, double)>();
 
   @override
   void set3dSourceDopplerFactor(SoundHandle handle, double dopplerFactor) {
     return _set3dSourceDopplerFactor(handle.id, dopplerFactor);
   }
 
-  late final _set3dSourceDopplerFactorPtr = _lookup<
-      ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>>(
-    'set3dSourceDopplerFactor',
-  );
-  late final _set3dSourceDopplerFactor =
-      _set3dSourceDopplerFactorPtr.asFunction<void Function(int, double)>();
+  late final _set3dSourceDopplerFactorPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Float)>
+      >('set3dSourceDopplerFactor');
+  late final _set3dSourceDopplerFactor = _set3dSourceDopplerFactorPtr
+      .asFunction<void Function(int, double)>();
 
   // ///////////////////////////////////////
   // waveform audio data
@@ -2024,8 +2337,9 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     double endTime = -1,
     bool average = false,
   }) {
-    final pSamples =
-        calloc<ffi.Float>(numSamplesNeeded * ffi.sizeOf<ffi.Float>());
+    final pSamples = calloc<ffi.Float>(
+      numSamplesNeeded * ffi.sizeOf<ffi.Float>(),
+    );
     final error = _readSamplesFromFile(
       completeFileName.toNativeUtf8(),
       startTime,
@@ -2042,23 +2356,36 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     if (ReadSamplesErrors.fromValue(error) !=
         ReadSamplesErrors.readSamplesNoError) {
       throw SoLoudCppException.fromReadSampleError(
-          ReadSamplesErrors.fromValue(error));
+        ReadSamplesErrors.fromValue(error),
+      );
     }
     return samples;
   }
 
-  late final _readSamplesFromFilePtr = _lookup<
-      ffi.NativeFunction<
+  late final _readSamplesFromFilePtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.UnsignedInt Function(
-              ffi.Pointer<Utf8>,
-              ffi.Float,
-              ffi.Float,
-              ffi.UnsignedLong,
-              ffi.Bool,
-              ffi.Pointer<ffi.Float>)>>('readSamplesFromFile');
-  late final _readSamplesFromFile = _readSamplesFromFilePtr.asFunction<
-      int Function(ffi.Pointer<Utf8>, double, double, int, bool,
-          ffi.Pointer<ffi.Float>)>();
+            ffi.Pointer<Utf8>,
+            ffi.Float,
+            ffi.Float,
+            ffi.UnsignedLong,
+            ffi.Bool,
+            ffi.Pointer<ffi.Float>,
+          )
+        >
+      >('readSamplesFromFile');
+  late final _readSamplesFromFile = _readSamplesFromFilePtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<Utf8>,
+          double,
+          double,
+          int,
+          bool,
+          ffi.Pointer<ffi.Float>,
+        )
+      >();
 
   @override
   Float32List readSamplesFromMem(
@@ -2068,8 +2395,9 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     double endTime = -1,
     bool average = false,
   }) {
-    final pSamples =
-        calloc<ffi.Float>(numSamplesNeeded * ffi.sizeOf<ffi.Float>());
+    final pSamples = calloc<ffi.Float>(
+      numSamplesNeeded * ffi.sizeOf<ffi.Float>(),
+    );
     final ffi.Pointer<ffi.Uint8> bufferPtr = calloc(buffer.length);
     for (var i = 0; i < buffer.length; i++) {
       bufferPtr[i] = buffer[i];
@@ -2091,24 +2419,42 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
     if (ReadSamplesErrors.fromValue(error) !=
         ReadSamplesErrors.readSamplesNoError) {
       throw SoLoudCppException.fromReadSampleError(
-          ReadSamplesErrors.fromValue(error));
+        ReadSamplesErrors.fromValue(error),
+      );
     }
     return samples;
   }
 
-  late final _readSamplesFromMemPtr = _lookup<
-      ffi.NativeFunction<
+  late final _readSamplesFromMemPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.UnsignedInt Function(
-              ffi.Pointer<ffi.Uint8>,
-              ffi.UnsignedLong,
-              ffi.Float,
-              ffi.Float,
-              ffi.UnsignedLong,
-              ffi.Bool,
-              ffi.Pointer<ffi.Float>)>>('readSamplesFromMem');
-  late final _readSamplesFromMem = _readSamplesFromMemPtr.asFunction<
-      int Function(ffi.Pointer<ffi.Uint8>, int, double, double, int, bool,
-          ffi.Pointer<ffi.Float>)>();
+            ffi.Pointer<ffi.Uint8>,
+            ffi.UnsignedLong,
+            ffi.Float,
+            ffi.Float,
+            ffi.UnsignedLong,
+            ffi.Bool,
+            ffi.Pointer<ffi.Float>,
+          )
+        >
+      >('readSamplesFromMem');
+  late final _readSamplesFromMem = _readSamplesFromMemPtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          double,
+          double,
+          int,
+          bool,
+          ffi.Pointer<ffi.Float>,
+        )
+      >();
+
+  /////////////////////////////////////////
+  /// Mixing Bus
+  /////////////////////////////////////////
 
   @override
   ({PlayerErrors error, BusHandle busHandle}) createBus() {
@@ -2474,4 +2820,58 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
           ffi.Void Function(ffi.UnsignedInt, ffi.UnsignedInt)>>('annexSoundToBus');
   late final _annexSoundToBus =
       _annexSoundToBusPtr.asFunction<void Function(int, int)>();
+
+  /// Play the bus itself on the main SoLoud engine so it becomes audible.
+  @override
+  int busPlayOnEngine(BusHandle busHandle, double volume, bool paused) {
+    return _busPlayOnEngine(busHandle.id, volume, paused);
+  }
+
+  late final _busPlayOnEnginePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.UnsignedInt Function(ffi.UnsignedInt, ffi.Float, ffi.Bool)
+        >
+      >('busPlayOnEngine');
+  late final _busPlayOnEngine = _busPlayOnEnginePtr
+      .asFunction<int Function(int, double, bool)>();
+
+  /// Set the number of output channels for the bus (default is 2 = stereo).
+  @override
+  void busSetChannels(BusHandle busHandle, int channels) {
+    _busSetChannels(busHandle.id, channels);
+  }
+
+  late final _busSetChannelsPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(ffi.UnsignedInt, ffi.UnsignedInt)>
+      >('busSetChannels');
+  late final _busSetChannels = _busSetChannelsPtr
+      .asFunction<int Function(int, int)>();
+
+  /// Get the approximate output volume for a specific channel of this bus.
+  @override
+  double busGetApproximateVolume(BusHandle busHandle, int channel) {
+    return _busGetApproximateVolume(busHandle.id, channel);
+  }
+
+  late final _busGetApproximateVolumePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Float Function(ffi.UnsignedInt, ffi.UnsignedInt)>
+      >('busGetApproximateVolume');
+  late final _busGetApproximateVolume = _busGetApproximateVolumePtr
+      .asFunction<double Function(int, int)>();
+
+  /// Get the number of voices currently playing through this bus.
+  @override
+  int busGetActiveVoiceCount(BusHandle busHandle) {
+    return _busGetActiveVoiceCount(busHandle.id);
+  }
+
+  late final _busGetActiveVoiceCountPtr =
+      _lookup<ffi.NativeFunction<ffi.UnsignedInt Function(ffi.UnsignedInt)>>(
+        'busGetActiveVoiceCount',
+      );
+  late final _busGetActiveVoiceCount = _busGetActiveVoiceCountPtr
+      .asFunction<int Function(int)>();
 }

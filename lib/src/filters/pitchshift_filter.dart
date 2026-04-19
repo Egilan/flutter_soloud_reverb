@@ -20,15 +20,15 @@ enum PitchShiftEnum {
 
   @override
   String toString() => switch (this) {
-        PitchShiftEnum.wet => 'Wet',
-        PitchShiftEnum.shift => 'Shift',
-        PitchShiftEnum.semitones => 'Semitones',
-      };
+    PitchShiftEnum.wet => 'Wet',
+    PitchShiftEnum.shift => 'Shift',
+    PitchShiftEnum.semitones => 'Semitones',
+  };
 }
 
 abstract class _PitchShiftInternal extends FilterBase {
-  const _PitchShiftInternal(SoundHash? soundHash)
-      : super(FilterType.pitchShiftFilter, soundHash);
+  const _PitchShiftInternal(SoundHash? soundHash, int? busId)
+    : super(FilterType.pitchShiftFilter, soundHash, busId);
 
   PitchShiftEnum get queryWet => PitchShiftEnum.wet;
   PitchShiftEnum get queryShift => PitchShiftEnum.shift;
@@ -36,15 +36,16 @@ abstract class _PitchShiftInternal extends FilterBase {
 }
 
 class PitchShiftSingle extends _PitchShiftInternal {
-  PitchShiftSingle(super.soundHash);
+  PitchShiftSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        PitchShiftEnum.wet.index,
-        PitchShiftEnum.wet.min,
-        PitchShiftEnum.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    PitchShiftEnum.wet.index,
+    PitchShiftEnum.wet.min,
+    PitchShiftEnum.wet.max,
+  );
 
   /// The shift value of the pitch, where 1.0 means the pitch is not shifted.
   ///
@@ -55,12 +56,13 @@ class PitchShiftSingle extends _PitchShiftInternal {
   /// shift = pow(2., value / 12);
   /// ```
   FilterParam shift({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        PitchShiftEnum.shift.index,
-        PitchShiftEnum.shift.min,
-        PitchShiftEnum.shift.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    PitchShiftEnum.shift.index,
+    PitchShiftEnum.shift.min,
+    PitchShiftEnum.shift.max,
+  );
 
   /// The number of semitones that the pitch is shifted.
   ///
@@ -71,12 +73,13 @@ class PitchShiftSingle extends _PitchShiftInternal {
   /// semitones = 12 * log2f(value);
   /// ```
   FilterParam semitones({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        PitchShiftEnum.semitones.index,
-        PitchShiftEnum.semitones.min,
-        PitchShiftEnum.semitones.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    PitchShiftEnum.semitones.index,
+    PitchShiftEnum.semitones.min,
+    PitchShiftEnum.semitones.max,
+  );
 
   /// Adjust the play speed of a sound without changing the pitch of the audio.
   ///
@@ -90,15 +93,16 @@ class PitchShiftSingle extends _PitchShiftInternal {
 }
 
 class PitchShiftGlobal extends _PitchShiftInternal {
-  const PitchShiftGlobal() : super(null);
+  const PitchShiftGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        filterType,
-        PitchShiftEnum.wet.index,
-        PitchShiftEnum.wet.min,
-        PitchShiftEnum.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    PitchShiftEnum.wet.index,
+    PitchShiftEnum.wet.min,
+    PitchShiftEnum.wet.max,
+  );
 
   /// The shift value of the pitch, where 1.0 means the pitch is not shifted.
   ///
@@ -109,12 +113,13 @@ class PitchShiftGlobal extends _PitchShiftInternal {
   /// shift = pow(2., value / 12);
   /// ```
   FilterParam get shift => FilterParam(
-        null,
-        filterType,
-        PitchShiftEnum.shift.index,
-        PitchShiftEnum.shift.min,
-        PitchShiftEnum.shift.max,
-      );
+    null,
+    null,
+    filterType,
+    PitchShiftEnum.shift.index,
+    PitchShiftEnum.shift.min,
+    PitchShiftEnum.shift.max,
+  );
 
   /// The number of semitones that the pitch is shifted.
   ///
@@ -125,10 +130,11 @@ class PitchShiftGlobal extends _PitchShiftInternal {
   /// semitones = 12 * log2f(value);
   /// ```
   FilterParam get semitones => FilterParam(
-        null,
-        filterType,
-        PitchShiftEnum.semitones.index,
-        PitchShiftEnum.semitones.min,
-        PitchShiftEnum.semitones.max,
-      );
+    null,
+    null,
+    filterType,
+    PitchShiftEnum.semitones.index,
+    PitchShiftEnum.semitones.min,
+    PitchShiftEnum.semitones.max,
+  );
 }

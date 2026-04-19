@@ -1,8 +1,9 @@
 #ifndef FILTERS_FWD_H
 #define FILTERS_FWD_H
 
-#include "enums.h"
+#include "../enums.h"
 
+struct BusData;
 class Filters;
 struct FilterObject;
 

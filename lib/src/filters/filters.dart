@@ -8,11 +8,11 @@ import 'package:flutter_soloud/src/filters/bassboost_filter.dart';
 import 'package:flutter_soloud/src/filters/biquad_resonant_filter.dart';
 import 'package:flutter_soloud/src/filters/compressor.dart';
 import 'package:flutter_soloud/src/filters/echo_filter.dart';
-import 'package:flutter_soloud/src/filters/equalizer_filter.dart';
 import 'package:flutter_soloud/src/filters/flanger_filter.dart';
 import 'package:flutter_soloud/src/filters/freeverb_filter.dart';
 import 'package:flutter_soloud/src/filters/limiter.dart';
 import 'package:flutter_soloud/src/filters/lofi_filter.dart';
+import 'package:flutter_soloud/src/filters/parametric_eq.dart';
 import 'package:flutter_soloud/src/filters/pitchshift_filter.dart';
 import 'package:flutter_soloud/src/filters/reverbsc_filter.dart';
 import 'package:flutter_soloud/src/filters/convolution_filter.dart';
@@ -24,17 +24,18 @@ import 'package:flutter_soloud/src/soloud.dart';
 import 'package:flutter_soloud/src/sound_handle.dart';
 import 'package:flutter_soloud/src/sound_hash.dart';
 import 'package:logging/logging.dart';
-import 'package:meta/meta.dart';
 
 /// This class serves as a base for all audio filter methods.
 abstract class FilterBase {
   /// The base class common to all filters. It can be used to [activate],
   /// [deactivate] or query its status and its index in the filter list.
-  const FilterBase(FilterType ft, SoundHash? soundHash)
-      : filterType = ft,
-        _soundHash = soundHash;
+  const FilterBase(FilterType ft, this.soundHash, this.busId) : filterType = ft;
 
-  final SoundHash? _soundHash;
+  /// The unique hash code of the sound.
+  final SoundHash? soundHash;
+
+  /// The unique id of the bus.
+  final int? busId;
 
   /// The type of this filter. It can be used to get the number of its
   /// parameters or the name of the filter.
@@ -44,17 +45,17 @@ abstract class FilterBase {
   ///
   /// Throws [SoLoudFilterForSingleSoundOnWebDartException] if trying to use
   /// a filter for a single sound on the Web platform.
-  void activate() => filterType.activate(_soundHash);
+  void activate() => filterType.activate(soundHash, busId);
 
   /// Deactivate this filter.
   ///
   /// Throws [SoLoudFilterForSingleSoundOnWebDartException] if trying to use
   /// a filter for a single sound on the Web platform.
-  void deactivate() => filterType.deactivate(_soundHash);
+  void deactivate() => filterType.deactivate(soundHash, busId);
 
   /// Returns `-1` if the filter is not active. Otherwise, returns
   /// the index of this filter.
-  int get index => filterType.isActive(_soundHash);
+  int get index => filterType.isActive(soundHash, busId);
 
   /// Checks whether this filter is active.
   bool get isActive => index >= 0;
@@ -68,40 +69,43 @@ abstract class FilterBase {
 /// add a filter to that specific [AudioSource].
 final class FiltersSingle {
   /// The class to get access to all the filters available to sounds.
-  const FiltersSingle({required this.soundHash});
+  /// At least [soundHash] or [busId] must be provided.
+  const FiltersSingle({this.soundHash, this.busId})
+    : assert(
+        soundHash != null || busId != null,
+        'At least soundHash or busId must be provided',
+      );
 
   /// The unique hash code of the sound.
-  final SoundHash soundHash;
+  final SoundHash? soundHash;
+
+  /// The unique id of the bus.
+  final int? busId;
 
   /// The `Bass Boost` filter for this sound.
   ///
   /// This filter is documented in the SoLoud C++ lib docs web page
   /// [here](https://solhsa.com/soloud/bassboostfilter.html)
-  BassBoostSingle get bassBoostFilter => BassBoostSingle(soundHash);
+  BassBoostSingle get bassBoostFilter => BassBoostSingle(soundHash, busId);
 
   /// The `Biquad Resonant` filter for this sound.
   ///
   /// This filter is documented in the SoLoud C++ lib docs web page
   /// [here](https://solhsa.com/soloud/biquadfilter.html)
-  BiquadResonantSingle get biquadFilter => BiquadResonantSingle(soundHash);
+  BiquadResonantSingle get biquadFilter =>
+      BiquadResonantSingle(soundHash, busId);
 
   /// The `Echo` filter for this sound.
   ///
   /// This filter is documented in the SoLoud C++ lib docs web page
   /// [here](https://solhsa.com/soloud/echofilter.html)
-  EchoSingle get echoFilter => EchoSingle(soundHash);
-
-  /// The `Equalizer` filter for this sound.
-  ///
-  /// This filter is not documented in the SoLoud C++ lib, the source code is
-  /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/soloud/src/filter/soloud_eqfilter.cpp)
-  EqualizerSingle get equalizerFilter => EqualizerSingle(soundHash);
+  EchoSingle get echoFilter => EchoSingle(soundHash, busId);
 
   /// The `Flanger` filter for this sound.
   ///
   /// This filter is documented in the SoLoud C++ lib docs web page
   /// [here](https://solhsa.com/soloud/flangerfilter.html)
-  FlangerSingle get flangerFilter => FlangerSingle(soundHash);
+  FlangerSingle get flangerFilter => FlangerSingle(soundHash, busId);
 
   /// The `Freeverb` filter for this sound.
   ///
@@ -111,33 +115,31 @@ final class FiltersSingle {
   /// **IMPORTANT**: freeverb supports only 2 channels. So using freeverb as
   /// global filter, the engine should be inited using the default 2 channels
   /// and when using it as sound filter the sound must be with 2 channels.
-  FreeverbSingle get freeverbFilter => FreeverbSingle(soundHash);
+  FreeverbSingle get freeverbFilter => FreeverbSingle(soundHash, busId);
 
   /// The `Lofi` filter for this sound.
   ///
   /// This filter is documented in the SoLoud C++ lib docs web page
   /// [here](https://solhsa.com/soloud/lofifilter.html)
-  LofiSingle get lofiFilter => LofiSingle(soundHash);
+  LofiSingle get lofiFilter => LofiSingle(soundHash, busId);
 
   /// The `Robotize` filter for this sound.
   ///
   /// This filter is documented in the SoLoud C++ lib docs web page
   /// [here](https://solhsa.com/soloud/robotizefilter.html)
-  RobotizeSingle get robotizeFilter => RobotizeSingle(soundHash);
+  RobotizeSingle get robotizeFilter => RobotizeSingle(soundHash, busId);
 
   /// The `Wave Shaper` filter for this sound.
   ///
   /// This filter is documented in the SoLoud C++ lib docs web page
   /// [here](https://solhsa.com/soloud/waveshaperfilter.html)
-  WaveShaperSingle get waveShaperFilter => WaveShaperSingle(soundHash);
+  WaveShaperSingle get waveShaperFilter => WaveShaperSingle(soundHash, busId);
 
   /// The `Pitch Shift` filter for this sound.
   ///
-  /// This filter is not part of SoLoud C++ lib and the source code is
-  /// experimental and can be found
+  /// This filter is not part of SoLoud C++ lib and the source code can be found
   /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/filters/pitch_shift_filter.cpp#L16)
-  @experimental
-  PitchShiftSingle get pitchShiftFilter => PitchShiftSingle(soundHash);
+  PitchShiftSingle get pitchShiftFilter => PitchShiftSingle(soundHash, busId);
 
   /// The `Limiter` filter for this sound.
   ///
@@ -158,7 +160,10 @@ final class FiltersSingle {
   ///
   /// - `releaseTime`: The release time in milliseconds. Determines how quickly
   /// the gain reduction recovers after a signal drops below the threshold.
-  LimiterSingle get limiterFilter => LimiterSingle(soundHash);
+  ///
+  /// This filter is not part of SoLoud C++ lib and the source code can be found
+  /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/filters/limiter.cpp)
+  LimiterSingle get limiterFilter => LimiterSingle(soundHash, busId);
 
   /// The `Compressor` filter for this sound.
   ///
@@ -184,10 +189,9 @@ final class FiltersSingle {
   /// `releaseTime`: The time in ms for the compressor to release the gain
   /// reduction after the input level falls below the threshold.
   ///
-  /// This filter is not part of SoLoud C++ lib and the source code is
-  /// experimental and can be found
+  /// This filter is not part of SoLoud C++ lib and the source code can be found
   /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/filters/compressor.cpp#L24)
-  CompressorSingle get compressorFilter => CompressorSingle(soundHash);
+  CompressorSingle get compressorFilter => CompressorSingle(soundHash, busId);
 
   /// The `ReverbSc` (Costello) filter for this sound.
   ///
@@ -232,6 +236,25 @@ final class FiltersSingle {
   ///
   /// Call [HrtfSingle.loadHrtfData] with a KEMAR binary file path after activating.
   HrtfSingle get hrtfFilter => HrtfSingle(soundHash);
+
+  /// The `Equalizer` filter for this sound.
+  ///
+  /// **Parameters**:
+  /// - `numBands`: the number of frequency bands (default: 3. 1 is the minimum
+  ///   value and 64 is the maximum value)
+  ///
+  /// - `stftWindowSize`: the size of the FFT window (default: 1024, must be a
+  ///   power of 2. 32 is the minimum value and 4096 is the maximum value).
+  ///   A larger window size will provide more accurate frequency analysis but
+  ///   will also increase the latency of the filter.
+  ///
+  /// - `bandGain`: the gain of each frequency band (default: 1. 0 means no
+  ///   gain, values > 1. 0 increase the gain, values < 1. 0 decrease the gain)
+  ///
+  /// This filter is not documented in the SoLoud C++ lib, the source code is
+  /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/soloud/src/filter/parametric_eq.cpp)
+  ParametricEqSingle get parametricEqFilter =>
+      ParametricEqSingle(soundHash, busId);
 }
 
 /// Filters instance used in [SoLoud.filters]. This differentiate from the
@@ -258,12 +281,6 @@ final class FiltersGlobal {
   /// This filter is documented in the SoLoud C++ lib docs web page
   /// [here](https://solhsa.com/soloud/echofilter.html)
   EchoGlobal get echoFilter => const EchoGlobal();
-
-  /// The `Equalizer` filter used globally.
-  ///
-  /// This filter is not documented in the SoLoud C++ lib, the source code is
-  /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/soloud/src/filter/soloud_eqfilter.cpp)
-  EqualizerGlobal get equalizerFilter => const EqualizerGlobal();
 
   /// The `Flanger` filter used globally.
   ///
@@ -301,10 +318,8 @@ final class FiltersGlobal {
 
   /// The `Pitch Shift` filter used globally.
   ///
-  /// This filter is not part of SoLoud C++ lib and the source code is
-  /// experimental and can be found
+  /// This filter is not part of SoLoud C++ lib and the source code can be found
   /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/filters/pitch_shift_filter.cpp#L16)
-  @experimental
   PitchShiftGlobal get pitchShiftFilter => const PitchShiftGlobal();
 
   /// The `Limiter` filter used globally.
@@ -324,10 +339,8 @@ final class FiltersGlobal {
   /// - `releaseTime`: The release time in milliseconds. Determines how quickly
   /// the gain reduction recovers after a signal drops below the threshold.
   ///
-  /// This filter is not part of SoLoud C++ lib and the source code is
-  /// experimental and can be found
+  /// This filter is not part of SoLoud C++ lib and the source code can be found
   /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/filters/limiter.cpp#L20)
-  @experimental
   LimiterGlobal get limiterFilter => const LimiterGlobal();
 
   /// The `Compressor` filter used globally.
@@ -354,10 +367,8 @@ final class FiltersGlobal {
   /// `releaseTime`: The time in ms for the compressor to release the gain
   /// reduction after the input level falls below the threshold.
   ///
-  /// This filter is not part of SoLoud C++ lib and the source code is
-  /// experimental and can be found
+  /// This filter is not part of SoLoud C++ lib and the source code can be found
   /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/filters/compressor.cpp#L24)
-  @experimental
   CompressorGlobal get compressorFilter => const CompressorGlobal();
 
   /// The `ReverbSc` (Costello) filter used globally.
@@ -389,6 +400,24 @@ final class FiltersGlobal {
   ///
   /// Call [HrtfGlobal.loadHrtfData] with a KEMAR binary file path after activating.
   HrtfGlobal get hrtfFilter => const HrtfGlobal();
+
+  /// The `Equalizer` filter used globally.
+  ///
+  /// **Parameters**:
+  /// - `numBands`: the number of frequency bands (default: 3. 1 is the minimum
+  ///   value and 64 is the maximum value)
+  ///
+  /// - `stftWindowSize`: the size of the FFT window (default: 1024, must be a
+  ///   power of 2. 32 is the minimum value and 4096 is the maximum value).
+  ///   A larger window size will provide more accurate frequency analysis but
+  ///   will also increase the latency of the filter.
+  ///
+  /// - `bandGain`: the gain of each frequency band (default: 1. 0 means no
+  ///   gain, values > 1. 0 increase the gain, values < 1. 0 decrease the gain)
+  ///
+  /// This filter is not documented in the SoLoud C++ lib, the source code is
+  /// [here](https://github.com/alnitak/flutter_soloud/blob/main/src/soloud/src/filter/parametric_eq.cpp)
+  ParametricEqGlobal get parametricEqFilter => const ParametricEqGlobal();
 }
 
 /// Common class for single and global filters.
@@ -396,6 +425,7 @@ class FilterParam {
   /// Every filter parameter values can be set/get/fade/oscillate.
   FilterParam(
     this._soundHandle,
+    this._busId,
     this._type,
     this._attributeId,
     this._min,
@@ -403,6 +433,7 @@ class FilterParam {
   );
 
   final SoundHandle? _soundHandle;
+  final int? _busId;
   final FilterType _type;
   final int _attributeId;
   final double _min;
@@ -417,18 +448,22 @@ class FilterParam {
       throw const SoLoudFilterForSingleSoundOnWebDartException();
     }
     final ret = SoLoudController().soLoudFFI.getFilterParams(
-          handle: _soundHandle,
-          _type,
-          _attributeId,
-        );
+      handle: _soundHandle,
+      busId: _busId,
+      _type,
+      _attributeId,
+    );
 
     if (ret.error != PlayerErrors.noError) {
-      Logger('flutter_soloud.${_type.name}Filter')
-          .severe(() => 'get value: ${ret.error}');
+      Logger(
+        'flutter_soloud.${_type.name}Filter',
+      ).severe(() => 'get value: ${ret.error}');
       throw SoLoudCppException.fromPlayerError(ret.error);
     }
     return ret.value;
   }
+
+  bool _isPowerOfTwo(int val) => (val & (val - 1)) == 0;
 
   /// Set the parameter value.
   ///
@@ -439,19 +474,36 @@ class FilterParam {
       throw const SoLoudFilterForSingleSoundOnWebDartException();
     }
     if (val < _min || val > _max) {
-      Logger('flutter_soloud.${_type.name}Filter')
-          .warning(() => 'value [$val] out of accepted range [$_min, $_max]');
+      Logger(
+        'flutter_soloud.${_type.name}Filter',
+      ).warning(() => 'value [$val] out of accepted range [$_min, $_max]');
       return;
     }
-    final error = SoLoudController().soLoudFFI.setFilterParams(
-          handle: _soundHandle,
-          _type,
-          _attributeId,
-          val,
+    // Check if the filter is the parametric EQ and if we are setting
+    // the `stftWindowSize` parameter it must be a power of 2 in [32-4096] range
+    if (_type == FilterType.parametricEq &&
+        _attributeId == ParametricEqParam.stftWindowSize) {
+      if (!_isPowerOfTwo(val.toInt()) || val < 32 || val > 4096) {
+        Logger('flutter_soloud.${_type.name}Filter').warning(
+          () =>
+              'value [$val] out of accepted range [32, 4096] or '
+              'not a power of 2',
         );
+        return;
+      }
+    }
+
+    final error = SoLoudController().soLoudFFI.setFilterParams(
+      handle: _soundHandle,
+      busId: _busId,
+      _type,
+      _attributeId,
+      val,
+    );
     if (error != PlayerErrors.noError) {
-      Logger('flutter_soloud.${_type.name}Filter')
-          .severe(() => 'set value: $error');
+      Logger(
+        'flutter_soloud.${_type.name}Filter',
+      ).severe(() => 'set value: $error');
       throw SoLoudCppException.fromPlayerError(error);
     }
   }
@@ -460,11 +512,8 @@ class FilterParam {
   ///
   /// Throws [SoLoudFilterForSingleSoundOnWebDartException] if trying to use
   /// [FiltersSingle] on the Web platform.
-  void fadeFilterParameter({
-    required double to,
-    required Duration time,
-  }) =>
-      _type.fadeFilterParameter(_soundHandle, _attributeId, to, time);
+  void fadeFilterParameter({required double to, required Duration time}) =>
+      _type.fadeFilterParameter(_soundHandle, _busId, _attributeId, to, time);
 
   /// Oscillate a parameter value from [from] value to a new value [to]
   /// in [time] time duration.
@@ -475,23 +524,21 @@ class FilterParam {
     required double from,
     required double to,
     required Duration time,
-  }) =>
-      _type.oscillateFilterParameter(
-        _soundHandle,
-        _attributeId,
-        from,
-        to,
-        time,
-      );
+  }) => _type.oscillateFilterParameter(
+    _soundHandle,
+    _busId,
+    _attributeId,
+    from,
+    to,
+    time,
+  );
 }
 
 /// The different types of audio filters.
+/// WARNING: Keep these in sync with `src/enums.h`.
 enum FilterType {
   /// A biquad resonant filter.
   biquadResonantFilter,
-
-  /// An equalizer filter.
-  eqFilter,
 
   /// An echo filter.
   echoFilter,
@@ -525,7 +572,7 @@ enum FilterType {
 
   /// ReverbSc (Costello) filter
   reverbScFilter,
-  
+
   /// Convolution Filter
   convolutionFilter,
 
@@ -533,47 +580,50 @@ enum FilterType {
   dattorroFilter,
 
   /// HRTF (Head-Related Transfer Function) spatialization filter
-  hrtfFilter;
+  hrtfFilter,
+
+  /// A parametric N bands equalizer filter.
+  parametricEq;
 
   @override
   String toString() => switch (this) {
-        FilterType.biquadResonantFilter => 'Biquad Resonant',
-        FilterType.eqFilter => 'Equalizer',
-        FilterType.echoFilter => 'Echo',
-        FilterType.lofiFilter => 'Lofi',
-        FilterType.flangerFilter => 'Flanger',
-        FilterType.bassboostFilter => 'Bassboost',
-        FilterType.waveShaperFilter => 'Wave Shaper',
-        FilterType.robotizeFilter => 'Robotize',
-        FilterType.freeverbFilter => 'Freeverb',
-        FilterType.pitchShiftFilter => 'Pitchshift',
-        FilterType.limiterFilter => 'Limiter',
-        FilterType.compressorFilter => 'Compressor',
-        FilterType.reverbScFilter => 'ReverbSc',
-        FilterType.convolutionFilter => 'Convolution',
-        FilterType.dattorroFilter => 'Dattorro',
-        FilterType.hrtfFilter => 'HRTF',
-      };
+    FilterType.biquadResonantFilter => 'Biquad Resonant',
+    FilterType.echoFilter => 'Echo',
+    FilterType.lofiFilter => 'Lofi',
+    FilterType.flangerFilter => 'Flanger',
+    FilterType.bassboostFilter => 'Bassboost',
+    FilterType.waveShaperFilter => 'Wave Shaper',
+    FilterType.robotizeFilter => 'Robotize',
+    FilterType.freeverbFilter => 'Freeverb',
+    FilterType.pitchShiftFilter => 'Pitchshift',
+    FilterType.limiterFilter => 'Limiter',
+    FilterType.compressorFilter => 'Compressor',
+    FilterType.reverbScFilter => 'ReverbSc',
+    FilterType.convolutionFilter => 'Convolution',
+    FilterType.dattorroFilter => 'Dattorro',
+    FilterType.hrtfFilter => 'HRTF',
+    FilterType.parametricEq => 'Parametric EQ',
+  };
 
-  /// The number of parameter this filter owns.
+  /// The number of parameters this filter owns.
   int get numParameters => switch (this) {
-        FilterType.biquadResonantFilter => 4,
-        FilterType.eqFilter => 9,
-        FilterType.echoFilter => 4,
-        FilterType.lofiFilter => 3,
-        FilterType.flangerFilter => 3,
-        FilterType.bassboostFilter => 2,
-        FilterType.waveShaperFilter => 2,
-        FilterType.robotizeFilter => 3,
-        FilterType.freeverbFilter => 5,
-        FilterType.pitchShiftFilter => 3,
-        FilterType.limiterFilter => 5,
-        FilterType.compressorFilter => 8,
-        FilterType.reverbScFilter => 4,
-        FilterType.convolutionFilter => 2,
-        FilterType.dattorroFilter => 5,
-        FilterType.hrtfFilter => 4,
-      };
+    FilterType.biquadResonantFilter => 4,
+    FilterType.echoFilter => 4,
+    FilterType.lofiFilter => 3,
+    FilterType.flangerFilter => 3,
+    FilterType.bassboostFilter => 2,
+    FilterType.waveShaperFilter => 2,
+    FilterType.robotizeFilter => 3,
+    FilterType.freeverbFilter => 5,
+    FilterType.pitchShiftFilter => 3,
+    FilterType.limiterFilter => 5,
+    FilterType.compressorFilter => 8,
+    FilterType.reverbScFilter => 4,
+    FilterType.convolutionFilter => 2,
+    FilterType.dattorroFilter => 5,
+    FilterType.hrtfFilter => 4,
+    FilterType.parametricEq => 67,
+  };
 
   /// Activate this filter. If [soundHash] is null this filter is applied
   /// globally, else to the given [soundHash].
@@ -581,17 +631,19 @@ enum FilterType {
   /// Throws [SoLoudFilterForSingleSoundOnWebDartException] if trying to use
   /// a filter for a single sound on the Web platform.
   @internal
-  void activate(SoundHash? soundHash) {
+  void activate(SoundHash? soundHash, int? busId) {
     if (kIsWeb && soundHash != null) {
       throw const SoLoudFilterForSingleSoundOnWebDartException();
     }
     final error = SoLoudController().soLoudFFI.addFilter(
-          this,
-          soundHash: soundHash ?? const SoundHash.invalid(),
-        );
+      this,
+      soundHash: soundHash ?? const SoundHash.invalid(),
+      busId: busId,
+    );
     if (error != PlayerErrors.noError) {
       Logger.root.severe(
-        () => '$name activate() '
+        () =>
+            '$name activate() '
             '${soundHash == null ? 'global ' : 'single '} filter: $error',
       );
       throw SoLoudCppException.fromPlayerError(error);
@@ -603,9 +655,8 @@ enum FilterType {
   /// Returns `-1` if the filter is not active. Otherwise, returns
   /// the index of the given filter.
   @internal
-  int isActive(SoundHash? soundHash) => SoLoudController()
-      .soLoudFFI
-      .isFilterActive(this, soundHash: soundHash)
+  int isActive(SoundHash? soundHash, int? busId) => SoLoudController().soLoudFFI
+      .isFilterActive(this, soundHash: soundHash, busId: busId)
       .index;
 
   /// Deactivate this filter. If [soundHash] is null this filter is removed
@@ -614,19 +665,20 @@ enum FilterType {
   /// Throws [SoLoudFilterForSingleSoundOnWebDartException] if trying to use
   /// a filter for a single sound on the Web platform.
   @internal
-  void deactivate(SoundHash? soundHash) {
+  void deactivate(SoundHash? soundHash, int? busId) {
     if (kIsWeb && soundHash != null) {
       throw const SoLoudFilterForSingleSoundOnWebDartException();
     }
     final error = SoLoudController().soLoudFFI.removeFilter(
-          this,
-          soundHash: soundHash ?? const SoundHash.invalid(),
-        );
+      this,
+      soundHash: soundHash ?? const SoundHash.invalid(),
+      busId: busId ?? 0,
+    );
     if (error != PlayerErrors.noError) {
-      Logger.root.severe(
-        () => '$name deactivate() '
-            '${soundHash == null ? 'global ' : 'single '} filter: $error',
-      );
+      final scope = soundHash == null
+          ? (busId == null ? 'global ' : 'bus ')
+          : 'single ';
+      Logger.root.severe(() => '$name deactivate() $scope filter: $error');
       throw SoLoudCppException.fromPlayerError(error);
     }
   }
@@ -640,6 +692,7 @@ enum FilterType {
   @internal
   void fadeFilterParameter(
     SoundHandle? soundHandle,
+    int? busId,
     int attributeId,
     double to,
     Duration time,
@@ -651,12 +704,13 @@ enum FilterType {
       throw const SoLoudNotInitializedException();
     }
     final error = SoLoudController().soLoudFFI.fadeFilterParameter(
-          this,
-          attributeId,
-          to,
-          time.toDouble(),
-          handle: soundHandle,
-        );
+      this,
+      attributeId,
+      to,
+      time.toDouble(),
+      handle: soundHandle,
+      busId: busId,
+    );
     if (error != PlayerErrors.noError) {
       Logger.root.severe(() => 'fadeFilterParameter(): $error');
       throw SoLoudCppException.fromPlayerError(error);
@@ -673,6 +727,7 @@ enum FilterType {
   @internal
   void oscillateFilterParameter(
     SoundHandle? soundHandle,
+    int? busId,
     int attributeId,
     double from,
     double to,
@@ -685,13 +740,14 @@ enum FilterType {
       throw const SoLoudNotInitializedException();
     }
     final error = SoLoudController().soLoudFFI.oscillateFilterParameter(
-          this,
-          attributeId,
-          from,
-          to,
-          time.toDouble(),
-          handle: soundHandle,
-        );
+      this,
+      attributeId,
+      from,
+      to,
+      time.toDouble(),
+      handle: soundHandle,
+      busId: busId,
+    );
     if (error != PlayerErrors.noError) {
       Logger.root.severe(() => 'oscillateFilterParameter(): $error');
       throw SoLoudCppException.fromPlayerError(error);

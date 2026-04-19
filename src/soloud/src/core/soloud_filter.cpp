@@ -23,6 +23,7 @@ freely, subject to the following restrictions:
 */
 
 #include "soloud.h"
+#include <cstdio>
 
 namespace SoLoud
 {

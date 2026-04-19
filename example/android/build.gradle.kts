@@ -4,8 +4,8 @@ allprojects {
         mavenCentral()
     }
 
-    // uncomment to disable OGG support
-    // extra["NO_OPUS_OGG_LIBS"] = "true"
+    // uncomment to disable Xiph libraries (Opus, Ogg, Vorbis, Flac) support
+    // extra["NO_XIPH_LIBS"] = "true"
 }
 
 val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()

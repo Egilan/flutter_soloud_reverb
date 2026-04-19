@@ -73,8 +73,9 @@ class AudioSource {
   /// When the sound finishes playing, its handle will be removed from this set.
   ///
   /// This set is unmodifiable.
-  late final UnmodifiableSetView<SoundHandle> handles =
-      UnmodifiableSetView(handlesInternal);
+  late final UnmodifiableSetView<SoundHandle> handles = UnmodifiableSetView(
+    handlesInternal,
+  );
 
   /// The [internal] backing of [handles]/ Use [handles] from outside
   /// the package.
@@ -178,6 +179,20 @@ class AudioSource {
   /// - `def` which represent the "shift" default value.
   ///
   late final filters = FiltersSingle(soundHash: soundHash);
+
+  /// Wheter the sound should be disposed when all instances are finished.
+  ///
+  /// If true, the sound will be disposed when all instances are finished.
+  ///
+  /// ```dart
+  /// AudioSource sound = await SoLoud.instance.loadAsset(...);
+  /// sound.autoDispose = true;
+  ///
+  /// // or just
+  /// AudioSource sound =
+  ///     await SoLoud.instance.loadAsset(..., autoDispose: true);
+  /// ```
+  bool autoDispose = false;
 
   @override
   String toString() {

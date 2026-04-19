@@ -85,7 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
       currentSound =
           await SoLoud.instance.loadWaveform(WaveForm.sin, true, 1, 0);
 
-      soundHandle = await SoLoud.instance.play(currentSound!);
+      soundHandle = SoLoud.instance.play(currentSound!);
 
       if (context.mounted) {
         setState(() {

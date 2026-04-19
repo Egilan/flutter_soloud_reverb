@@ -1,4 +1,4 @@
-#if !defined(NO_OPUS_OGG_LIBS)
+#if !defined(NO_XIPH_LIBS)
 
 #include "vorbis_stream_decoder.h"
 #include <stdexcept>
@@ -179,8 +179,8 @@ std::pair<std::vector<float>, DecoderError> VorbisDecoderWrapper::decode(std::ve
 
     // Return samplerate/channels to caller (once headers are parsed)
     if (headerParsed && samplerate && channels) {
-        *samplerate = vi.rate;
-        *channels   = vi.channels;
+        *samplerate = static_cast<int>(vi.rate);
+        *channels   = static_cast<int>(vi.channels);
     }
 
     return {decodedData, DecoderError::NoError};
@@ -274,4 +274,4 @@ std::vector<float> VorbisDecoderWrapper::decodePacket(ogg_packet* packet) {
 
     return packetPcm;
 }
-#endif // #if defined(NO_OPUS_OGG_LIBS)
+#endif // #if defined(NO_XIPH_LIBS)

@@ -39,6 +39,7 @@ class SoLoudLoader {
     String key,
     LoadMode mode, {
     AssetBundle? assetBundle,
+    bool autoDispose = false,
   }) async {
     final ByteData byteData;
     final bundle = assetBundle ?? rootBundle;
@@ -54,9 +55,16 @@ class SoLoudLoader {
       rethrow;
     }
 
-    final buffer = byteData.buffer
-        .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
-    final newAudioSource = SoLoud.instance.loadMem(key, buffer, mode: mode);
+    final buffer = byteData.buffer.asUint8List(
+      byteData.offsetInBytes,
+      byteData.lengthInBytes,
+    );
+    final newAudioSource = SoLoud.instance.loadMem(
+      key,
+      buffer,
+      mode: mode,
+      autoDispose: autoDispose,
+    );
     return newAudioSource;
   }
 
@@ -71,6 +79,7 @@ class SoLoudLoader {
     String url,
     LoadMode mode, {
     http.Client? httpClient,
+    bool autoDispose = false,
   }) async {
     final uri = Uri.parse(url);
 
@@ -96,9 +105,16 @@ class SoLoudLoader {
       rethrow;
     }
 
-    final buffer = byteData.buffer
-        .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
-    final newAudioSource = SoLoud.instance.loadMem(url, buffer);
+    final buffer = byteData.buffer.asUint8List(
+      byteData.offsetInBytes,
+      byteData.lengthInBytes,
+    );
+    final newAudioSource = SoLoud.instance.loadMem(
+      url,
+      buffer,
+      mode: mode,
+      autoDispose: autoDispose,
+    );
     return newAudioSource;
   }
 }

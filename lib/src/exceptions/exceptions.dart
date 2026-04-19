@@ -133,8 +133,10 @@ abstract class SoLoudCppException extends SoLoudException {
         return const SoLoudBufferStreamWithReleasedBufferTypeCannotBeSeekedCppException();
       case PlayerErrors.audioFormatNotSupported:
         return const SoLoudAudioFormatNotSupportedCppException();
-      case PlayerErrors.opusOggVorbisLibsNotFound:
-        return const SoLoudOpusOggVorbisLibsNotFoundCppException();
+      case PlayerErrors.xiphLibsNotFound:
+        return const SoLoudXiphLibsNotFoundCppException();
+      case PlayerErrors.busIdNotFound:
+        return const SoLoudBusIdNotFoundCppException();
     }
   }
 

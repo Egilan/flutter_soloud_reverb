@@ -18,14 +18,14 @@ enum NativeDetectedType {
   final int value;
 
   static NativeDetectedType fromValue(int value) => switch (value) {
-        0 => UNKNOWN,
-        1 => OGG_OPUS,
-        2 => OGG_VORBIS,
-        3 => OGG_FLAC,
-        4 => MP3_WITH_ID3,
-        5 => MP3_STREAM,
-        _ => throw ArgumentError('Unknown value for DetectedTypeFFI: $value'),
-      };
+    0 => UNKNOWN,
+    1 => OGG_OPUS,
+    2 => OGG_VORBIS,
+    3 => OGG_FLAC,
+    4 => MP3_WITH_ID3,
+    5 => MP3_STREAM,
+    _ => throw ArgumentError('Unknown value for DetectedTypeFFI: $value'),
+  };
 
   DetectedType toDart() {
     switch (this) {
@@ -283,13 +283,11 @@ final class NativeAudioMetadata extends ffi.Struct {
   }
 }
 
-typedef dartOnMetadataCallback_tFunction = ffi.Void Function(
-  NativeAudioMetadata metadata,
-);
-typedef DartdartOnMetadataCallback_tFunction = void Function(
-  NativeAudioMetadata metadata,
-);
+typedef dartOnMetadataCallback_tFunction =
+    ffi.Void Function(NativeAudioMetadata metadata);
+typedef DartdartOnMetadataCallback_tFunction =
+    void Function(NativeAudioMetadata metadata);
 
 /// callback to tell dart the metadata
-typedef dartOnMetadataCallback_t
-    = ffi.Pointer<ffi.NativeFunction<dartOnMetadataCallback_tFunction>>;
+typedef dartOnMetadataCallback_t =
+    ffi.Pointer<ffi.NativeFunction<dartOnMetadataCallback_tFunction>>;

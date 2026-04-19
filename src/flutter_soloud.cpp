@@ -1,4 +1,7 @@
 // this source is used only on Mac and iOS to reference all the others
+// when using Swift Package Manager. Not used whith CocoaPods. The build
+// prrocess used by CocoaPods consists with the use the .podspec file
+// which call the build_cmake.sh script in its script_phase.
 
 /// SoLoud sources
 #define WITH_NULL
@@ -109,9 +112,10 @@
 #include "audiobuffer/opus_stream_decoder.cpp"
 #include "audiobuffer/vorbis_stream_decoder.cpp"
 #include "audiobuffer/mp3_stream_decoder.cpp"
+#include "pffft/pffft.c"
 #include "filters/filters.cpp"
+#include "filters/parametric_eq_filter.cpp"
 #include "filters/pitch_shift_filter.cpp"
-#include "filters/smbPitchShift.cpp"
 #include "filters/limiter.cpp"
 #include "filters/compressor.cpp"
 #include "filters/soloud_convolutionfilter.cpp"

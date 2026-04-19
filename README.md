@@ -6,7 +6,7 @@ A low-level audio plugin for Flutter.
 ||Linux|Windows|Android|MacOS|iOS|Web|
 |-|:-:|:-:|:-:|:-:|:-:|:-:|
 |Support|💙|💙|💙|💙|💙|💙|
-|Minimum Version|Any|Any|21|10.15|13.0|Any|
+|Minimum Version|Any|Any|21+|10.15+|13.0+|iOS 16.4+</br>Safari 16.4+</br>Chrome 91+</br>Edge 91+</br>Firefox 89+</br>|
 
 ## Overview
 
@@ -19,7 +19,7 @@ A high-performance audio plugin designed primarily for games and immersive appli
 - 🔄 Gapless looping
 - 🔄 Stream audio with auto-pause for buffering, support for PCM, MP3, Ogg with Opus, Vorbis and FLAC containers
 - 📊 Get audio wave and/or FFT audio data in real-time (useful for visualization)
-- 🎛️ Rich effects system (reverb, echo, limiter, bassboost, etc.)
+- 🎛️ Rich effects system (reverb, echo, limiter, equalizer, pitch shift, etc.)
 - ⚙️ Faders for attributes (e.g. fade out for 2 seconds, then stop)
 - 🎚️ Oscillators for attributes
 - 🌊 Waveform generation and visualization
@@ -34,6 +34,8 @@ A high-performance audio plugin designed primarily for games and immersive appli
 
 If you are looking for a package to visualize audio using shaders or CustomPainter, please check out [audio_flux](https://pub.dev/packages/audio_flux). It uses this plugin for output and [flutter_recorder](https://pub.dev/packages/flutter_recorder) for input.
 
+Also, if you are building using Swift Package Manager (SPM), please check out [iOS and MacOS Configuration](https://docs.page/alnitak/flutter_soloud_docs/get_started/setup#ios-and-macos-configuration).
+
 ## Documentation
 
 - [Full Documentation](https://docs.page/alnitak/flutter_soloud_docs)
@@ -46,12 +48,10 @@ void example() async {
   final soloud = SoLoud.instance;
   await soloud.init();
 
-  final source = await soloud.loadAsset('assets/sound.mp3');
-  final handle = await soloud.play(source);
+  await soloud.playSource(asset: 'assets/sound.mp3');
   
-  // Later...
-  await soloud.stop(handle);
-  await soloud.disposeSource(source);  
+  [...]
+  await soloud.deinit();
 }
 ```
 

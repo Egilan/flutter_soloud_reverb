@@ -231,21 +231,21 @@ class _GenerateState extends State<Generate> {
                 OutlinedButton(
                   onPressed: () async {
                     if (tone == null) return;
-                    await SoLoud.instance.play(tone!, looping: true);
+                    SoLoud.instance.play(tone!, looping: true);
                   },
                   child: const Text('Play tone'),
                 ),
                 OutlinedButton(
                   onPressed: () async {
                     if (siren == null) return;
-                    await SoLoud.instance.play(siren!, looping: true);
+                    SoLoud.instance.play(siren!, looping: true);
                   },
                   child: const Text('Play siren'),
                 ),
                 OutlinedButton(
                   onPressed: () async {
                     if (bouncing == null) return;
-                    await SoLoud.instance.play(bouncing!, looping: true);
+                    SoLoud.instance.play(bouncing!, looping: true);
                   },
                   child: const Text('Play bouncing'),
                 ),

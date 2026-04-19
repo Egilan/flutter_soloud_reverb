@@ -1,3 +1,70 @@
+#### 4.0.3 (XX Xxx 2026)
+- fix: rebind Dart callbacks after hot restart #444. Thanks to @skylartaylor
+- fix: retain BufferStream callbacks until disposal #445. Thanks to @skylartaylor
+
+#### 4.0.2 (10 Apr 2026)
+- apple: fix building issue with XCode
+
+#### 4.0.1 (9 Apr 2026)
+- fixed get eq params other than bands values
+- added frequency getter to parametric equalizer (ie: `soloud.filters.parametricEqFilter.bandFrequency(index)`)
+- removed some warnings from native build
+- warn mac users to install cmake if not already installed
+
+#### 4.0.0 (3 Apr 2026)
+- fix: some OGG audio files don't trigger `SoundEventType.handleIsNoMoreValid`
+- fix: setBufferStream fails to decode small MP3 files under 32 KB #434. Thanks to @chaudharydeepanshu
+- fix web: `createVoiceGroup` return was interpred as a signed int instead of unsigned because it has always the sign bit flag
+- fixed switching output devices on macOS and maybe on others platforms, didn't initialize correctly the new one
+- added some more tests
+- removed deprecated `equalizerFilter` in favor of `parametricEqFilter`
+
+#### 4.0.0-pre.3 (29 Mar 2026)
+- fix: FFI symbol stripping causing "symbol not found" errors in iOS/macOS when uploading to App Store #431
+- fix decreasing volume when adding a bus to another
+
+#### 4.0.0-pre.2 (28 Mar 2026)
+- macOS/iOS fix: check for cmake in path while building
+- iOS simulator: fix libs linking
+
+#### 4.0.0-pre.1 (26 Mar 2026)
+- macOS fix: build error
+
+#### 4.0.0-pre.0 (24 Mar 2026)
+- added Mixing Bus feature and example https://docs.page/alnitak/flutter_soloud_docs/advanced/mixing_bus
+- added `getApproximateVolume` to get the approximate volume of a channel of the player
+- added `autoDispose` parameter to `load*` methods to automatically dispose the sound when it is finished. This eliminates the need to manually call disposeSource
+- added `playSource` to play a source from assets, URLs, or file and automatically dispose its `AudioSource` when it is finished
+- added `filters/parametric_eq.dart` example
+- added parametric equalizer with 1 to 64 bands and FFT window size from 32 to 4096 for quality and performance
+- added Swift Package Manager support
+- improved quality and performance of the pitchshift filter #313
+- CocoaPods now uses cmake to compile the plugin always in release mode for macOS and iOS
+- conditional import of `js` and `wasm` only on web (no more included on other platforms)
+- win fix: UTF8 file name conversion was causing crash or file not found #427
+- fixed a possible crash during app shutdown
+- possible fix for #333 which caused an ANR on Android when stopping/deinit or closing the app
+- Linux feat: choose to link ogg, opus, vorbis, and flac libraries from the system with `TRY_SYSTEM_LIBS_FIRST=1` environment variable #421. Useful for Rasperry Pi because the precompiled libs are available only for x86_64.
+- Android fix: elevate audio thread priority on Android #396. Thanks to @djkingCanada
+- Android: build optimizations
+---
+***breaking changes***
+- bump Flutter version to 3.41.0 and Dart to 3.11.0
+- play, play3d, speechText, are now sync
+- renamed `NO_OPUS_OGG_LIBS` environment variable to `NO_XIPH_LIBS`
+- renamed `SoLoudOpusOggVorbisLibsNotAvailableException` to `SoLoudXiphLibsNotAvailableException`
+- renamed `areOpusOggLibsAvailable` to `areXiphLibsAvailable`
+
+#### 3.5.4 (22 Mar 2026)
+- remove wasm/js assets for non-web builds#425. Thanks to @adil192
+
+#### 3.5.3 (21 Mar 2026)
+- fix: compilation error on Windows #423
+
+#### 3.5.2 (18 Mar 2026)
+- fix: wire miniaudio backend pause/resume to stop AudioUnit on iOS #406. Thanks to @sbauly
+- updated audio_context example to demostrate how to integrate with `audio_session` and `audio_service`
+
 #### 3.5.1 (14 Mar 2026)
 - `getStreamTimeConsumed` return wrong time for s16le and s8 #419
 - win fix: hang on app exit #413
@@ -15,7 +82,7 @@
 #### 3.4.9 (21 Jan 2026)
 - fix crash when seeking with a negative value #386
 - Linux fix: don't use -msse on arm64 builds #395. Thanks to @adil192
-- Android fix: enable AAudio with runtime API level check for safe fallback #397. Thanks to djkingCanada
+- Android fix: enable AAudio with runtime API level check for safe fallback #397. Thanks to @djkingCanada
 
 #### 3.4.8 (29 Dec 2025)
 - fix MP3 stream decoding missing last few seconds of audio #381

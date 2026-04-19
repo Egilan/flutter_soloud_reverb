@@ -8,10 +8,10 @@
             "name": "Flutter debug",
             "type": "dart",
             "request": "launch",
-            "program": "lib/main.dart",
+            "program": "lib/filters/parametric_eq.dart",
             "flutterMode": "debug",
             // "env": {
-            //     "NO_OPUS_OGG_LIBS": "1"
+            //     "NO_XIPH_LIBS": "1"
             // },
             "cwd": "${workspaceFolder}/example"
         },
@@ -19,10 +19,10 @@
             "name": "Flutter profile",
             "type": "dart",
             "request": "launch",
-            "program": "lib/buffer_stream/web_radio.dart",
+            "program": "lib/mixing_bus/mixing_bus.dart",
             "flutterMode": "profile",
             // "env": {
-            //     "NO_OPUS_OGG_LIBS": "1"
+            //     "NO_XIPH_LIBS": "1"
             // },
             "cwd": "${workspaceFolder}/example"
         },
@@ -30,10 +30,10 @@
             "name": "Flutter release",
             "type": "dart",
             "request": "launch",
-            "program": "lib/buffer_stream/web_radio.dart",
+            "program": "tests/tests.dart",
             "flutterMode": "release",
             // "env": {
-            //     "NO_OPUS_OGG_LIBS": "1"
+            //     "NO_XIPH_LIBS": "1"
             // },
             "cwd": "${workspaceFolder}/example"
         },
@@ -87,6 +87,30 @@
             "request": "launch",
             "program": "${workspaceFolder}/example/build/linux/x64/debug/bundle/flutter_soloud_example",
             "cwd": "${workspaceFolder}"
+        },
+        {
+            // install CodeLLDB extension for macOS debugging
+            // and remember to replace "-O2 -DNDEBUG" with "-O0 -g" in "target_compile_options" in "macos/CMakeLists.txt"
+            "name": "Debug native macOS",
+            "preLaunchTask": "compile macos debug",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/example/build/macos/Build/Products/Debug/flutter_soloud_example.app/Contents/MacOS/flutter_soloud_example",
+            "cwd": "${workspaceFolder}",
+            "sourceMap": {
+                "${workspaceFolder}/example/macos/Flutter/ephemeral/.symlinks/plugins/flutter_soloud": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Debug native macOS test",
+            "preLaunchTask": "compile macos test debug",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/example/build/macos/Build/Products/Debug/flutter_soloud_example.app/Contents/MacOS/flutter_soloud_example",
+            "cwd": "${workspaceFolder}",
+            "sourceMap": {
+                "${workspaceFolder}/example/macos/Flutter/ephemeral/.symlinks/plugins/flutter_soloud": "${workspaceFolder}"
+            }
         },
         {
             "name": "Chrome wasm release",

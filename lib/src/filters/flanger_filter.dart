@@ -19,15 +19,15 @@ enum FlangerEnum {
 
   @override
   String toString() => switch (this) {
-        FlangerEnum.wet => 'Wet',
-        FlangerEnum.delay => 'Delay',
-        FlangerEnum.freq => 'Freq',
-      };
+    FlangerEnum.wet => 'Wet',
+    FlangerEnum.delay => 'Delay',
+    FlangerEnum.freq => 'Freq',
+  };
 }
 
 abstract class _FlangerInternal extends FilterBase {
-  const _FlangerInternal(SoundHash? soundHash)
-      : super(FilterType.flangerFilter, soundHash);
+  const _FlangerInternal(SoundHash? soundHash, int? busId)
+    : super(FilterType.flangerFilter, soundHash, busId);
 
   FlangerEnum get queryWet => FlangerEnum.wet;
   FlangerEnum get queryDelay => FlangerEnum.delay;
@@ -35,57 +35,63 @@ abstract class _FlangerInternal extends FilterBase {
 }
 
 class FlangerSingle extends _FlangerInternal {
-  FlangerSingle(super.soundHash);
+  FlangerSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        FlangerEnum.wet.index,
-        FlangerEnum.wet.min,
-        FlangerEnum.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    FlangerEnum.wet.index,
+    FlangerEnum.wet.min,
+    FlangerEnum.wet.max,
+  );
 
   FilterParam delay({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        FlangerEnum.delay.index,
-        FlangerEnum.delay.min,
-        FlangerEnum.delay.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    FlangerEnum.delay.index,
+    FlangerEnum.delay.min,
+    FlangerEnum.delay.max,
+  );
 
   FilterParam freq({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        FlangerEnum.freq.index,
-        FlangerEnum.freq.min,
-        FlangerEnum.freq.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    FlangerEnum.freq.index,
+    FlangerEnum.freq.min,
+    FlangerEnum.freq.max,
+  );
 }
 
 class FlangerGlobal extends _FlangerInternal {
-  const FlangerGlobal() : super(null);
+  const FlangerGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        filterType,
-        FlangerEnum.wet.index,
-        FlangerEnum.wet.min,
-        FlangerEnum.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    FlangerEnum.wet.index,
+    FlangerEnum.wet.min,
+    FlangerEnum.wet.max,
+  );
 
   FilterParam get delay => FilterParam(
-        null,
-        filterType,
-        FlangerEnum.delay.index,
-        FlangerEnum.delay.min,
-        FlangerEnum.delay.max,
-      );
+    null,
+    null,
+    filterType,
+    FlangerEnum.delay.index,
+    FlangerEnum.delay.min,
+    FlangerEnum.delay.max,
+  );
 
   FilterParam get freq => FilterParam(
-        null,
-        filterType,
-        FlangerEnum.freq.index,
-        FlangerEnum.freq.min,
-        FlangerEnum.freq.max,
-      );
+    null,
+    null,
+    filterType,
+    FlangerEnum.freq.index,
+    FlangerEnum.freq.min,
+    FlangerEnum.freq.max,
+  );
 }

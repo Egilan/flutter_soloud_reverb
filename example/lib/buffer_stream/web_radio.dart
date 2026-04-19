@@ -62,6 +62,7 @@ class _WebRadioExampleState extends State<WebRadioExample> {
     {'FLAC': 'https://frequence3.net-radio.fr/frequence3gold.flac'},
     // https://fmstream.org/index.php
     // 90s
+    {'MP3': 'https://streaming.exclusive.radio/er/abba/icecast.audio'},
     {'MP3': 'https://streams.90s90s.de/pop/mp3-128'},
     // 80s
     {'MP3': 'https://streams.80s80s.de/web/mp3-128'},
@@ -226,7 +227,7 @@ class _WebRadioExampleState extends State<WebRadioExample> {
       },
     );
 
-    await SoLoud.instance.play(source!);
+    SoLoud.instance.play(source!);
 
     unawaited(connectToUrl(url));
   }
@@ -234,137 +235,144 @@ class _WebRadioExampleState extends State<WebRadioExample> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 20,
-            children: [
-              TextField(
-                controller: urlController,
-                decoration: const InputDecoration(
-                  labelText: 'Choose below or enter a URL to stream',
-                  hintText: 'e.g. http://example.com/stream.mp3',
-                ),
-                onSubmitted: (value) {
-                  if (value.isNotEmpty) {
-                    playUrl(value);
-                  }
-                  setState(() {});
-                },
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Choose icecast radio:  ',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 20,
+              children: [
+                TextField(
+                  controller: urlController,
+                  decoration: const InputDecoration(
+                    labelText: 'Choose below or enter a URL to stream',
+                    hintText: 'e.g. http://example.com/stream.mp3',
                   ),
-                  DropdownButton(
-                    value: urlId,
-                    isDense: true,
-                    items: List.generate(urls.length, (index) {
-                      return DropdownMenuItem(
-                        value: index,
-                        child: Text(
-                          '${urls[index].keys.first} - '
-                          '${urls[index].values.first}',
-                          style: const TextStyle(fontSize: 12),
+                  onSubmitted: (value) {
+                    if (value.isNotEmpty) {
+                      playUrl(value);
+                    }
+                    setState(() {});
+                  },
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Choose icecast radio:  ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    DropdownButton(
+                      value: urlId,
+                      isDense: true,
+                      isExpanded: true,
+                      items: List.generate(urls.length, (index) {
+                        return DropdownMenuItem(
+                          value: index,
+                          child: Tooltip(
+                            message: urls[index].values.first,
+                            child: Text(
+                              '${urls[index].keys.first} - '
+                              '${urls[index].values.first}',
+                              style: const TextStyle(fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        );
+                      }),
+                      onChanged: (value) {
+                        urlId = value ?? 0;
+                        playUrl(urls[urlId].values.first);
+                        if (context.mounted) {
+                          setState(() {});
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                OutlinedButton(
+                  onPressed: () async {
+                    await SoLoud.instance.disposeAllSources();
+                    connectionError.value = 'STOPPED';
+                    await subscription?.cancel();
+                    subscription = null;
+                    currentStream = null;
+                    client?.close();
+                    client = null;
+                  },
+                  child: const Text('stop'),
+                ),
+
+                /// Only with preserved buffering is possible to seek
+                if (bufferingType == BufferingType.preserved)
+                  SeekBar(source: source),
+
+                ValueListenableBuilder(
+                  valueListenable: streamBuffering,
+                  builder: (context, value, child) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      spacing: 16,
+                      children: [
+                        BufferBar(
+                          bufferingType: bufferingType,
+                          isBuffering: value,
+                          sound: source,
+                        ),
+                        ValueListenableBuilder(
+                          valueListenable: streamBuffering,
+                          builder: (_, value, __) {
+                            if (value) {
+                              return const Text('BUFFERING!');
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                TextField(
+                  controller: connectionInfo,
+                  readOnly: true,
+                  minLines: 3,
+                  maxLines: 10,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Connection info',
+                  ),
+                ),
+                TextField(
+                  controller: metadataText,
+                  readOnly: true,
+                  minLines: 3,
+                  maxLines: 10,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'metadata',
+                  ),
+                ),
+                ValueListenableBuilder(
+                  valueListenable: connectionError,
+                  builder: (context, error, child) {
+                    if (error.isNotEmpty) {
+                      return Text(
+                        'Connection Error: $error',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
                         ),
                       );
-                    }),
-                    onChanged: (value) {
-                      urlId = value ?? 0;
-                      playUrl(urls[urlId].values.first);
-                      if (context.mounted) {
-                        setState(() {});
-                      }
-                    },
-                  ),
-                ],
-              ),
-              OutlinedButton(
-                onPressed: () async {
-                  await SoLoud.instance.disposeAllSources();
-                  connectionError.value = 'STOPPED';
-                  await subscription?.cancel();
-                  subscription = null;
-                  currentStream = null;
-                  client?.close();
-                  client = null;
-                },
-                child: const Text('stop'),
-              ),
-
-              /// Only with preserved buffering is possible to seek
-              if (bufferingType == BufferingType.preserved)
-                SeekBar(source: source),
-
-              ValueListenableBuilder(
-                valueListenable: streamBuffering,
-                builder: (context, value, child) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    spacing: 16,
-                    children: [
-                      BufferBar(
-                        bufferingType: bufferingType,
-                        isBuffering: value,
-                        sound: source,
-                      ),
-                      ValueListenableBuilder(
-                        valueListenable: streamBuffering,
-                        builder: (_, value, __) {
-                          if (value) {
-                            return const Text('BUFFERING!');
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                    ],
-                  );
-                },
-              ),
-              TextField(
-                controller: connectionInfo,
-                readOnly: true,
-                minLines: 3,
-                maxLines: 10,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Connection info',
+                    }
+                    return const SizedBox.shrink();
+                  },
                 ),
-              ),
-              TextField(
-                controller: metadataText,
-                readOnly: true,
-                minLines: 3,
-                maxLines: 10,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'metadata',
-                ),
-              ),
-              ValueListenableBuilder(
-                valueListenable: connectionError,
-                builder: (context, error, child) {
-                  if (error.isNotEmpty) {
-                    return Text(
-                      'Connection Error: $error',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

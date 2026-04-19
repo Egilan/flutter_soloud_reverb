@@ -24,6 +24,11 @@ distribution.
 #include <stdlib.h>
 
 #include "soloud.h"
+#include "soloud_internal.h"
+
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#endif
 
 #if !defined(WITH_MINIAUDIO)
 
@@ -65,15 +70,27 @@ namespace SoLoud
 #define MA_LOG(...) do {} while(0)
 #endif
 #include <math.h>
+#include <chrono>
 #include <thread>
 #include <mutex>
-#include <chrono>
+#if defined(_WIN32) || defined(_WIN64)
+#  include <windows.h>
+#else
+#  include <pthread.h>
+#  include <sys/resource.h>
+#endif
 
 namespace SoLoud
 {
     ma_device gDevice;
     SoLoud::Soloud *soloud;
     ma_context context;
+    volatile bool gDeviceStopped = true;  // Track device stopped state for proper cleanup
+
+    // Forward declarations for functions used in on_notification
+    result soloud_miniaudio_pause(SoLoud::Soloud *aSoloud);
+    result soloud_miniaudio_resume(SoLoud::Soloud *aSoloud);
+    result miniaudio_ensure_thread_device_started();
     static bool gDeviceStartDeferred = false; // Track deferred device start on Windows
     static bool gDeviceInitDeferred = false;  // Track deferred device init on Windows
     static bool gDeviceInitialized = false;   // Track if device is actually initialized
@@ -93,46 +110,46 @@ namespace SoLoud
     void on_notification(const ma_device_notification* pNotification)
     {
         MA_ASSERT(pNotification != NULL);
-        if (soloud->_stateChangedCallback == nullptr)
-            return;
 
         switch (pNotification->type)
         {
             case ma_device_notification_type_started:
             {
-                soloud->_stateChangedCallback(0);
-            }
-            break;
+                gDeviceStopped = false;
+                if (soloud->_stateChangedCallback != nullptr) soloud->_stateChangedCallback(0);
+            } break;
 
             case ma_device_notification_type_stopped:
             {
-                soloud->_stateChangedCallback(1);
+                gDeviceStopped = true;
+                if (soloud->_stateChangedCallback != nullptr) soloud->_stateChangedCallback(1);
             } break;
 
             case ma_device_notification_type_rerouted:
             {
-                soloud->_stateChangedCallback(2);
+                if (soloud->_stateChangedCallback != nullptr) soloud->_stateChangedCallback(2);
             } break;
 
             case ma_device_notification_type_interruption_began:
             {
-                soloud->_stateChangedCallback(3);
+                // Automatically pause the audio device when the OS signals an interruption.
+                soloud_miniaudio_pause(soloud);
+                if (soloud->_stateChangedCallback != nullptr) soloud->_stateChangedCallback(3);
             } break;
 
             case ma_device_notification_type_interruption_ended:
             {
-#if defined(MA_HAS_COREAUDIO)
-                // On macOS and iOS when the the interruption begins
+                // On CoreAudio platforms (macOS/iOS) when the the interruption begins
                 // the device is automatically stopped (not uninited with ma_device_uninit).
                 // So we need to start it again when the interruption ends.
-                miniaudio_ensureDeviceStarted_impl();
-#endif
-                soloud->_stateChangedCallback(4);
+                soloud->resume();
+                if (soloud->_stateChangedCallback != nullptr)
+                    soloud->_stateChangedCallback(4);
             } break;
 
             case ma_device_notification_type_unlocked:
             {
-                soloud->_stateChangedCallback(5);
+                if (soloud->_stateChangedCallback != nullptr) soloud->_stateChangedCallback(5);
             } break;
 
             default: break;
@@ -141,6 +158,30 @@ namespace SoLoud
 
     void soloud_miniaudio_audiomixer(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
     {
+        static bool first_call = true;
+        if (first_call) {
+#ifdef __ANDROID__
+            int policy;
+            struct sched_param param;
+            if (pthread_getschedparam(pthread_self(), &policy, &param) == 0) {
+                // Attempt to elevate to Realtime FIFO
+                param.sched_priority = 1;
+                if (pthread_setschedparam(pthread_self(), SCHED_FIFO, &param) != 0) {
+                    if (pthread_setschedparam(pthread_self(), SCHED_RR, &param) != 0) {
+                        // If denied Realtime, check if we are stuck in SCHED_BATCH (3)
+                        // and try to escape to SCHED_OTHER (0)
+                        if (policy == 3) {
+                             param.sched_priority = 0;
+                             pthread_setschedparam(pthread_self(), 0, &param);
+                        }
+                    }
+                }
+                // Plus set highest niceness
+                setpriority(PRIO_PROCESS, 0, -20);
+            }
+#endif
+        }
+        first_call = false;
         SoLoud::Soloud *soloud = (SoLoud::Soloud *)pDevice->pUserData;
         soloud->mix((float *)pOutput, frameCount);
     }
@@ -160,15 +201,93 @@ namespace SoLoud
         
         if (gDeviceInitialized)
         {
+            // Check if device is already stopped before calling ma_device_stop()
+            // (which can cause an ANR on Android using OpenSSL #333).
+            // This should prevent ANR on Android where ma_device_stop() can block indefinitely
+            // if the device is in an unknown state
+            if (ma_device_get_state(&gDevice) != ma_device_state_stopped)
+            {
+                ma_device_stop(&gDevice);
+                
+                // Wait for device to actually stop before uninitializing
+                // Timeout after 500ms to prevent infinite blocking
+                int timeoutMs = 0;
+                int maxTimeoutMs = 500;
+                while (!gDeviceStopped && timeoutMs < maxTimeoutMs)
+                {
+                    // Small sleep to avoid busy-waiting
+#if defined(_WIN32) || defined(_WIN64)
+                    Sleep(1);
+#else
+                    usleep(1000);  // 1ms sleep
+#endif
+                    timeoutMs += 1;
+                }
+            }
+            
+            // Set flag to stopped in case notification wasn't received
+            gDeviceStopped = true;
+            
             // From miniaudio.h doc:
             // "This will explicitly stop the device. You do not need to call `ma_device_stop()` beforehand, but it's harmless if you do."
-            // But probably by adding the initialization thread, the call to ma_device_stop() was causing the #413 issue (hang on exit app).
             ma_device_uninit(&gDevice);
             gDeviceInitialized = false;
         }
 #if defined(MA_HAS_COREAUDIO) || defined(__ANDROID__)
         ma_context_uninit(&context);
 #endif
+    }
+
+    // Pause the audio device: stops the CoreAudio AudioUnit (or platform equivalent)
+    // without uninitialising it. This is the correct way to "pause" on iOS/macOS —
+    // it tells the OS the app has nothing to render, which preserves AVAudioSession
+    // state and keeps MPRemoteCommandCenter routing intact.
+    result soloud_miniaudio_pause(SoLoud::Soloud *aSoloud)
+    {
+        if (ma_device_get_state(&gDevice) == ma_device_state_started)
+        {
+            ma_result res = ma_device_stop(&gDevice);
+            if (res != MA_SUCCESS)
+                return UNKNOWN_ERROR;
+        }
+        return 0;
+    }
+
+    // Resume the audio device after soloud_miniaudio_pause(). On iOS, the
+    // AVAudioSession must already be active (the app is responsible for calling
+    // [AVAudioSession setActive:YES]) before calling this.
+    result soloud_miniaudio_resume(SoLoud::Soloud *aSoloud)
+    {
+        if (aSoloud == nullptr)
+            return UNKNOWN_ERROR;
+
+        // Check if device is stopped and start it if needed
+        if (ma_device_get_state(&gDevice) == ma_device_state_stopped)
+        {
+#if defined(MA_APPLE_MOBILE)
+            // On iOS, after any audio interruption the AVAudioSession MUST be
+            // explicitly re-activated before restarting the Audio Unit.
+            //
+            // Without this call, iOS does not restore remote command routing
+            // (Lock Screen controls, AirPods) to this app after the device
+            // restarts. This is because:
+            //   1. miniaudio registers its own AVAudioSessionInterruptionNotification
+            //      observer alongside audio_session (the Flutter package), so both
+            //      handle interruptions concurrently.
+            //   2. miniaudio can restart AudioOutputUnit before audio_session has
+            //      had a chance to call setActive:YES, leaving the unit running
+            //      against an inactive session — breaking remote command routing.
+            //   3. Apple's audio interruption recovery guidelines explicitly require
+            //      setActive:YES before restarting the Audio Unit.
+            @autoreleasepool {
+                [[AVAudioSession sharedInstance] setActive:YES error:nil];
+            }
+#endif
+            ma_result result = ma_device_start(&gDevice);
+            if (result != MA_SUCCESS)
+                return UNKNOWN_ERROR;
+        }
+        return 0;
     }
 
     result miniaudio_init(SoLoud::Soloud *aSoloud, unsigned int aFlags, unsigned int aSamplerate, unsigned int aBuffer, unsigned int aChannels, void *pPlaybackInfos_id)
@@ -186,8 +305,10 @@ namespace SoLoud
         deviceConfig.dataCallback       = soloud_miniaudio_audiomixer;
         deviceConfig.pUserData          = (void *)aSoloud;
 
-        if (aSoloud->_stateChangedCallback != nullptr)
-            deviceConfig.notificationCallback = on_notification;
+        // deviceConfig.aaudio.usage       = ma_aaudio_usage_default;
+        // deviceConfig.aaudio.contentType = ma_aaudio_content_type_default;
+        // deviceConfig.aaudio.inputPreset = ma_aaudio_input_preset_default;
+        deviceConfig.notificationCallback = on_notification;
 
 #ifdef _WIN32
         // On Windows, defer the entire device initialization to avoid interfering with
@@ -199,9 +320,14 @@ namespace SoLoud
         gDeviceInitDeferred = true;
         gDeviceStartDeferred = false;
         
-        // Use safe default values for postinit
+        // On Windows, start the audio device initialization in background.
+        // This ensures the device is ready by the time play() is called,
+        // without blocking the main thread's message pump.
         aSoloud->postinit_internal(aSamplerate, aBuffer, aFlags, aChannels);
-        
+
+        // Use safe default values for postinit
+        miniaudio_ensure_thread_device_started();
+
 #elif defined(MA_HAS_COREAUDIO)
         // Disable CoreAudio context
         ma_context_config contextConfig = ma_context_config_init();
@@ -274,6 +400,8 @@ namespace SoLoud
 #endif
 
         aSoloud->mBackendCleanupFunc = soloud_miniaudio_deinit;
+        aSoloud->mBackendPauseFunc   = soloud_miniaudio_pause;
+        aSoloud->mBackendResumeFunc  = soloud_miniaudio_resume;
         aSoloud->mBackendString = "MiniAudio";
         return 0;
     }
@@ -301,7 +429,7 @@ namespace SoLoud
 
     // Ensure the device is started. Called on first audio operation on Windows.
     // On Windows, this runs device init on a background thread to avoid blocking the message pump.
-    result miniaudio_ensure_device_started()
+    result miniaudio_ensure_thread_device_started()
     {
         if (!gDeviceInitDeferred)
             return 0; // Already initialized and started
@@ -334,7 +462,18 @@ namespace SoLoud
         if (soloud == nullptr)
             return UNKNOWN_ERROR;
 
+        // Stop the device before uninitializing to ensure clean shutdown
+        if (ma_device_get_state(&gDevice) == ma_device_state_started)
+        {
+            ma_device_stop(&gDevice);
+        }
+
+        // Lock the audio mutex to prevent race conditions during device change
+        soloud->lockAudioMutex_internal();
+
         ma_device_uninit(&gDevice);
+        gDeviceInitialized = false;
+
         ma_device_config deviceConfig = ma_device_config_init(ma_device_type_playback);
         deviceConfig.playback.pDeviceID = (ma_device_id *)pPlaybackInfos_id;
         deviceConfig.periodSizeInFrames = soloud->mBufferSize;
@@ -343,34 +482,29 @@ namespace SoLoud
         deviceConfig.sampleRate         = soloud->mSamplerate;
         deviceConfig.dataCallback       = soloud_miniaudio_audiomixer;
         deviceConfig.pUserData          = (void *)soloud;
-        if (ma_device_init(NULL, &deviceConfig, &gDevice) != MA_SUCCESS)
+        deviceConfig.notificationCallback = on_notification;
+
+        ma_result result;
+#if defined(MA_HAS_COREAUDIO) || defined(__ANDROID__)
+        // Use the existing context on CoreAudio (macOS/iOS) and Android
+        // to preserve session/category settings
+        result = ma_device_init(&context, &deviceConfig, &gDevice);
+#else
+        // On other platforms, use NULL context (default behavior)
+        result = ma_device_init(NULL, &deviceConfig, &gDevice);
+#endif
+        if (result != MA_SUCCESS)
         {
             gDeviceInitialized = false;
+            soloud->unlockAudioMutex_internal();
             return UNKNOWN_ERROR;
         }
+
         gDeviceInitialized = true;
+        gDeviceStopped = false;  // Device is about to start
         ma_device_start(&gDevice);
-        return 0;
-    }
 
-    // Added to ensure miniaudio device is started when needed, ie by an interruption.
-    // On macOS and iOS when an interruption begins (ie anothe app needs the audio context),
-    // the device is automatically stopped (not uninited with ma_device_uninit).
-    // So we need to check if the device is stopped and start it again.
-    result miniaudio_ensureDeviceStarted_impl()
-    {
-        if (soloud == nullptr)
-            return UNKNOWN_ERROR;
-
-        // Check if device is stopped and start it if needed
-        if (ma_device_get_state(&gDevice) == ma_device_state_stopped)
-        {
-            ma_result result = ma_device_start(&gDevice);
-            if (result != MA_SUCCESS)
-            {
-                return UNKNOWN_ERROR;
-            }
-        }
+        soloud->unlockAudioMutex_internal();
         return 0;
     }
 };

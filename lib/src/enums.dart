@@ -101,8 +101,11 @@ enum PlayerErrors {
   /// Audio format not supported
   audioFormatNotSupported(29),
 
-  /// Opus ogg vorbis libraries not found.
-  opusOggVorbisLibsNotFound(30);
+  /// Xiph libraries not found.
+  xiphLibsNotFound(30),
+
+  /// Bus id not found.
+  busIdNotFound(31);
 
   const PlayerErrors(this.value);
 
@@ -192,11 +195,13 @@ enum PlayerErrors {
       case PlayerErrors.audioFormatNotSupported:
         return 'Audio format not supported. Please check the audio file format '
             'and ensure it is supported by the player.';
-      case PlayerErrors.opusOggVorbisLibsNotFound:
-        return 'Opus Ogg Vorbis libraries not found. Please check the '
+      case PlayerErrors.xiphLibsNotFound:
+        return 'Xiph libraries not found. Please check the '
             'installation and ensure the required libraries are available. '
             'Ref:'
-            'https://github.com/alnitak/flutter_soloud/blob/main/NO_OPUS_OGG_LIBS.md';
+            'https://docs.page/alnitak/flutter_soloud_docs/get_started/no_xiph_libs';
+      case PlayerErrors.busIdNotFound:
+        return 'Bus id not found!';
     }
   }
 
@@ -231,13 +236,13 @@ enum ReadSamplesErrors {
 
   /// Returns a [ReadSamplesErrors] from a [value].
   static ReadSamplesErrors fromValue(int value) => switch (value) {
-        0 => readSamplesNoError,
-        1 => noBackend,
-        2 => failedToGetDataFormat,
-        3 => failedToSeekPcm,
-        4 => failedToReadPcmFrames,
-        _ => throw ArgumentError('Unknown value for ReadSamplesErrors: $value'),
-      };
+    0 => readSamplesNoError,
+    1 => noBackend,
+    2 => failedToGetDataFormat,
+    3 => failedToSeekPcm,
+    4 => failedToReadPcmFrames,
+    _ => throw ArgumentError('Unknown value for ReadSamplesErrors: $value'),
+  };
 
   /// Returns a human-friendly sentence describing the error.
   String get _asSentence {
@@ -300,26 +305,34 @@ enum LoadMode {
   disk,
 }
 
-/// Audio state changes. Not doing much now. Notifications should work
-/// on iOS but none of the Android backends will report this notification.
-/// However the started and stopped events should be reliable for all backends.
+/// Audio state changes. These notifications are sent when the OS reports
+/// audio device state changes. The [interruptionBegan] and [interruptionEnded]
+/// events are now handled automatically by the plugin to pause and resume
+/// the audio device. You can listen to these events if you need to update
+/// your UI or perform additional actions.
+///
+/// Note: Notifications should work on iOS but not all Android backends will
+/// report this notification. However the started and stopped events should
+/// be reliable for all backends.
 enum PlayerStateNotification {
-  ///
+  /// The audio device has started.
   started,
 
-  ///
+  /// The audio device has stopped.
   stopped,
 
-  ///
+  /// The audio route has changed (e.g., headphones plugged/unplugged).
   rerouted,
 
-  ///
+  /// An audio interruption has begun (e.g., incoming call, Siri).
+  /// The plugin automatically pauses the audio device when this occurs.
   interruptionBegan,
 
-  ///
+  /// An audio interruption has ended.
+  /// The plugin automatically resumes the audio device when this occurs.
   interruptionEnded,
 
-  ///
+  /// The audio session is unlocked and ready for use.
   unlocked,
 }
 
@@ -420,5 +433,5 @@ enum BufferingType {
   preserved,
 
   /// Release the data in the buffer while playing it.
-  released
+  released,
 }

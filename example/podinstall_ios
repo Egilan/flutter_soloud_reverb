@@ -1,6 +1,0 @@
-cd ios
-pod cache clean --all
-rm -fr Pods
-rm Podfile.lock
-pod install
-

@@ -13,35 +13,62 @@ Flutter audio plugin using SoLoud library and FFI
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Your Company' => 'email@example.com' }
 
-  # This will ensure the source files in Classes/ are included in the native
-  # builds of apps using this FFI plugin. Podspec does not support relative
-  # paths, so Classes contains a forwarder C file that relatively imports
-  # `../src/*` so that the C sources can be shared among all target platforms.
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*.{h,mm}'
+  s.source_files     = 'flutter_soloud/Sources/flutter_soloud/*.{h,mm}'
   s.dependency 'FlutterMacOS'
   s.platform = :osx, '10.15'
 
-  # Check if we should disable opus/ogg support (must exist and be '1')
-  disable_opus_ogg = !ENV['NO_OPUS_OGG_LIBS'].nil? && ENV['NO_OPUS_OGG_LIBS'] == '1'
+  # Declare vendored Xiph libraries (only when not disabled)
+  s.vendored_libraries = 'flutter_soloud/libs/lib*.a' unless ENV['NO_XIPH_LIBS'] == '1'
+
+  # Check if we should disable Xiph libs support (must exist and be '1')
+  disable_xiph_libs = !ENV['NO_XIPH_LIBS'].nil? && ENV['NO_XIPH_LIBS'] == '1'
   
-  local_lib_path = '$(PODS_TARGET_SRCROOT)/libs'
-  local_include_path = '$(PODS_TARGET_SRCROOT)/include'
+  local_lib_path = '$(PODS_TARGET_SRCROOT)/flutter_soloud/libs'
+  local_include_path = '$(PODS_TARGET_SRCROOT)/flutter_soloud/include'
+
+  # Path to the plugin's source root from PODS_ROOT (available in app target context)
+  plugin_root = '${PODS_ROOT}/../Flutter/ephemeral/.symlinks/plugins/flutter_soloud/macos'
 
   preprocessor_definitions = ['$(inherited)']
-  if disable_opus_ogg
-    preprocessor_definitions << 'NO_OPUS_OGG_LIBS'
+  if disable_xiph_libs
+    preprocessor_definitions << 'NO_XIPH_LIBS'
   end
+  preprocessor_definitions << 'SIGNALSMITH_USE_PFFFT'
 
+  # Build the plugin's native code using CMake with release optimizations.
+  # CMake handles incremental builds internally — if no source files changed,
+  # this is a fast no-op.
+  build_script = <<-SCRIPT
+    # Xcode's build environment has a restricted PATH that may not include cmake.
+    # Add common locations where cmake might be installed before checking.
+    export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+    # Check for CMake availability
+    if ! command -v cmake &> /dev/null; then
+      echo "Error: CMake is not installed. Please install CMake to build flutter_soloud."
+      echo "  - On macOS: brew install cmake"
+      echo "  - Or visit: https://cmake.org/download/"
+      exit 1
+    fi
+
+    # Build flutter_soloud with CMake
+    #{disable_xiph_libs ? 'export NO_XIPH_LIBS=1' : 'unset NO_XIPH_LIBS'}
+    bash "${PODS_TARGET_SRCROOT}/build_cmake.sh"
+  SCRIPT
+
+  s.script_phase = {
+    :name => 'Build flutter_soloud with CMake',
+    :script => build_script,
+    :execution_position => :before_compile,
+    :output_files => ['$(PODS_TARGET_SRCROOT)/cmake_build/macosx/libflutter_soloud_plugin.a'],
+  }
+
+  # pod_target_xcconfig: settings for the pod's own compilation target.
+  # HEADER_SEARCH_PATHS and LIBRARY_SEARCH_PATHS are needed here for compilation.
   s.pod_target_xcconfig = { 
     'HEADER_SEARCH_PATHS' => [
       local_include_path,
-      # '$(PODS_TARGET_SRCROOT)/include',
-      # '$(PODS_TARGET_SRCROOT)/include/opus',
-      # '$(PODS_TARGET_SRCROOT)/include/ogg',
-      # '$(PODS_TARGET_SRCROOT)/include/vorbis',
-      # '$(PODS_TARGET_SRCROOT)/include/FLAC',
-      # '$(PODS_TARGET_SRCROOT)/include/share',
       '$(PODS_TARGET_SRCROOT)/../src',
       '$(PODS_TARGET_SRCROOT)/../src/soloud/include',
       '${PODS_ROOT}/abseil',
@@ -51,22 +78,31 @@ Flutter audio plugin using SoLoud library and FFI
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
     "CLANG_CXX_LIBRARY" => "libc++",
-    'OTHER_LDFLAGS' => disable_opus_ogg ? '' : "-L#{local_lib_path} -logg -lopus -lvorbis -lvorbisfile -lFLAC",
-    'OTHER_CFLAGS' => "-O3 -ffast-math -flto",
-    'OTHER_CPLUSPLUSFLAGS' => "-O3 -ffast-math -flto",
+    'LIBRARY_SEARCH_PATHS' => [
+      '$(PODS_TARGET_SRCROOT)/cmake_build/macosx',
+      local_lib_path,
+    ],
     'VALID_ARCHS' => 'x86_64 arm64',
    }
 
-  # Only include libraries if opus/ogg is enabled
-  # if !disable_opus_ogg
-  #   s.osx.vendored_libraries = [
-  #     'libs/libogg.a',
-  #     'libs/libopus.a',
-  #     'libs/libvorbis.a',
-  #     'libs/libvorbisfile.a',
-  #     'libs/libFLAC.a'
-  #   ]
-  # end
+  # user_target_xcconfig: settings propagated to the APP target's linker.
+  # -force_load must be here because it's the app binary that needs the FFI symbols,
+  # not the pod's static library (which ignores linker flags).
+  # We use PODS_ROOT-based paths because PODS_TARGET_SRCROOT is not available
+  # in the app target's context.
+  force_load_lib = "-force_load #{plugin_root}/cmake_build/macosx/libflutter_soloud_plugin.a"
+  
+  # With vendored_libraries declared above, CocoaPods handles xiph lib linking automatically.
+  # We only need the library search path for the cmake_build output and ensure inherited flags.
+  xiph_flags = disable_xiph_libs ? '' : '-logg -lopus -lvorbis -lvorbisfile -lFLAC'
+
+  s.user_target_xcconfig = {
+    'OTHER_LDFLAGS' => "$(inherited) #{force_load_lib} #{xiph_flags}",
+    'LIBRARY_SEARCH_PATHS' => "$(inherited) \"#{plugin_root}/cmake_build/macosx\" \"#{plugin_root}/flutter_soloud/libs\"",
+    # Fix for FFI symbol stripping on macOS Release builds
+    'STRIP_STYLE' => 'debugging',
+    'DEBUG_INFORMATION_FORMAT' => 'dwarf-with-dsym',
+  }
 
   s.swift_version = '5.0'
   s.osx.framework  = ['AudioToolbox', 'AVFAudio']

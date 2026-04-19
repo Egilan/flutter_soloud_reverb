@@ -45,9 +45,7 @@ class AudioDataCtrl {
     _samplePtrPtr = wasmGetI32Value(_samplesPtr, '*');
   }
 
-  void dispose(
-    GetSamplesKind getSamplesKind,
-  ) {
+  void dispose(GetSamplesKind getSamplesKind) {
     if (_samplesPtr != 0) {
       wasmFree(_samplesPtr);
     }

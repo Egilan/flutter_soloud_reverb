@@ -21,17 +21,17 @@ enum FreeverbEnum {
 
   @override
   String toString() => switch (this) {
-        FreeverbEnum.wet => 'Wet',
-        FreeverbEnum.freeze => 'Freeze',
-        FreeverbEnum.roomSize => 'Room Size',
-        FreeverbEnum.damp => 'Damp',
-        FreeverbEnum.width => 'Width',
-      };
+    FreeverbEnum.wet => 'Wet',
+    FreeverbEnum.freeze => 'Freeze',
+    FreeverbEnum.roomSize => 'Room Size',
+    FreeverbEnum.damp => 'Damp',
+    FreeverbEnum.width => 'Width',
+  };
 }
 
 abstract class _FreeverbInternal extends FilterBase {
-  const _FreeverbInternal(SoundHash? soundHash)
-      : super(FilterType.freeverbFilter, soundHash);
+  const _FreeverbInternal(SoundHash? soundHash, int? busId)
+    : super(FilterType.freeverbFilter, soundHash, busId);
 
   FreeverbEnum get queryWet => FreeverbEnum.wet;
   FreeverbEnum get queryFreeze => FreeverbEnum.freeze;
@@ -41,89 +41,99 @@ abstract class _FreeverbInternal extends FilterBase {
 }
 
 class FreeverbSingle extends _FreeverbInternal {
-  FreeverbSingle(super.soundHash);
+  FreeverbSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        FreeverbEnum.wet.index,
-        FreeverbEnum.wet.min,
-        FreeverbEnum.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    FreeverbEnum.wet.index,
+    FreeverbEnum.wet.min,
+    FreeverbEnum.wet.max,
+  );
 
   FilterParam freeze({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        FreeverbEnum.freeze.index,
-        FreeverbEnum.freeze.min,
-        FreeverbEnum.freeze.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    FreeverbEnum.freeze.index,
+    FreeverbEnum.freeze.min,
+    FreeverbEnum.freeze.max,
+  );
 
   FilterParam roomSize({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        FreeverbEnum.roomSize.index,
-        FreeverbEnum.roomSize.min,
-        FreeverbEnum.roomSize.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    FreeverbEnum.roomSize.index,
+    FreeverbEnum.roomSize.min,
+    FreeverbEnum.roomSize.max,
+  );
 
   FilterParam damp({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        FreeverbEnum.damp.index,
-        FreeverbEnum.damp.min,
-        FreeverbEnum.damp.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    FreeverbEnum.damp.index,
+    FreeverbEnum.damp.min,
+    FreeverbEnum.damp.max,
+  );
 
   FilterParam width({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        FreeverbEnum.width.index,
-        FreeverbEnum.width.min,
-        FreeverbEnum.width.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    FreeverbEnum.width.index,
+    FreeverbEnum.width.min,
+    FreeverbEnum.width.max,
+  );
 }
 
 class FreeverbGlobal extends _FreeverbInternal {
-  const FreeverbGlobal() : super(null);
+  const FreeverbGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        filterType,
-        FreeverbEnum.wet.index,
-        FreeverbEnum.wet.min,
-        FreeverbEnum.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    FreeverbEnum.wet.index,
+    FreeverbEnum.wet.min,
+    FreeverbEnum.wet.max,
+  );
 
   FilterParam get freeze => FilterParam(
-        null,
-        filterType,
-        FreeverbEnum.freeze.index,
-        FreeverbEnum.freeze.min,
-        FreeverbEnum.freeze.max,
-      );
+    null,
+    null,
+    filterType,
+    FreeverbEnum.freeze.index,
+    FreeverbEnum.freeze.min,
+    FreeverbEnum.freeze.max,
+  );
 
   FilterParam get roomSize => FilterParam(
-        null,
-        filterType,
-        FreeverbEnum.roomSize.index,
-        FreeverbEnum.roomSize.min,
-        FreeverbEnum.roomSize.max,
-      );
+    null,
+    null,
+    filterType,
+    FreeverbEnum.roomSize.index,
+    FreeverbEnum.roomSize.min,
+    FreeverbEnum.roomSize.max,
+  );
 
   FilterParam get damp => FilterParam(
-        null,
-        filterType,
-        FreeverbEnum.damp.index,
-        FreeverbEnum.damp.min,
-        FreeverbEnum.damp.max,
-      );
+    null,
+    null,
+    filterType,
+    FreeverbEnum.damp.index,
+    FreeverbEnum.damp.min,
+    FreeverbEnum.damp.max,
+  );
 
   FilterParam get width => FilterParam(
-        null,
-        filterType,
-        FreeverbEnum.width.index,
-        FreeverbEnum.width.min,
-        FreeverbEnum.width.max,
-      );
+    null,
+    null,
+    filterType,
+    FreeverbEnum.width.index,
+    FreeverbEnum.width.min,
+    FreeverbEnum.width.max,
+  );
 }

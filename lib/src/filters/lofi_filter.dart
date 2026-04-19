@@ -19,15 +19,15 @@ enum LofiEnum {
 
   @override
   String toString() => switch (this) {
-        LofiEnum.wet => 'Wet',
-        LofiEnum.samplerate => 'Samplerate',
-        LofiEnum.bitdepth => 'Bitdepth',
-      };
+    LofiEnum.wet => 'Wet',
+    LofiEnum.samplerate => 'Samplerate',
+    LofiEnum.bitdepth => 'Bitdepth',
+  };
 }
 
 abstract class _LofiInternal extends FilterBase {
-  const _LofiInternal(SoundHash? soundHash)
-      : super(FilterType.lofiFilter, soundHash);
+  const _LofiInternal(SoundHash? soundHash, int? busId)
+    : super(FilterType.lofiFilter, soundHash, busId);
 
   LofiEnum get queryWet => LofiEnum.wet;
   LofiEnum get querySamplerate => LofiEnum.samplerate;
@@ -35,57 +35,63 @@ abstract class _LofiInternal extends FilterBase {
 }
 
 class LofiSingle extends _LofiInternal {
-  LofiSingle(super.soundHash);
+  LofiSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        LofiEnum.wet.index,
-        LofiEnum.wet.min,
-        LofiEnum.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    LofiEnum.wet.index,
+    LofiEnum.wet.min,
+    LofiEnum.wet.max,
+  );
 
   FilterParam samplerate({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        LofiEnum.samplerate.index,
-        LofiEnum.samplerate.min,
-        LofiEnum.samplerate.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    LofiEnum.samplerate.index,
+    LofiEnum.samplerate.min,
+    LofiEnum.samplerate.max,
+  );
 
   FilterParam bitdepth({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        LofiEnum.bitdepth.index,
-        LofiEnum.bitdepth.min,
-        LofiEnum.bitdepth.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    LofiEnum.bitdepth.index,
+    LofiEnum.bitdepth.min,
+    LofiEnum.bitdepth.max,
+  );
 }
 
 class LofiGlobal extends _LofiInternal {
-  const LofiGlobal() : super(null);
+  const LofiGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        filterType,
-        LofiEnum.wet.index,
-        LofiEnum.wet.min,
-        LofiEnum.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    LofiEnum.wet.index,
+    LofiEnum.wet.min,
+    LofiEnum.wet.max,
+  );
 
   FilterParam get samplerate => FilterParam(
-        null,
-        filterType,
-        LofiEnum.samplerate.index,
-        LofiEnum.samplerate.min,
-        LofiEnum.samplerate.max,
-      );
+    null,
+    null,
+    filterType,
+    LofiEnum.samplerate.index,
+    LofiEnum.samplerate.min,
+    LofiEnum.samplerate.max,
+  );
 
   FilterParam get bitdepth => FilterParam(
-        null,
-        filterType,
-        LofiEnum.bitdepth.index,
-        LofiEnum.bitdepth.min,
-        LofiEnum.bitdepth.max,
-      );
+    null,
+    null,
+    filterType,
+    LofiEnum.bitdepth.index,
+    LofiEnum.bitdepth.min,
+    LofiEnum.bitdepth.max,
+  );
 }

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 set(PROJECT_NAME "flutter_soloud")
-project(${PROJECT_NAME} LANGUAGES CXX)
+project(${PROJECT_NAME} LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -8,52 +8,13 @@ set(PLUGIN_NAME "${PROJECT_NAME}_plugin")
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../src")
 
-## Add SoLoud custom cmake files
-message("**************** SOLOUD CONFIGURE.CMAKE")
-include (Configure.cmake)
-message("**************** SOLOUD SRC.CMAKE START")
-if (UNIX AND NOT WIN32 AND NOT APPLE)
-	if (CMAKE_SIZEOF_VOID_P MATCHES "8")
-		set (LIB_POSTFIX "64" CACHE STRING "suffix for 32/64 dir placement")
-		mark_as_advanced (LIB_POSTFIX)
-	endif ()
-endif ()
-if (MSVC)
-	add_definitions (-D_CRT_SECURE_NO_WARNINGS)
-endif()
-if (NOT DEFINED LIB_POSTFIX)
-  set (LIB_POSTFIX "")
-endif ()
+# Include common plugin sources and SoLoud configuration
+include(${SRC_DIR}/CMakeLists.txt)
 
-include_directories(${SRC_DIR}/soloud/include)
-include_directories(${SRC_DIR}/soloud/src)
-include_directories(${SRC_DIR})
-include (src.cmake)
-message("**************** SOLOUD SRC.CMAKE END  ${TARGET_NAME}")
-
-
-
-
+# Fork-specific sources (buses, reverbs, HRTF, LibPD)
 list(APPEND PLUGIN_SOURCES
-  "${SRC_DIR}/common.cpp"
-  "${SRC_DIR}/bindings.cpp"
-  "${SRC_DIR}/player.cpp"
-  "${SRC_DIR}/analyzer.cpp"
-  "${SRC_DIR}/synth/basic_wave.cpp"
   "${SRC_DIR}/synth/soloud_libpd.cpp"
-  "${SRC_DIR}/waveform/waveform.cpp"
-  "${SRC_DIR}/waveform/miniaudio_libvorbis.cpp"
-  "${SRC_DIR}/audiobuffer/audiobuffer.cpp"
-  "${SRC_DIR}/audiobuffer/stream_decoder.cpp"
-  "${SRC_DIR}/audiobuffer/opus_stream_decoder.cpp"
-  "${SRC_DIR}/audiobuffer/vorbis_stream_decoder.cpp"
-  "${SRC_DIR}/audiobuffer/mp3_stream_decoder.cpp"
-  "${SRC_DIR}/audiobuffer/flac_stream_decoder.cpp"
-  "${SRC_DIR}/filters/filters.cpp"
-  "${SRC_DIR}/filters/pitch_shift_filter.cpp"
   "${SRC_DIR}/filters/smbPitchShift.cpp"
-  "${SRC_DIR}/filters/limiter.cpp"
-  "${SRC_DIR}/filters/compressor.cpp"
   "${SRC_DIR}/filters/dattorro.cpp"
   "${SRC_DIR}/filters/soloud_reverbsc.cpp"
   "${SRC_DIR}/filters/soloud_convolutionfilter.cpp"
@@ -61,7 +22,6 @@ list(APPEND PLUGIN_SOURCES
   "${SRC_DIR}/filters/fftconvolver/AudioFFT.cpp"
   "${SRC_DIR}/filters/fftconvolver/Utilities.cpp"
   "${SRC_DIR}/filters/fftconvolver/FFTConvolver.cpp"
-  ${TARGET_SOURCES}
 )
 
 add_library(${PLUGIN_NAME} SHARED
@@ -71,42 +31,120 @@ apply_standard_settings(${PLUGIN_NAME})
 set_target_properties(${PLUGIN_NAME} PROPERTIES
   CXX_VISIBILITY_PRESET hidden)
 
-
-  
 target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
+target_compile_definitions(${PLUGIN_NAME} PRIVATE SIGNALSMITH_USE_PFFFT)
 target_include_directories(${PLUGIN_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter)
 target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
 
 
-if(NOT DEFINED ENV{NO_OPUS_OGG_LIBS})
-    message("NO_OPUS_OGG_LIBS has not been set. Linking Opus and Ogg libraries!")
-    # Add FLAC library
-    set(FLAC_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libFLAC.so)
+# Library linking behavior:
+# 
+# - NO_XIPH_LIBS:       If set, skips linking Opus/Ogg/Vorbis/FLAC libraries entirely.
+#
+# - TRY_SYSTEM_LIBS_FIRST:  If set, tries to find system-installed libraries first
+#                           (FLAC, opus, ogg, vorbis, vorbisfile), and falls back to
+#                           bundled precompiled libraries only if not found on the system.
+#
+# - Default behavior:       Uses bundled precompiled libraries from the libs/ directory.
+#
+if(NOT DEFINED ENV{NO_XIPH_LIBS})
+    message("NO_XIPH_LIBS has not been set. Linking Opus and Ogg libraries!")
+
+    # Check if we should try system libraries first
+    if(DEFINED ENV{TRY_SYSTEM_LIBS_FIRST})
+        message("TRY_SYSTEM_LIBS_FIRST is set. Will try system libraries first, falling back to bundled if not found.")
+        set(TRY_SYSTEM_LIBS TRUE)
+    else()
+        message("Using bundled precompiled libraries (default behavior for backward compatibility).")
+        set(TRY_SYSTEM_LIBS FALSE)
+    endif()
+
+    # FLAC
+    if(TRY_SYSTEM_LIBS)
+        find_library(FLAC_LIBRARY NAMES FLAC)
+        if(NOT FLAC_LIBRARY)
+            set(FLAC_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libFLAC.so)
+            message("FLAC: system library not found, using bundled: ${FLAC_LIBRARY}")
+        else()
+            message("FLAC: using system library: ${FLAC_LIBRARY}")
+        endif()
+    else()
+        set(FLAC_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libFLAC.so)
+        message("FLAC: using bundled library: ${FLAC_LIBRARY}")
+    endif()
     target_link_libraries(${PLUGIN_NAME} PRIVATE ${FLAC_LIBRARY})
 
-    # Add opus library
-    set(OPUS_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libopus.so)
+    # Opus
+    if(TRY_SYSTEM_LIBS)
+        find_library(OPUS_LIBRARY NAMES opus)
+        if(NOT OPUS_LIBRARY)
+            set(OPUS_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libopus.so)
+            message("Opus: system library not found, using bundled: ${OPUS_LIBRARY}")
+        else()
+            message("Opus: using system library: ${OPUS_LIBRARY}")
+        endif()
+    else()
+        set(OPUS_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libopus.so)
+        message("Opus: using bundled library: ${OPUS_LIBRARY}")
+    endif()
     target_link_libraries(${PLUGIN_NAME} PRIVATE ${OPUS_LIBRARY})
 
-    # Add ogg library
-    set(OGG_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libogg.so)
+    # Ogg
+    if(TRY_SYSTEM_LIBS)
+        find_library(OGG_LIBRARY NAMES ogg)
+        if(NOT OGG_LIBRARY)
+            set(OGG_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libogg.so)
+            message("Ogg: system library not found, using bundled: ${OGG_LIBRARY}")
+        else()
+            message("Ogg: using system library: ${OGG_LIBRARY}")
+        endif()
+    else()
+        set(OGG_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libogg.so)
+        message("Ogg: using bundled library: ${OGG_LIBRARY}")
+    endif()
     target_link_libraries(${PLUGIN_NAME} PRIVATE ${OGG_LIBRARY})
 
-    # Add vorbis library
-    set(VORBIS_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libvorbis.so)
+    # Vorbis
+    if(TRY_SYSTEM_LIBS)
+        find_library(VORBIS_LIBRARY NAMES vorbis)
+        if(NOT VORBIS_LIBRARY)
+            set(VORBIS_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libvorbis.so)
+            message("Vorbis: system library not found, using bundled: ${VORBIS_LIBRARY}")
+        else()
+            message("Vorbis: using system library: ${VORBIS_LIBRARY}")
+        endif()
+    else()
+        set(VORBIS_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libvorbis.so)
+        message("Vorbis: using bundled library: ${VORBIS_LIBRARY}")
+    endif()
     target_link_libraries(${PLUGIN_NAME} PRIVATE ${VORBIS_LIBRARY})
-    set(VORBISFILE_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libvorbisfile.so)
+
+    # Vorbisfile
+    if(TRY_SYSTEM_LIBS)
+        find_library(VORBISFILE_LIBRARY NAMES vorbisfile)
+        if(NOT VORBISFILE_LIBRARY)
+            set(VORBISFILE_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libvorbisfile.so)
+            message("Vorbisfile: system library not found, using bundled: ${VORBISFILE_LIBRARY}")
+        else()
+            message("Vorbisfile: using system library: ${VORBISFILE_LIBRARY}")
+        endif()
+    else()
+        set(VORBISFILE_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/libvorbisfile.so)
+        message("Vorbisfile: using bundled library: ${VORBISFILE_LIBRARY}")
+    endif()
     target_link_libraries(${PLUGIN_NAME} PRIVATE ${VORBISFILE_LIBRARY})
 
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 else()
-    message("NO_OPUS_OGG_LIBS has been set. Not linking Opus and Ogg libraries!")
-    add_definitions(-DNO_OPUS_OGG_LIBS)
+    message("NO_XIPH_LIBS has been set. Not linking Opus and Ogg libraries!")
+    add_definitions(-DNO_XIPH_LIBS)
 endif()
 
 target_compile_options("${PLUGIN_NAME}" PRIVATE -Wall -Wno-error -Wno-vla -O2) #  -ldl -lpthread -lm
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+    # This only matches x86 and AMD64 architectures.
+    # On a Raspberry Pi, will be something like "armv6l", "armv7l" or "aarch64".
     target_compile_options("${PLUGIN_NAME}" PRIVATE -msse3 -msse2)
 endif()
 

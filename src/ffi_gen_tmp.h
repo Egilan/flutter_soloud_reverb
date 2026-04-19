@@ -52,3 +52,18 @@
  FFI_PLUGIN_EXPORT enum PlayerErrors removeBusFilter(unsigned int busHandle, int filterType);
  FFI_PLUGIN_EXPORT enum PlayerErrors loadBusConvolutionIR(unsigned int busHandle, const char *irPath);
  FFI_PLUGIN_EXPORT void annexSoundToBus(unsigned int busHandle, unsigned int voiceHandle);
+
+/// Enable or disable visualization data gathering for this bus.
+FFI_PLUGIN_EXPORT void busSetVisualizationEnable(unsigned int busId, bool enable);
+
+/// Calculate and return 256 floats of FFT data for this bus.
+FFI_PLUGIN_EXPORT float *busCalcFFT(unsigned int busId);
+
+/// Get 256 samples of wave data currently playing through this bus.
+FFI_PLUGIN_EXPORT float *busGetWave(unsigned int busId);
+
+/// Get the approximate output volume for a specific channel of this bus.
+FFI_PLUGIN_EXPORT float busGetApproximateVolume(unsigned int busId, unsigned int channel);
+
+/// Get the number of voices currently playing through this bus.
+FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId);

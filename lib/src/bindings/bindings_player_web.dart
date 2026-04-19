@@ -29,9 +29,7 @@ import 'package:meta/meta.dart';
 /// https://stackoverflow.com/questions/65423861/call-dart-method-from-js-in-flutter-web
 
 /// Callback set in `setBufferStream` for the `onMetadata` closure.
-typedef OnMetadataCallbackTFunction = void Function(
-  int metadataPtr,
-);
+typedef OnMetadataCallbackTFunction = void Function(int metadataPtr);
 
 /// JS/WASM bindings to SoLoud
 @internal
@@ -39,9 +37,15 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   static final Logger _log = Logger('flutter_soloud.FlutterSoLoudFfi');
 
   WorkerController? workerController;
+  bool _eventCallbacksSetUp = false;
 
   @override
   void disposeNativeCallables() {
+    /// Nothing to do on web.
+  }
+
+  @override
+  void clearDartCallbackRegistrations() {
     /// Nothing to do on web.
   }
 
@@ -49,12 +53,18 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   /// from `web/worker.dart.js`
   @override
   Future<void> setDartEventCallbacks() async {
+    // Prevent multiple listener setups
+    if (_eventCallbacksSetUp) {
+      return;
+    }
+
     // This calls the native WASM `createWorkerInWasm()` in `bindings.cpp`.
     // The latter creates a web Worker using `EM_ASM` inlining JS code to
     // create the worker in the WASM `Module`.
     final result = wasmCreateWorkerInWasm();
     if (result == 0) {
       // The worker has been already created.
+      _eventCallbacksSetUp = true;
       return;
     }
 
@@ -65,32 +75,32 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     workerController = WorkerController();
     await workerController!.setWasmWorker(wasmWorker);
 
-    workerController!.onReceive().listen(
-      (event) {
-        /// The [event] coming from `web/worker.dart.js` is of String type.
-        /// Only `voiceEndedCallback` event in web for now.
-        switch (event) {
-          case String():
-            final decodedMap = jsonDecode(event) as Map;
-            if (decodedMap['message'] == 'voiceEndedCallback') {
-              _log.finest(
-                () => 'VOICE ENDED EVENT handle: '
-                    '${(decodedMap['value'] as num).toInt()}\n',
-              );
-              voiceEndedEventController
-                  .add((decodedMap['value'] as num).toInt());
-            }
-          case Map():
-            if (event['message'] == 'voiceEndedCallback') {
-              _log.finest(
-                () => 'VOICE ENDED EVENT handle: '
-                    '${(event['value'] as num).toInt()}\n',
-              );
-              voiceEndedEventController.add((event['value'] as num).toInt());
-            }
-        }
-      },
-    );
+    _eventCallbacksSetUp = true;
+    workerController!.onReceive().listen((event) {
+      /// The [event] coming from `web/worker.dart.js` is of String type.
+      /// Only `voiceEndedCallback` event in web for now.
+      switch (event) {
+        case String():
+          final decodedMap = jsonDecode(event) as Map;
+          if (decodedMap['message'] == 'voiceEndedCallback') {
+            _log.finest(
+              () =>
+                  'VOICE ENDED EVENT handle: '
+                  '${(decodedMap['value'] as num).toInt()}\n',
+            );
+            voiceEndedEventController.add((decodedMap['value'] as num).toInt());
+          }
+        case Map():
+          if (event['message'] == 'voiceEndedCallback') {
+            _log.finest(
+              () =>
+                  'VOICE ENDED EVENT handle: '
+                  '${(event['value'] as num).toInt()}\n',
+            );
+            voiceEndedEventController.add((event['value'] as num).toInt());
+          }
+      }
+    });
   }
 
   /// If we will need to send messages to the native. Not used now.
@@ -104,7 +114,7 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
-  bool areOpusOggLibsAvailable() => wasmAreOpusOggLibsAvailable() == 1;
+  bool areXiphLibsAvailable() => wasmAreXiphLibsAvailable() == 1;
 
   @override
   PlayerErrors initEngine(
@@ -136,22 +146,21 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     final isDefaultPtr = wasmMalloc(50 * 4);
     final nDevicesPtr = wasmMalloc(4); // 4 bytes for an int32
 
-    wasmListPlaybackDevices(
-      namesPtr,
-      deviceIdPtr,
-      isDefaultPtr,
-      nDevicesPtr,
-    );
+    wasmListPlaybackDevices(namesPtr, deviceIdPtr, isDefaultPtr, nDevicesPtr);
 
     final nDevices = wasmGetI32Value(nDevicesPtr, 'i32');
     final devices = <PlaybackDevice>[];
     for (var i = 0; i < nDevices; i++) {
       final namePtr = wasmGetI32Value(namesPtr + i * 4, 'i32');
       final name = wasmUtf8ToString(namePtr);
-      final deviceId =
-          wasmGetI32Value(wasmGetI32Value(deviceIdPtr + i * 4, 'i32'), 'i32');
-      final isDefault =
-          wasmGetI32Value(wasmGetI32Value(isDefaultPtr + i * 4, 'i32'), 'i32');
+      final deviceId = wasmGetI32Value(
+        wasmGetI32Value(deviceIdPtr + i * 4, 'i32'),
+        'i32',
+      );
+      final isDefault = wasmGetI32Value(
+        wasmGetI32Value(isDefaultPtr + i * 4, 'i32'),
+        'i32',
+      );
 
       devices.add(PlaybackDevice(deviceId, isDefault == 1, name));
     }
@@ -178,8 +187,10 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     LoadMode mode,
     int counter,
   ) {
-    throw UnimplementedError('[loadFile] in not supported on the web platfom! '
-        'Please use [loadMem].');
+    throw UnimplementedError(
+      '[loadFile] in not supported on the web platfom! '
+      'Please use [loadMem].',
+    );
   }
 
   @override
@@ -317,26 +328,23 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
-  PlayerErrors setBufferIcyMetaInt(
-    SoundHash soundHash,
-    int icyMetaInt,
-  ) {
+  PlayerErrors setBufferIcyMetaInt(SoundHash soundHash, int icyMetaInt) {
     final result = wasmSetBufferIcyMetaInt(soundHash.hash, icyMetaInt);
     return PlayerErrors.values[result];
   }
 
   @override
-  PlayerErrors addAudioDataStream(
-    int hash,
-    Uint8List audioChunk,
-  ) {
+  PlayerErrors addAudioDataStream(int hash, Uint8List audioChunk) {
     final audioChunkPtr = wasmMalloc(audioChunk.length);
     for (var i = 0; i < audioChunk.length; i++) {
       wasmSetValue(audioChunkPtr + i, audioChunk[i], 'i8');
     }
 
-    final result =
-        wasmAddAudioDataStream(hash, audioChunkPtr, audioChunk.length);
+    final result = wasmAddAudioDataStream(
+      hash,
+      audioChunkPtr,
+      audioChunk.length,
+    );
     wasmFree(audioChunkPtr);
 
     return PlayerErrors.values[result];
@@ -424,10 +432,7 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   ({PlayerErrors error, SoundHandle handle}) speechText(String textToSpeech) {
     final handlePtr = wasmMalloc(4); // 4 bytes for an int32
     final textToSpeechPtr = wasmMalloc(textToSpeech.length);
-    final result = wasmSpeechText(
-      textToSpeechPtr,
-      handlePtr,
-    );
+    final result = wasmSpeechText(textToSpeechPtr, handlePtr);
 
     final newHandle = wasmGetI32Value(handlePtr, 'i32');
     final ret = (
@@ -466,8 +471,14 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
+  double getApproximateVolume(int channel) {
+    return wasmGetApproximateVolume(channel);
+  }
+
+  @override
   ({PlayerErrors error, SoundHandle newHandle}) play(
     SoundHash soundHash, {
+    int busId = 0,
     double volume = 1,
     double pan = 0,
     bool paused = false,
@@ -477,6 +488,7 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     final handlePtr = wasmMalloc(4); // 4 bytes for an int32
     final result = wasmPlay(
       soundHash.hash,
+      busId,
       volume,
       pan,
       paused,
@@ -487,8 +499,10 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
 
     /// "*" means unsigned int 32
     final newHandle = wasmGetI32Value(handlePtr, 'i32');
-    final ret =
-        (error: PlayerErrors.values[result], newHandle: SoundHandle(newHandle));
+    final ret = (
+      error: PlayerErrors.values[result],
+      newHandle: SoundHandle(newHandle),
+    );
     wasmFree(handlePtr);
 
     return ret;
@@ -672,7 +686,7 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
 
   @override
   void setInaudibleBehavior(SoundHandle handle, bool mustTick, bool kill) {
-    return wasmSetInaudibleBehavior(handle.id, mustTick ? 1 : 0, kill ? 1 : 0);
+    return wasmSetInaudibleBehavior(handle.id, mustTick, kill);
   }
 
   @override
@@ -691,11 +705,18 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
 
   @override
   SoundHandle createVoiceGroup() {
-    /// The group handle returned has the sign bit flagged. Since on the web
-    /// the int is a signed 32 bit, a negative number will be returned.
-    /// Fixing by ORing the result.
-    final ret = wasmCreateVoiceGroup() | 0xfffff000;
-    return SoundHandle(ret > 0 ? ret : -1);
+    /// The group handle returned has the sign bit flagged because int returns
+    /// a unsigned 32 bit value (0xfffff000 | index) but Dart int is signed.
+    /// Since on the web the int is a signed 32 bit, a negative number
+    /// will be returned.
+    /// The handle returned from "handle Soloud::createVoiceGroup()" function
+    /// in "soloud_core_voicegroup.cpp" is 0xfffff000 | index, which is
+    /// a negative number when interpreted as a signed 32-bit integer. So we
+    /// need to convert it to unsigned 32-bit.
+    /// A return value of 0 means error.
+    final raw = wasmCreateVoiceGroup().toUnsigned(32);
+    if (raw == 0) return SoundHandle(-1);
+    return SoundHandle(raw);
   }
 
   @override
@@ -818,9 +839,11 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     double to,
     double time, {
     SoundHandle? handle,
+    int? busId,
   }) {
     final e = wasmFadeFilterParameter(
       handle?.id ?? 0,
+      busId ?? 0,
       filterType.index,
       attributeId,
       to,
@@ -837,9 +860,11 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     double to,
     double time, {
     SoundHandle? handle,
+    int? busId,
   }) {
     final e = wasmOscillateFilterParameter(
       handle?.id ?? 0,
+      busId ?? 0,
       filterType.index,
       attributeId,
       from,
@@ -857,10 +882,16 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   ({PlayerErrors error, int index}) isFilterActive(
     FilterType filterType, {
     SoundHash? soundHash,
+    int? busId,
   }) {
     // ignore: omit_local_variable_types
     final idPtr = wasmMalloc(4); // 4 bytes for an int32
-    final e = wasmIsFilterActive(soundHash?.hash ?? 0, filterType.index, idPtr);
+    final e = wasmIsFilterActive(
+      soundHash?.hash ?? 0,
+      busId ?? 0,
+      filterType.index,
+      idPtr,
+    );
     final index = wasmGetI32Value(idPtr, 'i32');
     final ret = (error: PlayerErrors.values[e], index: index);
     wasmFree(idPtr);
@@ -873,8 +904,11 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   ) {
     final paramsCountPtr = wasmMalloc(4); // 4 bytes for an int32
     final namesPtr = wasmMalloc(30 * 20); // list of 30 String with 20 chars
-    final e =
-        wasmGetFilterParamNames(filterType.index, paramsCountPtr, namesPtr);
+    final e = wasmGetFilterParamNames(
+      filterType.index,
+      paramsCountPtr,
+      namesPtr,
+    );
 
     final pNames = <String>[];
     var offsetPtr = 0;
@@ -897,8 +931,9 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   PlayerErrors addFilter(
     FilterType filterType, {
     SoundHash? soundHash,
+    int? busId,
   }) {
-    final e = wasmAddFilter(soundHash?.hash ?? 0, filterType.index);
+    final e = wasmAddFilter(soundHash?.hash ?? 0, busId ?? 0, filterType.index);
     return PlayerErrors.values[e];
   }
 
@@ -906,8 +941,13 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   PlayerErrors removeFilter(
     FilterType filterType, {
     SoundHash? soundHash,
+    int? busId,
   }) {
-    final e = wasmRemoveFilter(soundHash?.hash ?? 0, filterType.index);
+    final e = wasmRemoveFilter(
+      soundHash?.hash ?? 0,
+      busId ?? 0,
+      filterType.index,
+    );
     return PlayerErrors.values[e];
   }
 
@@ -917,9 +957,11 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     int attributeId,
     double value, {
     SoundHandle? handle,
+    int? busId,
   }) {
     final e = wasmSetFilterParams(
       handle?.id ?? 0,
+      busId ?? 0,
       filterType.index,
       attributeId,
       value,
@@ -932,10 +974,12 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     FilterType filterType,
     int attributeId, {
     SoundHandle? handle,
+    int? busId,
   }) {
     final paramValuePtr = wasmMalloc(4);
     final error = wasmGetFilterParams(
       handle?.id ?? 0,
+      busId ?? 0,
       filterType.index,
       attributeId,
       paramValuePtr,
@@ -955,6 +999,7 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     double posX,
     double posY,
     double posZ, {
+    int busId = 0,
     double velX = 0,
     double velY = 0,
     double velZ = 0,
@@ -966,6 +1011,7 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     final handlePtr = wasmMalloc(4); // 4 bytes for an int32
     final result = wasmPlay3d(
       soundHash.hash,
+      busId,
       posX,
       posY,
       posZ,
@@ -981,8 +1027,10 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
 
     /// "*" means unsigned int 32
     final newHandle = wasmGetI32Value(handlePtr, 'i32');
-    final ret =
-        (error: PlayerErrors.values[result], newHandle: SoundHandle(newHandle));
+    final ret = (
+      error: PlayerErrors.values[result],
+      newHandle: SoundHandle(newHandle),
+    );
     wasmFree(handlePtr);
 
     return ret;
@@ -1132,8 +1180,10 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     double endTime = -1,
     bool average = false,
   }) {
-    throw UnimplementedError('[readSamplesFromFile] in not supported on the '
-        'web platfom! Please use [readSamplesFromMem].');
+    throw UnimplementedError(
+      '[readSamplesFromFile] in not supported on the '
+      'web platfom! Please use [readSamplesFromMem].',
+    );
   }
 
   @override
@@ -1182,6 +1232,10 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     return samples;
   }
 
+  /////////////////////////////////////////
+  /// Mixing Bus (not supported on web)
+  /////////////////////////////////////////
+
   @override
   ({PlayerErrors error, BusHandle busHandle}) createBus() {
     throw UnsupportedError('Buses are not supported on the web.');
@@ -1220,6 +1274,19 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }) {
     throw UnsupportedError('Buses are not supported on the web.');
   }
+
+  @override
+  int busPlayOnEngine(BusHandle busHandle, double volume, bool paused) =>
+      throw UnsupportedError('Buses are not supported on the web.');
+
+  @override
+  void busSetChannels(BusHandle busHandle, int channels) {}
+
+  @override
+  double busGetApproximateVolume(BusHandle busHandle, int channel) => 0.0;
+
+  @override
+  int busGetActiveVoiceCount(BusHandle busHandle) => 0;
 
   @override
   PlayerErrors setBusVolume(BusHandle busHandle, double volume) {
@@ -1280,7 +1347,6 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
-  @override
   PlayerErrors addSoundHrtfFilter({required int soundHash}) {
     return PlayerErrors.notImplemented;
   }
@@ -1295,6 +1361,7 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     return PlayerErrors.notImplemented;
   }
 
+  @override
   PlayerErrors setVoiceHrtfWet({
     required SoundHandle voiceHandle,
     required double wet,
@@ -1302,6 +1369,7 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     return PlayerErrors.notImplemented;
   }
 
+  @override
   PlayerErrors setBusHrtfSourcePosition({
     required BusHandle busHandle,
     required double x,

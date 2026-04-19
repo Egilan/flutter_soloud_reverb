@@ -20,12 +20,7 @@ class SoLoudTools {
     final startingFreq = 55.0 * (pow(2, (12 * octave) / 12));
     final notes = <AudioSource>[];
     for (var index = 0; index < 12; index++) {
-      final sound = await SoLoud.instance.loadWaveform(
-        waveForm,
-        true,
-        0.25,
-        1,
-      );
+      final sound = await SoLoud.instance.loadWaveform(waveForm, true, 0.25, 1);
       final freq = startingFreq * (pow(2, index / 12));
       SoLoud.instance.setWaveformFreq(sound, freq);
       SoLoud.instance.setWaveformSuperWave(sound, superwave);

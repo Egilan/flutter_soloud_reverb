@@ -19,15 +19,15 @@ enum RobotizeEnum {
 
   @override
   String toString() => switch (this) {
-        RobotizeEnum.wet => 'Wet',
-        RobotizeEnum.frequency => 'Frequency',
-        RobotizeEnum.waveform => 'Waveform',
-      };
+    RobotizeEnum.wet => 'Wet',
+    RobotizeEnum.frequency => 'Frequency',
+    RobotizeEnum.waveform => 'Waveform',
+  };
 }
 
 abstract class _RobotizeInternal extends FilterBase {
-  const _RobotizeInternal(SoundHash? soundHash)
-      : super(FilterType.robotizeFilter, soundHash);
+  const _RobotizeInternal(SoundHash? soundHash, int? busId)
+    : super(FilterType.robotizeFilter, soundHash, busId);
 
   RobotizeEnum get queryWet => RobotizeEnum.wet;
   RobotizeEnum get queryFrequency => RobotizeEnum.frequency;
@@ -35,57 +35,63 @@ abstract class _RobotizeInternal extends FilterBase {
 }
 
 class RobotizeSingle extends _RobotizeInternal {
-  RobotizeSingle(super.soundHash);
+  RobotizeSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        RobotizeEnum.wet.index,
-        RobotizeEnum.wet.min,
-        RobotizeEnum.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    RobotizeEnum.wet.index,
+    RobotizeEnum.wet.min,
+    RobotizeEnum.wet.max,
+  );
 
   FilterParam frequency({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        RobotizeEnum.frequency.index,
-        RobotizeEnum.frequency.min,
-        RobotizeEnum.frequency.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    RobotizeEnum.frequency.index,
+    RobotizeEnum.frequency.min,
+    RobotizeEnum.frequency.max,
+  );
 
   FilterParam waveform({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        RobotizeEnum.waveform.index,
-        RobotizeEnum.waveform.min,
-        RobotizeEnum.waveform.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    RobotizeEnum.waveform.index,
+    RobotizeEnum.waveform.min,
+    RobotizeEnum.waveform.max,
+  );
 }
 
 class RobotizeGlobal extends _RobotizeInternal {
-  const RobotizeGlobal() : super(null);
+  const RobotizeGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        filterType,
-        RobotizeEnum.wet.index,
-        RobotizeEnum.wet.min,
-        RobotizeEnum.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    RobotizeEnum.wet.index,
+    RobotizeEnum.wet.min,
+    RobotizeEnum.wet.max,
+  );
 
   FilterParam get frequency => FilterParam(
-        null,
-        filterType,
-        RobotizeEnum.frequency.index,
-        RobotizeEnum.frequency.min,
-        RobotizeEnum.frequency.max,
-      );
+    null,
+    null,
+    filterType,
+    RobotizeEnum.frequency.index,
+    RobotizeEnum.frequency.min,
+    RobotizeEnum.frequency.max,
+  );
 
   FilterParam get waveform => FilterParam(
-        null,
-        filterType,
-        RobotizeEnum.waveform.index,
-        RobotizeEnum.waveform.min,
-        RobotizeEnum.waveform.max,
-      );
+    null,
+    null,
+    filterType,
+    RobotizeEnum.waveform.index,
+    RobotizeEnum.waveform.min,
+    RobotizeEnum.waveform.max,
+  );
 }

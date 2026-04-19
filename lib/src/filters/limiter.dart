@@ -22,18 +22,18 @@ enum Limiter {
 
   @override
   String toString() => switch (this) {
-        Limiter.wet => 'Wet',
-        Limiter.threshold => 'Threshold',
-        Limiter.outputCeiling => 'Output Ceiling',
-        Limiter.kneeWidth => 'Knee Width',
-        Limiter.releaseTime => 'Release Time',
-        Limiter.attackTime => 'Attack Time',
-      };
+    Limiter.wet => 'Wet',
+    Limiter.threshold => 'Threshold',
+    Limiter.outputCeiling => 'Output Ceiling',
+    Limiter.kneeWidth => 'Knee Width',
+    Limiter.releaseTime => 'Release Time',
+    Limiter.attackTime => 'Attack Time',
+  };
 }
 
 abstract class _LimiterInternal extends FilterBase {
-  const _LimiterInternal(SoundHash? soundHash)
-      : super(FilterType.limiterFilter, soundHash);
+  const _LimiterInternal(SoundHash? soundHash, int? busId)
+    : super(FilterType.limiterFilter, soundHash, busId);
 
   Limiter get queryWet => Limiter.wet;
   Limiter get queryThreshold => Limiter.threshold;
@@ -44,105 +44,117 @@ abstract class _LimiterInternal extends FilterBase {
 }
 
 class LimiterSingle extends _LimiterInternal {
-  LimiterSingle(super.soundHash);
+  LimiterSingle(super.soundHash, super.busId);
 
   FilterParam wet({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        Limiter.wet.index,
-        Limiter.wet.min,
-        Limiter.wet.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    Limiter.wet.index,
+    Limiter.wet.min,
+    Limiter.wet.max,
+  );
 
   FilterParam threshold({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        Limiter.threshold.index,
-        Limiter.threshold.min,
-        Limiter.threshold.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    Limiter.threshold.index,
+    Limiter.threshold.min,
+    Limiter.threshold.max,
+  );
 
   FilterParam outputCeiling({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        Limiter.outputCeiling.index,
-        Limiter.outputCeiling.min,
-        Limiter.outputCeiling.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    Limiter.outputCeiling.index,
+    Limiter.outputCeiling.min,
+    Limiter.outputCeiling.max,
+  );
 
   FilterParam kneeWidth({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        Limiter.kneeWidth.index,
-        Limiter.kneeWidth.min,
-        Limiter.kneeWidth.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    Limiter.kneeWidth.index,
+    Limiter.kneeWidth.min,
+    Limiter.kneeWidth.max,
+  );
 
   FilterParam releaseTime({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        Limiter.releaseTime.index,
-        Limiter.releaseTime.min,
-        Limiter.releaseTime.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    Limiter.releaseTime.index,
+    Limiter.releaseTime.min,
+    Limiter.releaseTime.max,
+  );
 
   FilterParam attackTime({SoundHandle? soundHandle}) => FilterParam(
-        soundHandle,
-        filterType,
-        Limiter.attackTime.index,
-        Limiter.attackTime.min,
-        Limiter.attackTime.max,
-      );
+    soundHandle,
+    super.busId,
+    filterType,
+    Limiter.attackTime.index,
+    Limiter.attackTime.min,
+    Limiter.attackTime.max,
+  );
 }
 
 class LimiterGlobal extends _LimiterInternal {
-  const LimiterGlobal() : super(null);
+  const LimiterGlobal() : super(null, null);
 
   FilterParam get wet => FilterParam(
-        null,
-        filterType,
-        Limiter.wet.index,
-        Limiter.wet.min,
-        Limiter.wet.max,
-      );
+    null,
+    null,
+    filterType,
+    Limiter.wet.index,
+    Limiter.wet.min,
+    Limiter.wet.max,
+  );
 
   FilterParam get threshold => FilterParam(
-        null,
-        filterType,
-        Limiter.threshold.index,
-        Limiter.threshold.min,
-        Limiter.threshold.max,
-      );
+    null,
+    null,
+    filterType,
+    Limiter.threshold.index,
+    Limiter.threshold.min,
+    Limiter.threshold.max,
+  );
 
   FilterParam get outputCeiling => FilterParam(
-        null,
-        filterType,
-        Limiter.outputCeiling.index,
-        Limiter.outputCeiling.min,
-        Limiter.outputCeiling.max,
-      );
+    null,
+    null,
+    filterType,
+    Limiter.outputCeiling.index,
+    Limiter.outputCeiling.min,
+    Limiter.outputCeiling.max,
+  );
 
   FilterParam get kneeWidth => FilterParam(
-        null,
-        filterType,
-        Limiter.kneeWidth.index,
-        Limiter.kneeWidth.min,
-        Limiter.kneeWidth.max,
-      );
+    null,
+    null,
+    filterType,
+    Limiter.kneeWidth.index,
+    Limiter.kneeWidth.min,
+    Limiter.kneeWidth.max,
+  );
 
   FilterParam get releaseTime => FilterParam(
-        null,
-        filterType,
-        Limiter.releaseTime.index,
-        Limiter.releaseTime.min,
-        Limiter.releaseTime.max,
-      );
+    null,
+    null,
+    filterType,
+    Limiter.releaseTime.index,
+    Limiter.releaseTime.min,
+    Limiter.releaseTime.max,
+  );
 
   FilterParam get attackTime => FilterParam(
-        null,
-        filterType,
-        Limiter.attackTime.index,
-        Limiter.attackTime.min,
-        Limiter.attackTime.max,
-      );
+    null,
+    null,
+    filterType,
+    Limiter.attackTime.index,
+    Limiter.attackTime.min,
+    Limiter.attackTime.max,
+  );
 }

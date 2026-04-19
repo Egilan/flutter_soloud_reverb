@@ -261,7 +261,7 @@ class _WebsocketExampleState extends State<WebsocketExample> {
 
                     // start playing at first audio chunk received
                     if (numberOfChunks == 1) {
-                      handle = await SoLoud.instance.play(currentSound!);
+                      handle = SoLoud.instance.play(currentSound!);
                     }
                   },
                   onDone: () {
@@ -287,7 +287,7 @@ class _WebsocketExampleState extends State<WebsocketExample> {
                 OutlinedButton(
                   onPressed: () async {
                     if (currentSound == null) return;
-                    handle = await SoLoud.instance.play(
+                    handle = SoLoud.instance.play(
                       currentSound!,
                       volume: 0.6,
                       // looping: true,

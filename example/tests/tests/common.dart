@@ -1,0 +1,24 @@
+import 'dart:async';
+
+import 'package:flutter_soloud/flutter_soloud.dart';
+
+Future<void> initialize() async {
+  await SoLoud.instance.init();
+  SoLoud.instance.setGlobalVolume(0.2);
+}
+
+void deinit() {
+  SoLoud.instance.deinit();
+}
+
+Future<void> delay(int ms) async {
+  await Future.delayed(Duration(milliseconds: ms), () {});
+}
+
+bool closeTo(num value, num expected, num epsilon) {
+  return (value - expected).abs() <= epsilon.abs();
+}
+
+Future<AudioSource> loadAsset() async {
+  return SoLoud.instance.loadAsset('assets/audio/explosion.mp3');
+}

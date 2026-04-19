@@ -39,9 +39,7 @@ class AudioDataCtrl {
     samplesWave = calloc();
   }
 
-  void dispose(
-    GetSamplesKind getSamplesKind,
-  ) {
+  void dispose(GetSamplesKind getSamplesKind) {
     if (samplesWave != nullptr) calloc.free(samplesWave);
     if (samples1D != nullptr) calloc.free(samples1D);
     if (samples2D != nullptr) calloc.free(samples2D);

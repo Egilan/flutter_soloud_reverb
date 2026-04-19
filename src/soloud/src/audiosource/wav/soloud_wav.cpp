@@ -46,7 +46,7 @@ namespace SoLoud
 		if (mParent->mData == NULL)
 			return 0;
 
-		unsigned int dataleft = mParent->mSampleCount - mOffset;
+		unsigned int dataleft = mParent->mActualSampleCount - mOffset;
 		unsigned int copylen = dataleft;
 		if (copylen > aSamplesToRead)
 			copylen = aSamplesToRead;
@@ -98,7 +98,7 @@ namespace SoLoud
 
 	bool WavInstance::hasEnded()
 	{
-		if (!(mFlags & AudioSourceInstance::LOOPING) && mOffset >= mParent->mSampleCount)
+		if (!(mFlags & AudioSourceInstance::LOOPING) && mOffset >= mParent->mActualSampleCount)
 		{
 			return 1;
 		}
@@ -109,6 +109,7 @@ namespace SoLoud
 	{
 		mData = NULL;
 		mSampleCount = 0;
+		mActualSampleCount = 0;
 	}
 	
 	Wav::~Wav()
@@ -139,6 +140,7 @@ namespace SoLoud
 		mData = new float[(unsigned int)(samples * decoder.channels)];
 		mBaseSamplerate = (float)decoder.sampleRate;
 		mSampleCount = (unsigned int)samples;
+		mActualSampleCount = (unsigned int)samples;
 		mChannels = decoder.channels;
 
 		unsigned int i, j, k;
@@ -204,6 +206,12 @@ namespace SoLoud
 		}
         stb_vorbis_close(vorbis);
 
+		// Set mActualSampleCount to the actual decoded samples.
+		// This is necessary because stb_vorbis_stream_length_in_samples() returns
+		// the granule position from the last page header, which may not match the
+		// actual decoded sample count if the file has an empty final page.
+		mActualSampleCount = samples;
+
 		return 0;
 	}
 
@@ -227,6 +235,7 @@ namespace SoLoud
 		mData = new float[(unsigned int)(samples * decoder.channels)];
 		mBaseSamplerate = (float)decoder.sampleRate;
 		mSampleCount = (unsigned int)samples;
+		mActualSampleCount = (unsigned int)samples;
 		mChannels = decoder.channels;
 		drmp3_seek_to_pcm_frame(&decoder, 0); 
 
@@ -269,6 +278,7 @@ namespace SoLoud
 		mData = new float[(unsigned int)(samples * decoder->channels)];
 		mBaseSamplerate = (float)decoder->sampleRate;
 		mSampleCount = (unsigned int)samples;
+		mActualSampleCount = (unsigned int)samples;
 		mChannels = decoder->channels;
 		drflac_seek_to_pcm_frame(decoder, 0);
 
@@ -378,6 +388,7 @@ namespace SoLoud
 		delete[] mData;
 		mData = new float[aLength];	
 		mSampleCount = aLength / aChannels;
+		mActualSampleCount = mSampleCount;
 		mChannels = aChannels;
 		mBaseSamplerate = aSamplerate;
 		unsigned int i;
@@ -394,6 +405,7 @@ namespace SoLoud
 		delete[] mData;
 		mData = new float[aLength];
 		mSampleCount = aLength / aChannels;
+		mActualSampleCount = mSampleCount;
 		mChannels = aChannels;
 		mBaseSamplerate = aSamplerate;
 		unsigned int i;
@@ -418,6 +430,7 @@ namespace SoLoud
 			mData = aMem;
 		}
 		mSampleCount = aLength / aChannels;
+		mActualSampleCount = mSampleCount;
 		mChannels = aChannels;
 		mBaseSamplerate = aSamplerate;
 		return SO_NO_ERROR;
