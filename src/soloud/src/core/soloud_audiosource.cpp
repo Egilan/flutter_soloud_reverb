@@ -119,6 +119,7 @@ namespace SoLoud
 		mBaseSamplerate = aSource.mBaseSamplerate;
 		mSamplerate = mBaseSamplerate;
 		mChannels = aSource.mChannels;
+		mBaseChannels = aSource.mChannels;
 		mStreamTime = 0.0f;
 		mStreamPosition = 0.0f;
 		mLoopPoint = aSource.mLoopPoint;

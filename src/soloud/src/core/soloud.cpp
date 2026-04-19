@@ -1686,6 +1686,11 @@ namespace SoLoud
 						voice->mResampleData[0] = voice->mResampleData[1];
 						voice->mResampleData[1] = t;
 
+						// Restore source channel count before getAudio. Filters such as HRTF
+						// may expand mChannels to 2 after getAudio; restoring here prevents
+						// WavInstance::getAudio from reading past the end of mono mData.
+						voice->mChannels = voice->mBaseChannels;
+
 						// Get a block of source data
 
 						int readcount = 0;
@@ -1740,6 +1745,8 @@ namespace SoLoud
 									voice->mChannels,
 									voice->mSamplerate,
 									mStreamTime);
+								if (voice->mFilter[j]->expandsToStereo() && voice->mChannels < 2)
+									voice->mChannels = 2;
 							}
 						}
 					}

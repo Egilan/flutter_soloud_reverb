@@ -147,6 +147,8 @@ namespace SoLoud
 		float mSamplerate;
 		// Number of channels this audio source produces
 		unsigned int mChannels;
+		// Original source channel count — never modified; used to restore mChannels before getAudio
+		unsigned int mBaseChannels;
 		// Relative play speed; samplerate = base samplerate * relative play speed
 		float mSetRelativePlaySpeed;
 		// Overall relative plays peed; overall = set * 3d
