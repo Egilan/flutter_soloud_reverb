@@ -3115,7 +3115,7 @@ interface class SoLoud {
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
   ///
   /// Throws [SoLoudCppException] if the sound could not be played.
-  Future<SoundHandle> playOnBus(
+  SoundHandle playOnBus(
     BusHandle busHandle,
     AudioSource sound, {
     double volume = 1,
@@ -3123,7 +3123,7 @@ interface class SoLoud {
     bool paused = false,
     bool looping = false,
     Duration loopingStartAt = Duration.zero,
-  }) async {
+  }) {
     if (!isInitialized) {
       throw const SoLoudNotInitializedException();
     }

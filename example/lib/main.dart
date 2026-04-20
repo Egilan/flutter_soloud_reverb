@@ -333,7 +333,7 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
     if (bus == null) {
       SoLoud.instance.play(speech!, looping: true);
     } else {
-      await SoLoud.instance.playOnBus(bus, speech!, looping: true);
+      SoLoud.instance.playOnBus(bus, speech!, looping: true);
     }
     setState(() {});
   }
@@ -342,7 +342,7 @@ class _MultiBusDemoState extends State<MultiBusDemo> {
     if (bus == null) {
       SoLoud.instance.play(music!, looping: true);
     } else {
-      await SoLoud.instance.playOnBus(bus, music!, looping: true);
+      SoLoud.instance.playOnBus(bus, music!, looping: true);
     }
     setState(() {});
   }
