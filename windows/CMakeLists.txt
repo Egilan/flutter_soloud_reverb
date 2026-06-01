@@ -14,6 +14,7 @@ include(${SRC_DIR}/CMakeLists.txt)
 # Fork-specific sources (buses, reverbs, HRTF, LibPD)
 list(APPEND PLUGIN_SOURCES
   "${SRC_DIR}/synth/soloud_libpd.cpp"
+  "${SRC_DIR}/synth/pd_bridge.cpp"
 "${SRC_DIR}/filters/dattorro.cpp"
   "${SRC_DIR}/filters/soloud_reverbsc.cpp"
   "${SRC_DIR}/filters/soloud_convolutionfilter.cpp"
@@ -22,6 +23,43 @@ list(APPEND PLUGIN_SOURCES
   "${SRC_DIR}/filters/fftconvolver/AudioFFT.cpp"
   "${SRC_DIR}/filters/fftconvolver/Utilities.cpp"
   "${SRC_DIR}/filters/fftconvolver/FFTConvolver.cpp"
+)
+
+# ─── Build libpd from source (static) ───────────────────────────────────────
+# libpd's CMake requires pthreads on MSVC. We use the vcpkg PThreads4W package.
+# Override these on the CMake command line if your vcpkg lives elsewhere, e.g.
+#   -DPTHREADS_ROOT=C:/path/to/vcpkg/installed/x64-windows
+if(NOT DEFINED PTHREADS_ROOT)
+  set(PTHREADS_ROOT "C:/Users/atsog/dev/vcpkg/installed/x64-windows")
+endif()
+set(PTHREADS_LIB         "${PTHREADS_ROOT}/lib/pthreadVC3.lib" CACHE FILEPATH "" FORCE)
+set(PTHREADS_INCLUDE_DIR "${PTHREADS_ROOT}/include"            CACHE PATH     "" FORCE)
+set(PTHREADS_DLL         "${PTHREADS_ROOT}/bin/pthreadVC3.dll")
+
+# Ensure libpd (C sources) compiles with the same static MSVC runtime (/MT,/MTd)
+# as the plugin, so the static archive links without __imp_* CRT mismatches.
+# libpd doesn't honor CMAKE_MSVC_RUNTIME_LIBRARY here (policy not NEW + C flags),
+# so patch CMAKE_C_FLAGS_* directly before add_subdirectory, mirroring the
+# /MD->/MT replacement the plugin applies to its C++ flags below.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+if(MSVC)
+  foreach(CONFIG DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+    string(REPLACE "/MD" "/MT" CMAKE_C_FLAGS_${CONFIG} "${CMAKE_C_FLAGS_${CONFIG}}")
+  endforeach()
+  string(REPLACE "/MD" "/MT" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+endif()
+
+set(LIBPD_STATIC ON  CACHE BOOL "" FORCE)
+set(LIBPD_SHARED OFF CACHE BOOL "" FORCE)
+set(PD_UTILS  ON  CACHE BOOL "" FORCE)
+set(PD_EXTRA  ON  CACHE BOOL "" FORCE)
+set(PD_MULTI  OFF CACHE BOOL "" FORCE)
+set(PD_LOCALE ON  CACHE BOOL "" FORCE)
+
+add_subdirectory(
+  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libpd"
+  "${CMAKE_CURRENT_BINARY_DIR}/libpd_build"
+  EXCLUDE_FROM_ALL
 )
 
 add_library(${PLUGIN_NAME} SHARED
@@ -34,6 +72,31 @@ set_target_properties(${PLUGIN_NAME} PROPERTIES
 target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 target_compile_definitions(${PLUGIN_NAME} PRIVATE SIGNALSMITH_USE_PFFFT)
 target_include_directories(${PLUGIN_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+# ─── LibPD linkage ───────────────────────────────────────────────────────────
+# libpd_static carries its include dirs (libpd_wrapper, pure-data/src) PUBLIC,
+# so soloud_libpd.cpp finds z_libpd.h. Ws2_32 is needed because pd's s_net.c
+# uses Winsock and the static lib (unlike the shared target) doesn't pull it in.
+# libpd headers (z_libpd.h, m_pd.h). libpd_static exposes these transitively,
+# but we add them explicitly so soloud_libpd.cpp/pd_bridge.cpp find them
+# regardless of link order or a stale CMake cache.
+target_include_directories(${PLUGIN_NAME} PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libpd/libpd_wrapper"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/libpd/pure-data/src"
+)
+
+# PD_INTERNAL flips m_pd.h's EXTERN from __declspec(dllimport) (the default,
+# which expects an import lib) to dllexport, so the libpd_* references in
+# soloud_libpd.cpp / pd_bridge.cpp resolve as plain symbols from the static lib.
+target_compile_definitions(${PLUGIN_NAME} PRIVATE PD_INTERNAL=1)
+target_link_libraries(${PLUGIN_NAME} PRIVATE libpd_static Ws2_32 "${PTHREADS_LIB}")
+
+# pthreadVC3.dll must sit next to the executable at runtime.
+add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${PTHREADS_DLL}"
+    "${CMAKE_BINARY_DIR}/runner/$<CONFIG>/pthreadVC3.dll"
+)
 
 if(NOT DEFINED ENV{NO_XIPH_LIBS})
     message("NO_XIPH_LIBS has not been set. Linking Opus and Ogg libraries!")

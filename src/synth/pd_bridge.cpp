@@ -10,7 +10,11 @@
 #include <unordered_map>
 #include "z_libpd.h"
 
+#if defined(_WIN32)
+#define EXPORT extern "C" __declspec(dllexport)
+#else
 #define EXPORT extern "C" __attribute__((visibility("default")))
+#endif
 
 // ── Global state ─────────────────────────────────────────────────────────────
 
