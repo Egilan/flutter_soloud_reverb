@@ -12,18 +12,25 @@ unsigned int LibPDInstance::getAudio(float *aBuffer, unsigned int aSamplesToRead
 {
     const int blockSize = libpd_blocksize();
     const int channels = mParent->mChannels;
-    const int samplesPerBlock = blockSize * channels;
 
     // Zero-filled input buffer (no audio input needed for DSP-only patches)
-    float inBuf[128] = {}; // blockSize(64) * maxChannels(2)
+    float inBuf[128] = {};  // blockSize(64) * maxChannels(2)
+    float outBuf[128] = {}; // libpd writes interleaved output here per block
 
-    unsigned int written = 0;
-    while (written + (unsigned int)samplesPerBlock <= aSamplesToRead)
+    unsigned int frames = 0;
+    while (frames + (unsigned int)blockSize <= aSamplesToRead)
     {
-        libpd_process_float(1, inBuf, aBuffer + written);
-        written += samplesPerBlock;
+        libpd_process_float(1, inBuf, outBuf);
+        for (int i = 0; i < blockSize; i++)
+        {
+            for (int ch = 0; ch < channels; ch++)
+            {
+                aBuffer[ch * aSamplesToRead + frames + i] = outBuf[i * channels + ch];
+            }
+        }
+        frames += blockSize;
     }
-    return written;
+    return frames;
 }
 
 bool LibPDInstance::hasEnded()
