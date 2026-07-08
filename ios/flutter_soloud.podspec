@@ -21,6 +21,11 @@ Flutter audio plugin using SoLoud library and FFI
   # scripts/build_libpd_ios.sh, matching the pattern used for opus/ogg/vorbis/FLAC.
   s.source           = { :path => '.' }
   s.source_files = 'flutter_soloud/Sources/flutter_soloud/*'
+  # flutter_soloud.mm is the SwiftPM wrapper that includes the full C++
+  # implementation. CocoaPods builds the same implementation through the
+  # CMake script phase below, so compiling the wrapper here defines duplicate
+  # symbols when the app also force-loads libflutter_soloud_plugin.a.
+  s.exclude_files = 'flutter_soloud/Sources/flutter_soloud/flutter_soloud.mm'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
 
@@ -119,8 +124,8 @@ Flutter audio plugin using SoLoud library and FFI
   end
 
   s.user_target_xcconfig = {
-    'OTHER_LDFLAGS[sdk=iphoneos*]' => "$(inherited) #{user_ldflags_device}",
-    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => "$(inherited) #{user_ldflags_sim}",
+    'OTHER_LDFLAGS[sdk=iphoneos*]' => "$(inherited) #{user_ldflags_device} -lc++",
+    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => "$(inherited) #{user_ldflags_sim} -lc++",
     'LIBRARY_SEARCH_PATHS' => "$(inherited) \"#{plugin_root}/cmake_build/$(PLATFORM_NAME)\" \"#{plugin_root}/flutter_soloud/libs\" \"#{plugin_root}/libs\"",
     # Fix for FFI symbol stripping on iOS Release builds
     'STRIP_STYLE' => 'debugging',

@@ -122,14 +122,23 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     int sampleRate,
     int bufferSize,
     Channels channels,
+    bool lowLatency,
   ) {
+    // [lowLatency] only affects the native miniaudio backends (it selects the
+    // AAudio/CoreAudio performance profile); the Web Audio backend ignores it.
     final ret = wasmInitEngine(
       deviceId,
       sampleRate,
       bufferSize,
       channels.count,
+      lowLatency ? 1 : 0,
     );
     return PlayerErrors.values[ret];
+  }
+
+  @override
+  void setAndroidAAudioAttributes(bool managed) {
+    // No-op on web: AAudio stream attributes are Android-only.
   }
 
   @override
@@ -202,10 +211,12 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     final hashPtr = wasmMalloc(4); // 4 bytes for an int32
     final bytesPtr = wasmMalloc(buffer.length);
     final pathPtr = wasmMalloc(uniqueName.length);
-    // Is there a way to speed up this array copy?
-    for (var i = 0; i < buffer.length; i++) {
-      wasmSetValue(bytesPtr + i, buffer[i], 'i8');
-    }
+
+    /// Copy the buffer into WASM memory using the HEAPU8 view.
+    final heapBuffer = wasmHeapU8Buffer;
+    Uint8List.view(heapBuffer.toDart).setAll(bytesPtr, buffer);
+
+    /// Copy the path string into WASM memory.
     for (var i = 0; i < uniqueName.length; i++) {
       wasmSetValue(pathPtr + i, uniqueName.codeUnits[i], 'i8');
     }
@@ -336,9 +347,10 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   @override
   PlayerErrors addAudioDataStream(int hash, Uint8List audioChunk) {
     final audioChunkPtr = wasmMalloc(audioChunk.length);
-    for (var i = 0; i < audioChunk.length; i++) {
-      wasmSetValue(audioChunkPtr + i, audioChunk[i], 'i8');
-    }
+
+    /// Copy the audio chunk into WASM memory using the HEAPU8 view.
+    final heapBuffer = wasmHeapU8Buffer;
+    Uint8List.view(heapBuffer.toDart).setAll(audioChunkPtr, audioChunk);
 
     final result = wasmAddAudioDataStream(
       hash,
@@ -1195,10 +1207,10 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
     bool average = false,
   }) {
     final bufferPtr = wasmMalloc(buffer.length);
-    // Is there a way to speed up this array copy?
-    for (var i = 0; i < buffer.length; i++) {
-      wasmSetValue(bufferPtr + i, buffer[i], 'i8');
-    }
+
+    /// Copy the buffer into WASM memory using the HEAPU8 view.
+    final heapBuffer = wasmHeapU8Buffer;
+    Uint8List.view(heapBuffer.toDart).setAll(bufferPtr, buffer);
 
     final samplesPtr = wasmMalloc(numSamplesNeeded * 4);
     final error = wasmReadSamplesFromMem(

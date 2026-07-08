@@ -73,6 +73,7 @@ namespace SoLoud
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include "soloud_common.h"
 #if defined(_WIN32) || defined(_WIN64)
 #  include <windows.h>
 #else
@@ -86,6 +87,29 @@ namespace SoLoud
     SoLoud::Soloud *soloud;
     ma_context context;
     volatile bool gDeviceStopped = true;  // Track device stopped state for proper cleanup
+    
+    // Selects the miniaudio performance profile used when (re)initializing the
+    // device. Low-latency (the historical default) maps to AAudio's
+    // PERFORMANCE_MODE_LOW_LATENCY / MMAP path on Android; that path can't be
+    // captured by system screen recorders and leaves little callback headroom
+    // for CPU-heavy filters. When this is false, the conservative (legacy
+    // mixer) profile is used instead. Defined outside the WITH_MINIAUDIO guard
+    // so the setter symbol always exists for the C bindings to call.
+    // Fork default: false. Our use case runs heavy effects (multi-voice HRTF/reverb)
+    // that will not fit LOW_LATENCY's tiny FastMixer buffers, so we default to the
+    // conservative profile and make low-latency strictly opt-in via init(lowLatency: true).
+    static bool gMiniaudioLowLatency = false;
+
+    // Android (AAudio) stream attributes applied when low-latency is disabled.
+    // Default to media/music (sensible for a media app, and capturable). When
+    // [aManaged] is false the app wants to own AudioAttributes externally (e.g.
+    // via the audio_session plugin), so we leave usage/contentType unset
+    // (`_default`) and let AAudio pick its defaults. Stored in globals so the
+    // SAME choice is re-applied on device changes (see both call sites) rather
+    // than reverting. Defined outside the WITH_MINIAUDIO guard so the setter
+    // symbol always exists for the C bindings to call.
+    static ma_aaudio_usage gMiniaudioAAudioUsage = ma_aaudio_usage_media;
+    static ma_aaudio_content_type gMiniaudioAAudioContentType = ma_aaudio_content_type_music;
 
     // Forward declarations for functions used in on_notification
     result soloud_miniaudio_pause(SoLoud::Soloud *aSoloud);
@@ -110,6 +134,12 @@ namespace SoLoud
     void on_notification(const ma_device_notification* pNotification)
     {
         MA_ASSERT(pNotification != NULL);
+
+        // Guard against notifications delivered after deinitialization.
+        // The notifications may be pending on the main thread when the
+        // device is torn down.
+        if (soloud == nullptr)
+            return;
 
         switch (pNotification->type)
         {
@@ -156,6 +186,19 @@ namespace SoLoud
         }
     }
 
+    void miniaudio_setLowLatency(bool aLowLatency)
+    {
+        gMiniaudioLowLatency = aLowLatency;
+    }
+
+    void miniaudio_setAndroidAAudioAttributes(bool aManaged)
+    {
+        gMiniaudioAAudioUsage =
+            aManaged ? ma_aaudio_usage_media : ma_aaudio_usage_default;
+        gMiniaudioAAudioContentType =
+            aManaged ? ma_aaudio_content_type_music : ma_aaudio_content_type_default;
+    }
+
     void soloud_miniaudio_audiomixer(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
     {
         static bool first_call = true;
@@ -198,7 +241,13 @@ namespace SoLoud
             delete gInitThread;
             gInitThread = nullptr;
         }
-        
+
+        // Clear the global soloud pointer BEFORE uninitializing the device.
+        // This prevents any pending platform notifications (e.g. iOS route
+        // changes delivered on the main thread) from dereferencing a
+        // destroyed SoLoud instance through the on_notification callback.
+        soloud = nullptr;
+
         if (gDeviceInitialized)
         {
             // Check if device is already stopped before calling ma_device_stop()
@@ -246,9 +295,21 @@ namespace SoLoud
     {
         if (ma_device_get_state(&gDevice) == ma_device_state_started)
         {
+#if defined(__EMSCRIPTEN__) || defined(__ANDROID__)
+            /* On Web and Android, don't suspend the audio device to avoid a bug where
+               stale buffered audio data can fire after the device is stopped but before
+               it takes effect. When stop() and play() are called in quick succession,
+               those stale buffers get queued and play after resume(), causing audio
+               glitches and lag. Keeping the device running is safe: soloud->mix()
+               produces silence when no voices are active, which has negligible overhead.
+               This solves #446 on both Web and Android. */
+            (void)aSoloud;
+            return 0;
+#else
             ma_result res = ma_device_stop(&gDevice);
             if (res != MA_SUCCESS)
                 return UNKNOWN_ERROR;
+#endif
         }
         return 0;
     }
@@ -310,6 +371,13 @@ namespace SoLoud
         // deviceConfig.aaudio.inputPreset = ma_aaudio_input_preset_default;
         deviceConfig.notificationCallback = on_notification;
 
+        // Honor the requested performance profile (see gMiniaudioLowLatency).
+        // Conservative keeps Android off the un-capturable MMAP path and gives
+        // heavy DSP more headroom; the trade-off is higher output latency.
+        deviceConfig.performanceProfile = gMiniaudioLowLatency
+            ? ma_performance_profile_low_latency
+            : ma_performance_profile_conservative;
+
 #ifdef _WIN32
         // On Windows, defer the entire device initialization to avoid interfering with
         // the main thread's message pump. This fixes compatibility with plugins like
@@ -346,18 +414,42 @@ namespace SoLoud
         }
         gDeviceInitialized = true;
         aSoloud->postinit_internal(gDevice.sampleRate, gDevice.playback.internalPeriodSizeInFrames, aFlags, gDevice.playback.channels);
-        ma_device_start(&gDevice);
+        ma_result startResult = ma_device_start(&gDevice);
+        if (startResult != MA_SUCCESS) {
+            soloud_platform_log("miniaudio_init: ma_device_start failed with error %d\n", startResult);
+            ma_device_uninit(&gDevice);
+            ma_context_uninit(&context);
+            gDeviceInitialized = false;
+            return UNKNOWN_ERROR;
+        }
         gDeviceInitDeferred = false;
         gDeviceStartDeferred = false;
         
 #elif defined(__ANDROID__)
-        // Use conservative performance profile so AAudio opens in AAUDIO_PERFORMANCE_MODE_NONE
-        // rather than LOW_LATENCY. LOW_LATENCY enforces 192-frame (4ms) callbacks via the
-        // FastMixer, which is too tight for CPU-heavy DSP like multi-voice HRTF convolution.
-        // NONE gives the normal mixer path with 20–50ms callbacks and adequate scheduling slack.
-        deviceConfig.performanceProfile = ma_performance_profile_conservative;
+        // The performance profile is selected above from gMiniaudioLowLatency
+        // (ma_performance_profile_conservative when low-latency is disabled). This
+        // fork defaults lowLatency to false so AAudio opens in AAUDIO_PERFORMANCE_MODE_NONE
+        // rather than LOW_LATENCY: LOW_LATENCY enforces 192-frame (4ms) FastMixer callbacks,
+        // which are too tight for CPU-heavy DSP like multi-voice HRTF convolution. NONE gives
+        // the normal mixer path with 20-50ms callbacks and adequate scheduling slack.
+        //
+        // When low-latency is disabled the device runs on the legacy mixer path.
+        // Tag the AAudio stream with the configured usage/contentType (media/music by
+        // default; left unset when the app opts to manage AudioAttributes externally via
+        // audio_session — see miniaudio_setAndroidAAudioAttributes) and explicitly allow
+        // capture so system screen recorders pick up the audio. miniaudio skips the setter
+        // for `_default`, so opting out truly leaves the attributes untouched. The same
+        // globals are re-applied on device changes (changeDevice_impl).
+        if (!gMiniaudioLowLatency)
+        {
+            deviceConfig.aaudio.usage                = gMiniaudioAAudioUsage;
+            deviceConfig.aaudio.contentType          = gMiniaudioAAudioContentType;
+            deviceConfig.aaudio.allowedCapturePolicy = ma_aaudio_allow_capture_by_all;
+        }
         // allowSetBufferCapacity lets miniaudio explicitly call setFramesPerDataCallback so
         // AAudio honors our requested period size instead of defaulting to 192 frames.
+        // Upstream does not set this; keep it unconditionally so the conservative path
+        // actually gets the buffer capacity we ask for.
         deviceConfig.aaudio.allowSetBufferCapacity = MA_TRUE;
 
         ma_backend backends[] = { ma_backend_aaudio, ma_backend_opensl };
@@ -382,7 +474,14 @@ namespace SoLoud
                gDevice.playback.channels,
                (deviceConfig.performanceProfile == ma_performance_profile_conservative) ? "conservative" : "low_latency");
         aSoloud->postinit_internal(gDevice.sampleRate, gDevice.playback.internalPeriodSizeInFrames, aFlags, gDevice.playback.channels);
-        ma_device_start(&gDevice);
+        ma_result startResult = ma_device_start(&gDevice);
+        if (startResult != MA_SUCCESS) {
+            soloud_platform_log("miniaudio_init: ma_device_start failed with error %d\n", startResult);
+            ma_device_uninit(&gDevice);
+            ma_context_uninit(&context);
+            gDeviceInitialized = false;
+            return UNKNOWN_ERROR;
+        }
         gDeviceInitDeferred = false;
         gDeviceStartDeferred = false;
         
@@ -394,7 +493,13 @@ namespace SoLoud
         }
         gDeviceInitialized = true;
         aSoloud->postinit_internal(gDevice.sampleRate, gDevice.playback.internalPeriodSizeInFrames, aFlags, gDevice.playback.channels);
-        ma_device_start(&gDevice);
+        ma_result startResult = ma_device_start(&gDevice);
+        if (startResult != MA_SUCCESS) {
+            soloud_platform_log("miniaudio_init: ma_device_start failed with error %d\n", startResult);
+            ma_device_uninit(&gDevice);
+            gDeviceInitialized = false;
+            return UNKNOWN_ERROR;
+        }
         gDeviceInitDeferred = false;
         gDeviceStartDeferred = false;
 #endif
@@ -416,13 +521,19 @@ namespace SoLoud
 
         if (ma_device_init(NULL, &gDeferredConfig.config, &gDevice) == MA_SUCCESS)
         {
-            gDeviceInitDeferred = false;
             gDeviceInitialized = true;
             // Start the device after initialization
             if (ma_device_get_state(&gDevice) != ma_device_state_started)
             {
-                ma_device_start(&gDevice);
+                ma_result startResult = ma_device_start(&gDevice);
+                if (startResult != MA_SUCCESS) {
+                    soloud_platform_log("miniaudio_init_thread_func: ma_device_start failed with error %d\n", startResult);
+                    ma_device_uninit(&gDevice);
+                    gDeviceInitialized = false;
+                    return;
+                }
             }
+            gDeviceInitDeferred = false;
             gDeviceStartDeferred = false;
         }
     }
@@ -484,6 +595,27 @@ namespace SoLoud
         deviceConfig.pUserData          = (void *)soloud;
         deviceConfig.notificationCallback = on_notification;
 
+        // Preserve the performance profile chosen at init across device changes,
+        // otherwise switching the output device would silently revert to the
+        // default low-latency/MMAP path (see gMiniaudioLowLatency).
+        deviceConfig.performanceProfile = gMiniaudioLowLatency
+            ? ma_performance_profile_low_latency
+            : ma_performance_profile_conservative;
+#if defined(__ANDROID__)
+        if (!gMiniaudioLowLatency)
+        {
+            // Re-apply the SAME attributes chosen at init so a device change
+            // doesn't silently revert them. If the app opted out
+            // (miniaudio_setAndroidAAudioAttributes(false)), these are `_default`
+            // and miniaudio leaves them unset — so an externally-managed
+            // configuration (e.g. via audio_session) is preserved across device
+            // changes rather than being forced back to media/music.
+            deviceConfig.aaudio.usage                = gMiniaudioAAudioUsage;
+            deviceConfig.aaudio.contentType          = gMiniaudioAAudioContentType;
+            deviceConfig.aaudio.allowedCapturePolicy = ma_aaudio_allow_capture_by_all;
+        }
+#endif
+
         ma_result result;
 #if defined(MA_HAS_COREAUDIO) || defined(__ANDROID__)
         // Use the existing context on CoreAudio (macOS/iOS) and Android
@@ -502,7 +634,14 @@ namespace SoLoud
 
         gDeviceInitialized = true;
         gDeviceStopped = false;  // Device is about to start
-        ma_device_start(&gDevice);
+        ma_result startResult = ma_device_start(&gDevice);
+        if (startResult != MA_SUCCESS) {
+            soloud_platform_log("miniaudio_changeDevice_impl: ma_device_start failed with error %d\n", startResult);
+            ma_device_uninit(&gDevice);
+            gDeviceInitialized = false;
+            soloud->unlockAudioMutex_internal();
+            return UNKNOWN_ERROR;
+        }
 
         soloud->unlockAudioMutex_internal();
         return 0;

@@ -1,4 +1,4 @@
-#include "common.h"
+#include "soloud_common.h"
 #include "player.h"
 #include "filters/filters.h"
 #include "filters/soloud_convolutionfilter.h"
@@ -12,9 +12,12 @@
 #include "synth/soloud_libpd.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdarg>
 #include <cstring>
+#include <fstream>
 #include <random>
+#include <thread>
 
 #ifdef _IS_WIN_
 #include <stddef.h> // for size_t
@@ -28,10 +31,121 @@
 #define __WEB__ 0
 #endif
 
-Player::Player() : mInited(false), mFilters(&soloud, nullptr, nullptr) {}
+namespace {
+constexpr unsigned int kOggXiphBufferStreamMaxBytes = 512u * 1024u * 1024u;
+
+bool readFileBytes(const std::string &filePath,
+                   std::vector<unsigned char> &bytes)
+{
+    std::ifstream file(filePath, std::ios::binary | std::ios::ate);
+    if (!file.good()) {
+        return false;
+    }
+
+    const std::streamoff fileSize = file.tellg();
+    if (fileSize <= 0) {
+        return false;
+    }
+
+    bytes.resize(static_cast<size_t>(fileSize));
+    file.seekg(0, std::ios::beg);
+    file.read(reinterpret_cast<char *>(bytes.data()), fileSize);
+    return file.gcount() == fileSize;
+}
+
+bool isOggXiphBytes(const std::vector<unsigned char> &bytes)
+{
+    if (bytes.size() < 35 || std::memcmp(bytes.data(), "OggS", 4) != 0) {
+        return false;
+    }
+
+    size_t scanOffset = 0;
+    const size_t scanLimit = std::min(bytes.size(), static_cast<size_t>(64 * 1024));
+    while (scanOffset + 27 < scanLimit) {
+        if (std::memcmp(bytes.data() + scanOffset, "OggS", 4) != 0) {
+            ++scanOffset;
+            continue;
+        }
+
+        const uint8_t segmentCount = bytes[scanOffset + 26];
+        const size_t segmentTableOffset = scanOffset + 27;
+        if (segmentTableOffset + segmentCount > scanLimit) {
+            return false;
+        }
+
+        size_t payloadSize = 0;
+        for (uint8_t i = 0; i < segmentCount; ++i) {
+            payloadSize += bytes[segmentTableOffset + i];
+        }
+
+        const size_t payloadOffset = segmentTableOffset + segmentCount;
+        if (payloadOffset + payloadSize > bytes.size()) {
+            return false;
+        }
+
+        if (payloadSize >= 8 &&
+            std::memcmp(bytes.data() + payloadOffset, "OpusHead", 8) == 0) {
+            return true;
+        }
+
+        if (payloadSize >= 13 &&
+            std::memcmp(bytes.data() + payloadOffset + 1, "FLAC", 4) == 0 &&
+            std::memcmp(bytes.data() + payloadOffset + 9, "fLaC", 4) == 0) {
+            return true;
+        }
+
+        scanOffset = payloadOffset + payloadSize;
+    }
+
+    return false;
+}
+
+PlayerErrors loadOggXiphBufferStream(Player *player,
+                                     ActiveSound *activeSound,
+                                     const std::vector<unsigned char> &bytes)
+{
+    if (player == nullptr || activeSound == nullptr || bytes.empty()) {
+        return invalidParameter;
+    }
+
+    activeSound->sound = std::make_unique<SoLoud::BufferStream>();
+    activeSound->soundType = TYPE_BUFFER_STREAM;
+    PCMformat pcmFormat = {player->mSampleRate, player->mChannels, 4, AUTO};
+    auto *bufferStream =
+        static_cast<SoLoud::BufferStream *>(activeSound->sound.get());
+    PlayerErrors error = bufferStream->setBufferStream(
+        player,
+        activeSound,
+        kOggXiphBufferStreamMaxBytes,
+        BufferingType::PRESERVED,
+        0.0f,
+        pcmFormat);
+    if (error != noError) {
+        return error;
+    }
+
+    error = bufferStream->addData(bytes.data(),
+                                  static_cast<unsigned int>(bytes.size()));
+    if (error != noError) {
+        return error;
+    }
+
+    bufferStream->setDataIsEnded();
+    return noError;
+}
+}
+
+Player::Player() : mInited(false), mFilters(&soloud, nullptr, nullptr),
+                   mPauseRequested(false), mStopPauseThread(false),
+                   mPauseThreadRunning(false)
+{
+}
 
 Player::~Player() {
-    if (!mInited) { 
+    // If the scheduler was started, stop it before touching Soloud.
+    stopPauseEngineScheduler();
+
+    if (!mInited) {
         // dispose() was called properly — Soloud is already deinited and safe.
         // Let ~Soloud() run normally to free its remaining allocations.
         return;
@@ -58,6 +172,9 @@ void Player::dispose() {
     if (!mInited)
         return;
 
+    // Stop accepting new pause requests and wake the scheduler so it exits.
+    stopPauseEngineScheduler();
+
     mInited = false;
 
     // Clean up SoLoud
@@ -80,10 +197,17 @@ void Player::setStateChangedCallback(void (*stateChangedCallback)(unsigned int))
     soloud.setStateChangedCallback(stateChangedCallback);
 }
 
-PlayerErrors Player::init(unsigned int sampleRate, unsigned int bufferSize, unsigned int channels, int deviceID)
+// Defined in the miniaudio backend (soloud_miniaudio.cpp). Forward-declared
+// here so we don't need to pull in the backend-internal header.
+namespace SoLoud { void miniaudio_setLowLatency(bool aLowLatency); }
+
+PlayerErrors Player::init(unsigned int sampleRate, unsigned int bufferSize, unsigned int channels, int deviceID, bool lowLatency)
 {
     if (mInited)
         return playerAlreadyInited;
+
+    // Choose the device performance profile before SoLoud opens the backend.
+    SoLoud::miniaudio_setLowLatency(lowLatency);
 
     void *playbackInfos_id = nullptr;
     if (deviceID != -1)
@@ -100,8 +224,12 @@ PlayerErrors Player::init(unsigned int sampleRate, unsigned int bufferSize, unsi
     SoLoud::result result;
     try {
         result = soloud.init(
-            SoLoud::Soloud::CLIP_ROUNDOFF,
+            0,
             SoLoud::Soloud::MINIAUDIO, sampleRate, bufferSize, channels, playbackInfos_id);
+        if (result == SoLoud::SO_NO_ERROR)
+        {
+            soloud.setPostClipScaler(1.0f);
+        }
     } catch (...) {
         return backendNotInited;
     }
@@ -112,6 +240,8 @@ PlayerErrors Player::init(unsigned int sampleRate, unsigned int bufferSize, unsi
         mSampleRate = sampleRate;
         mBufferSize = bufferSize;
         mChannels = channels;
+        // Start the deferred-pause scheduler now that the engine is in use.
+        startPauseEngineScheduler();
     }
     else
         result = backendNotInited;
@@ -318,7 +448,16 @@ PlayerErrors Player::loadFile(
         result = static_cast<SoLoud::WavStream *>(newSound.get()->sound.get())->load(completeFileName.c_str());
     }
 
+    PlayerErrors loadError = static_cast<PlayerErrors>(result);
     if (result != SoLoud::SO_NO_ERROR)
+    {
+        std::vector<unsigned char> bytes;
+        if (readFileBytes(completeFileName, bytes) && isOggXiphBytes(bytes)) {
+            loadError = loadOggXiphBufferStream(this, newSound.get(), bytes);
+        }
+    }
+
+    if (loadError != noError)
     {
         *hash = 0;
     }
@@ -334,11 +473,11 @@ PlayerErrors Player::loadFile(
 
     // Return fileAlreadyLoaded if the filename hash was already in use,
     // even though we've now loaded a new instance with a unique hash.
-    if (s != nullptr && result == SoLoud::SO_NO_ERROR) {
+    if (s != nullptr && loadError == noError) {
         return fileAlreadyLoaded;
     }
 
-    return (PlayerErrors)result;
+    return loadError;
 }
 
 PlayerErrors Player::loadMem(
@@ -385,7 +524,16 @@ PlayerErrors Player::loadMem(
         result = static_cast<SoLoud::WavStream *>(newSound.get()->sound.get())->loadMem(mem, length, false, true);
     }
 
-    if (result == SoLoud::SO_NO_ERROR)
+    PlayerErrors loadError = static_cast<PlayerErrors>(result);
+    if (result != SoLoud::SO_NO_ERROR && mem != nullptr && length > 0)
+    {
+        std::vector<unsigned char> bytes(mem, mem + length);
+        if (isOggXiphBytes(bytes)) {
+            loadError = loadOggXiphBufferStream(this, newSound.get(), bytes);
+        }
+    }
+
+    if (loadError == noError)
     {
         newSound.get()->filters = std::make_unique<Filters>(&soloud, newSound.get(), nullptr);
         {
@@ -396,11 +544,11 @@ PlayerErrors Player::loadMem(
 
     // Return fileAlreadyLoaded if the unique name hash was already in use,
     // even though we've now loaded a new instance with a unique hash.
-    if (s != nullptr && result == SoLoud::SO_NO_ERROR) {
+    if (s != nullptr && loadError == noError) {
         return fileAlreadyLoaded;
     }
 
-    return (PlayerErrors)result;
+    return loadError;
 }
 
 PlayerErrors Player::setBufferStream(
@@ -518,9 +666,11 @@ PlayerErrors Player::getBufferSize(unsigned int hash, unsigned int *sizeInBytes)
     if (s == nullptr || s->soundType != SoundType::TYPE_BUFFER_STREAM)
         return PlayerErrors::soundHashNotFound;
 
+    auto *bufferStream = static_cast<SoLoud::BufferStream *>(s->sound.get());
+    std::lock_guard<std::recursive_mutex> lock(bufferStream->mBuffer.bufferMutex);
     *sizeInBytes = static_cast<unsigned int>(
-        static_cast<SoLoud::BufferStream *>(s->sound.get())->mBuffer.buffer.size() +
-        static_cast<SoLoud::BufferStream *>(s->sound.get())->buffer.size());
+        bufferStream->mBuffer.getActiveSizeInBytes() +
+        bufferStream->buffer.size());
     return PlayerErrors::noError;
 }
 
@@ -654,7 +804,104 @@ void Player::setPause(unsigned int handle, bool pause)
         // If no voices are active, pause the audio device to allow the OS
         // to properly manage the audio session (important for Control Center
         // and remote command handling on iOS).
-        if (soloud.getActiveVoiceCount() == 0)
+        pauseEngine();
+    }
+}
+
+// On some platforms (notably iOS) the OS can take a short time to fully
+// tear down or hand back the audio session after the last active voice is
+// stopped/paused. If we pause the SoLoud engine immediately, a subsequent
+// play/resume request can arrive while the audio device is still settling,
+// which can cause the OS to keep the Control Center / lock-screen media
+// controls in an inconsistent state or to fail to restart playback cleanly.
+//
+// To avoid this, we defer the engine pause by ~500 ms. This gives the audio
+// backend and the OS enough time to stabilize, while still pausing the
+// engine promptly once no voices remain active. It also coalesces rapid
+// stop/pause events so we don't pause/unpause the device repeatedly. The
+// latter happens when stopping many sounds in a short time and new sounds
+// are then started causing a lag when starting to play again.
+//
+// Instead of spawning a detached thread for every request, a single
+// persistent scheduler thread handles all pause requests.
+void Player::pauseEngine()
+{
+#ifdef __EMSCRIPTEN__
+    // Web: the wasm build is single-threaded (no pthreads), so the deferred
+    // scheduler thread cannot run. Pause the device immediately instead. The
+    // browser's AudioContext does not have the OS audio-session settling issue
+    // that motivates the delay on native platforms.
+    if (mInited && soloud.getActiveVoiceCount() == 0)
+        soloud.pause();
+#else
+    {
+        std::lock_guard<std::mutex> lock(mPauseMutex);
+        if (!mPauseThreadRunning)
+            return;
+        mPauseRequested = true;
+    }
+    mPauseCv.notify_one();
+#endif
+}
+
+void Player::startPauseEngineScheduler()
+{
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(mPauseMutex);
+    if (mPauseThreadRunning)
+        return;
+    mStopPauseThread = false;
+    mPauseRequested = false;
+    mPauseThread = std::thread(&Player::pauseEngineScheduler, this);
+    mPauseThreadRunning = true;
+#endif
+}
+
+void Player::stopPauseEngineScheduler()
+{
+#ifndef __EMSCRIPTEN__
+    {
+        std::lock_guard<std::mutex> lock(mPauseMutex);
+        if (!mPauseThreadRunning)
+            return;
+        mStopPauseThread = true;
+    }
+    mPauseCv.notify_all();
+    if (mPauseThread.joinable()) {
+        mPauseThread.join();
+    }
+    {
+        std::lock_guard<std::mutex> lock(mPauseMutex);
+        mPauseThreadRunning = false;
+    }
+#endif
+}
+
+void Player::pauseEngineScheduler()
+{
+    while (!mStopPauseThread)
+    {
+        std::unique_lock<std::mutex> lock(mPauseMutex);
+        mPauseCv.wait(lock, [this] { return mPauseRequested || mStopPauseThread; });
+        if (mStopPauseThread)
+            break;
+
+        // A request arrived. Reset it and wait for the delay, but wake early
+        // if another request arrives (coalescing rapid calls).
+        mPauseRequested = false;
+        mPauseCv.wait_for(lock, std::chrono::milliseconds(kPauseEngineDelayMs),
+                          [this] { return mPauseRequested || mStopPauseThread; });
+
+        if (mStopPauseThread)
+            break;
+
+        // If another request arrived during the wait, loop back and restart
+        // the delay so the pause happens only after the burst of requests ends.
+        if (mPauseRequested)
+            continue;
+
+        lock.unlock();
+        if (mInited && soloud.getActiveVoiceCount() == 0)
         {
             soloud.pause();
         }
@@ -769,14 +1016,10 @@ PlayerErrors Player::play(
 void Player::stop(unsigned int handle)
 {
     soloud.stop(handle);
-    
     // After stopping, check if there are any remaining active voices.
     // If no voices are active, pause the audio device to allow the OS
     // to properly manage the audio session.
-    if (soloud.getActiveVoiceCount() == 0)
-    {
-        soloud.pause();
-    }
+    pauseEngine();
 }
 
 void Player::removeHandle(unsigned int handle)
@@ -807,7 +1050,6 @@ void Player::removeHandle(unsigned int handle)
 void Player::disposeSound(unsigned int soundHash)
 {
     std::unique_ptr<ActiveSound> soundToDestroy;
-    bool shouldPause = false;
     
     {
         std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
@@ -855,19 +1097,13 @@ void Player::disposeSound(unsigned int soundHash)
             // Move the sound out of the vector before erasing
             soundToDestroy = std::move(*it);
             sounds.erase(it);
-            
-            // Check if we should pause the device after destroying
-            shouldPause = (soloud.getActiveVoiceCount() == 0);
         }
     }
     // Sound (and its filters) is destroyed here when soundToDestroy goes out of scope
     
     // After disposing a sound, check if there are any remaining active voices.
     // If no voices are active, pause the audio device.
-    if (shouldPause)
-    {
-        soloud.pause();
-    }
+    pauseEngine();
 }
 
 void Player::disposeAllSound()
@@ -974,6 +1210,7 @@ PlayerErrors Player::textToSpeech(const std::string &textToSpeech, unsigned int 
     if (result == SoLoud::SO_NO_ERROR)
     {
         handle = soloud.play(speech);
+        sounds.back().get()->soundHash = handle;
         sounds.back().get()->filters = std::make_unique<Filters>(&soloud, sounds.back().get(), nullptr);
         sounds.back().get()->handle.push_back({handle, MAX_DOUBLE});
     }

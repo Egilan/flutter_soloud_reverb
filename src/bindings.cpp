@@ -13,8 +13,8 @@
 #include <cmath>
 #include "waveform/waveform.h"
 
-#ifndef COMMON_H
-#include "common.h"
+#ifndef SOLOUD_COMMON_H
+#include "soloud_common.h"
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -129,7 +129,8 @@ FFI_PLUGIN_EXPORT void voiceEndedCallback(unsigned int *handle) {
     return;
   if (!isHandleFound)
     return;
-  unsigned int *n = (unsigned int *)malloc(sizeof(unsigned int *));
+  // [n] pointer must be deleted in Dart.
+  unsigned int *n = (unsigned int *)malloc(sizeof(unsigned int));
   *n = *handle;
   voiceEndedCb(n);
 }
@@ -141,12 +142,12 @@ FFI_PLUGIN_EXPORT void voiceEndedCallback(unsigned int *handle) {
         if (fileLoadedCb == nullptr)
             return;
         // [e,name,n] pointers must be deleted on Dart.
-        PlayerErrors *e = (PlayerErrors *)malloc(sizeof(PlayerErrors *));
+        PlayerErrors *e = (PlayerErrors *)malloc(sizeof(PlayerErrors));
         *e = error;
         char *name = strdup(completeFileName);
-        unsigned int *n = (unsigned int *)malloc(sizeof(unsigned int *));
+        unsigned int *n = (unsigned int *)malloc(sizeof(unsigned int));
         *n = *hash;
-        uint64_t *ts = (uint64_t *)malloc(sizeof(uint64_t *));
+        uint64_t *ts = (uint64_t *)malloc(sizeof(uint64_t));
         *ts = counter;
         fileLoadedCb(e, name, n, ts);
     }
@@ -154,7 +155,7 @@ FFI_PLUGIN_EXPORT void voiceEndedCallback(unsigned int *handle) {
 void stateChangedCallback(unsigned int state) {
   auto stateChangedCb = dartStateChangedCallback.load();
   if (stateChangedCb == nullptr) return;
-  PlayerStateEvents *type = (PlayerStateEvents *)malloc(sizeof(unsigned int *));
+  PlayerStateEvents *type = (PlayerStateEvents *)malloc(sizeof(PlayerStateEvents));
   *type = (PlayerStateEvents)state;
   stateChangedCb(type);
 }
@@ -211,7 +212,8 @@ FFI_PLUGIN_EXPORT bool areXiphLibsAvailable() {
 FFI_PLUGIN_EXPORT enum PlayerErrors initEngine(int deviceID,
                                                unsigned int sampleRate,
                                                unsigned int bufferSize,
-                                               unsigned int channels) {
+                                               unsigned int channels,
+                                               unsigned int lowLatency) {
   std::lock_guard<std::mutex> guard(init_deinit_mutex);
   std::lock_guard<std::mutex> guard_load(loadMutex);
 
@@ -220,7 +222,8 @@ FFI_PLUGIN_EXPORT enum PlayerErrors initEngine(int deviceID,
 
   player.get()->setStateChangedCallback(stateChangedCallback);
   PlayerErrors res = (PlayerErrors)player.get()->init(sampleRate, bufferSize,
-                                                      channels, deviceID);
+                                                      channels, deviceID,
+                                                      lowLatency != 0);
   if (res != noError)
     return res;
 
@@ -235,6 +238,15 @@ FFI_PLUGIN_EXPORT enum PlayerErrors initEngine(int deviceID,
 
         return PlayerErrors::noError;
     }
+
+/// Android only: choose whether SoLoud tags the AAudio stream's
+/// usage/contentType (media/music) or leaves them unset so the app can manage
+/// AudioAttributes externally (e.g. via the audio_session plugin). Only takes
+/// effect with low-latency disabled. Call before initEngine(). No effect on
+/// other backends. [managed] != 0 → media/music (default); 0 → leave unset.
+FFI_PLUGIN_EXPORT void setAndroidAAudioAttributes(unsigned int managed) {
+  SoLoud::miniaudio_setAndroidAAudioAttributes(managed != 0);
+}
 
 /// Change the playback device.
 ///
@@ -267,11 +279,11 @@ FFI_PLUGIN_EXPORT void listPlaybackDevices(char **devicesName, int **deviceId,
     if (strlen(d[i].name) <= 5 || hasSpecialChar)
       continue;
 
-    devicesName[i] = strdup(d[i].name);
-    isDefault[i] = (int *)malloc(sizeof(int *));
-    *isDefault[i] = d[i].isDefault;
-    deviceId[i] = (int *)malloc(sizeof(int *));
-    *deviceId[i] = d[i].id;
+    devicesName[numDevices] = strdup(d[i].name);
+    isDefault[numDevices] = (int *)malloc(sizeof(int));
+    *isDefault[numDevices] = d[i].isDefault;
+    deviceId[numDevices] = (int *)malloc(sizeof(int));
+    *deviceId[numDevices] = d[i].id;
 
     numDevices++;
   }
@@ -305,6 +317,8 @@ FFI_PLUGIN_EXPORT void dispose() {
   player.reset();
   player = nullptr;
   player = std::make_unique<Player>();
+  analyzer.reset();
+  analyzer = std::make_unique<Analyzer>(256);
 }
 
 FFI_PLUGIN_EXPORT int isInited() {
@@ -349,7 +363,7 @@ FFI_PLUGIN_EXPORT int isInited() {
         // std::thread loadThread([p, completeFileName, loadIntoMem, hash]()
         //                        {
         PlayerErrors error = p->loadFile(completeFileName, loadIntoMem, (unsigned int *)&hash);
-        // platform_log("LOAD FILE FROM THREAD error: %d  hash: %u\n", error, hash);
+        // soloud_platform_log("LOAD FILE FROM THREAD error: %d  hash: %u\n", error, hash);
         fileLoadedCallback(error, completeFileName, (unsigned int *)&hash, counter);
         // });
         // // TODO(marco): use .detach()? Use std::atomic somewhere
@@ -1747,7 +1761,7 @@ FFI_PLUGIN_EXPORT void set3dListenerUp(float upX, float upY, float upZ) {
   if (player.get() == nullptr || !player.get()->isInited() ||
       player.get()->getSoundsCount() == 0)
     return;
-  player.get()->set3dListenerAt(upX, upY, upZ);
+  player.get()->set3dListenerUp(upX, upY, upZ);
   player.get()->update3dAudio();
 }
 

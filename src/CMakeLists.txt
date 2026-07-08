@@ -38,7 +38,7 @@ message("**************** SOLOUD SRC.CMAKE END  ${TARGET_NAME}")
 
 # --- Plugin source files (common across all platforms) ---
 list(APPEND PLUGIN_SOURCES
-  "${SRC_DIR}/common.cpp"
+  "${SRC_DIR}/soloud_common.cpp"
   "${SRC_DIR}/bindings.cpp"
   "${SRC_DIR}/player.cpp"
   "${SRC_DIR}/analyzer.cpp"
@@ -52,6 +52,7 @@ list(APPEND PLUGIN_SOURCES
   "${SRC_DIR}/audiobuffer/vorbis_stream_decoder.cpp"
   "${SRC_DIR}/audiobuffer/mp3_stream_decoder.cpp"
   "${SRC_DIR}/audiobuffer/flac_stream_decoder.cpp"
+  "${SRC_DIR}/audiobuffer/wav_stream_decoder.cpp"
   "${SRC_DIR}/filters/filters.cpp"
   "${SRC_DIR}/filters/pitch_shift_filter.cpp"
   "${SRC_DIR}/filters/limiter.cpp"
@@ -59,3 +60,6 @@ list(APPEND PLUGIN_SOURCES
   "${SRC_DIR}/filters/parametric_eq_filter.cpp"
   ${TARGET_SOURCES}
 )
+
+# pffft.c is C99 — force C language so Clang doesn't apply C++ VLA restrictions
+set_source_files_properties("${SRC_DIR}/pffft/pffft.c" PROPERTIES LANGUAGE C)

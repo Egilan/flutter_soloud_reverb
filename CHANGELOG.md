@@ -1,6 +1,46 @@
-#### 4.0.3 (XX Xxx 2026)
+#### 4.0.12 (30 Jun 2026)
+- add `lowLatency` init option to allow recordable Android output #492. Thanks to @MjnMixael
+- added WAV to Buffer streams supported formats. Fixes loading wav files from web #494
+
+#### 4.0.11 (22 Jun 2026)
+- fix web: don't spawn the deferred-pause std::thread on web (Aborted() in initEngine) #488. Thanks to @felixmin
+
+#### 4.0.10 (20 Jun 2026)
+- wait some ms to pause device when there are no more sounds playing #486
+
+#### 4.0.9 (13 Jun 2026)
+- Windows: prevent compiler to complain about `min` and `max` macros. Fixes #483
+
+#### 4.0.8 (10 Jun 2026)
+- fix released buffer stream size reporting #480. Thanks to @Kunstderfug
+- load Ogg Opus/flac files through buffer stream fallback #479. Thanks to @Kunstderfug
+
+#### 4.0.7 (1 Jun 2026)
+- add look-ahead brickwall limiter and fix planar DSP indexing #468. Thanks to @Kunstderfug
+- fix iOS CocoaPods wrapper double compile #467. Thanks to @DavidPluxia
+- fix Apple: added linker settings to do not stripe symbols when building the ipa using SPM #472
+- Android fix: fix audio crackling using `BufferingType.released` on some Android devices #476
+- Android fix: quick play & stop causes glitches and probably UI jank #478
+- fix: the `wet` parameter of parametric eq was not evaluated #477
+
+#### 4.0.6 (17 May 2026)
+- Fix iOS SPM miniaudio duplicate symbols #465. Thanks to @coolswood
+
+#### 4.0.5 (13 May 2026)
+- fix sample count calculations in BufferStreamInstance and BufferStream #462
+- fix Apple: removed hardcoded `-flto` compile arg in Package.swift #463
+- prevent header name collision build error when the app uses other native plugins like `flutter_zxing` which uses the common.h source file name too #464
+
+#### 4.0.4 (4 May 2026)
+- fix Apple: build forcing to add c++ std lib #456
+- fix reading Opus with not standard samplerate #457
+
+#### 4.0.3 (24 Apr 2026)
 - fix: rebind Dart callbacks after hot restart #444. Thanks to @skylartaylor
 - fix: retain BufferStream callbacks until disposal #445. Thanks to @skylartaylor
+- fix: removed the asserts in the init method #453
+- web fix: small sound bleed after stop and play #446
+- web fix: new way to load audio from memory (loadAssets and loadMem) on web to solve UI freeze when loading
 
 #### 4.0.2 (10 Apr 2026)
 - apple: fix building issue with XCode

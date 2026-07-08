@@ -43,6 +43,75 @@ void _loadFile(Map<String, dynamic> args) {
   );
 }
 
+/// Web-specific loader that uses `setBufferStream` with chunked
+/// `addAudioDataStream` calls to avoid blocking the UI thread.
+///
+/// The audio data is added in chunks with yields to the event loop
+/// between each chunk, allowing the browser to process UI events.
+Future<({PlayerErrors error, SoundHash soundHash})> _loadMemWeb({
+  required String path,
+  required Uint8List buffer,
+  required LoadMode mode,
+  required int sampleRate,
+  required Channels channels,
+}) async {
+  // The more the size of the chunk, the less often we yield, but the more
+  // glitches on the UI. The less the size of the chunk, the more often
+  // we yield, but the more time it takes to load the sound. 128 KB seems
+  // to be a good balance.
+  const chunkSize = 128 * 1024; // 128 KB chunks
+
+  // Create a buffer stream with auto-detection and preserved buffering.
+  final ret = SoLoudController().soLoudFFI.setBufferStream(
+    // 200 MB max buffer size, not allocated, just a limit for the stream
+    1024 * 1024 * 200,
+    BufferingType.preserved,
+    0.5,
+    sampleRate,
+    channels.count,
+    BufferType.auto.value,
+    null,
+    null,
+  );
+
+  if (ret.error != PlayerErrors.noError) {
+    return ret;
+  }
+
+  // Add audio data in chunks, yielding between each chunk.
+  for (var offset = 0; offset < buffer.length; offset += chunkSize) {
+    final end = (offset + chunkSize < buffer.length)
+        ? offset + chunkSize
+        : buffer.length;
+    final chunk = Uint8List.sublistView(buffer, offset, end);
+
+    final error = SoLoudController().soLoudFFI.addAudioDataStream(
+      ret.soundHash.hash,
+      chunk,
+    );
+
+    if (error != PlayerErrors.noError) {
+      // Clean up the partially created stream on error.
+      SoLoudController().soLoudFFI.disposeSound(ret.soundHash);
+      return (error: error, soundHash: SoundHash(0));
+    }
+
+    // Yield to the event loop every chunk to keep UI responsive.
+    if (end < buffer.length) {
+      await Future<void>.delayed(Duration.zero);
+    }
+  }
+
+  // Mark the stream as ended.
+  final endError = SoLoudController().soLoudFFI.setDataIsEnded(ret.soundHash);
+  if (endError != PlayerErrors.noError) {
+    SoLoudController().soLoudFFI.disposeSound(ret.soundHash);
+    return (error: endError, soundHash: SoundHash(0));
+  }
+
+  return ret;
+}
+
 @pragma('vm:entry-point')
 Float32List _readSamplesFromFile(Map<String, dynamic> args) {
   return SoLoudController().soLoudFFI.readSamplesFromFile(
@@ -63,6 +132,19 @@ Float32List _readSamplesFromMem(Map<String, dynamic> args) {
     endTime: args['endTime'] as double,
     average: args['average'] as bool,
   );
+}
+
+/// How SoLoud sets the Android (AAudio) stream's `AudioAttributes` when
+/// low-latency is disabled. See [SoLoud.init]'s `androidAAudioAttributes`.
+enum AndroidAAudioAttributes {
+  /// Tag the stream as `usage = media` / `contentType = music` (default).
+  /// Sensible for a media app and capturable by system screen recorders.
+  mediaMusic,
+
+  /// Leave usage/contentType unset so the app can manage `AudioAttributes`
+  /// externally (e.g. via the `audio_session` plugin) without SoLoud
+  /// overriding them. The screen-record capture policy is still applied.
+  unmanaged,
 }
 
 /// The main class to call all the audio methods that play sounds.
@@ -198,7 +280,9 @@ interface class SoLoud {
   /// Use [isInitialized] only if you want to check the current status of
   /// the engine synchronously and you don't care that it might be ready soon.
   bool get isInitialized =>
-      _nativeCallbacksInitialized && _controller.soLoudFFI.isInited();
+      _nativeCallbacksInitialized &&
+      _controller.soLoudFFI.isInited() &&
+      _loader.isInitialized;
 
   /// Backing of [activeSounds].
   final List<AudioSource> _activeSounds = [];
@@ -216,6 +300,12 @@ interface class SoLoud {
   /// Completers for the [stop] method
   @internal
   final Map<SoundHandle, Completer<void>> voiceEndedCompleters = {};
+
+  /// The sample rate the engine was initialized with.
+  int _sampleRate = 44100;
+
+  /// The channels the engine was initialized with.
+  Channels _channels = Channels.stereo;
 
   /// Initializes the audio engine.
   ///
@@ -262,32 +352,60 @@ interface class SoLoud {
   /// The default value is 2048.
   ///
   /// [channels] mono, stereo, quad, 5.1, 7.1.
+  ///
+  /// [lowLatency] selects the audio backend's performance profile. This fork
+  /// defaults it to `false` (conservative) because our use case runs heavy
+  /// effects (multi-voice HRTF/reverb) that will not fit the low-latency path's
+  /// tiny buffers. On Android the low-latency profile uses AAudio's MMAP path,
+  /// which cannot be captured by system screen recorders and leaves little CPU
+  /// headroom for heavy filters (e.g. the FFT pitch shift). The conservative
+  /// (legacy mixer) profile is capturable by screen recording and gains callback
+  /// headroom for DSP, at the cost of higher output latency. Pass `true` to
+  /// opt in to low latency. Only the native (miniaudio) backends honor this;
+  /// the Web backend ignores it.
+  ///
+  /// [androidAAudioAttributes] (Android, native, `lowLatency: false` only)
+  /// controls the AAudio stream's `AudioAttributes`. The default
+  /// [AndroidAAudioAttributes.mediaMusic] tags the stream as `usage = media` /
+  /// `contentType = music` — sensible for a media app and capturable by screen
+  /// recorders. Pass [AndroidAAudioAttributes.unmanaged] if you set the app's
+  /// attributes/focus yourself (e.g. via the `audio_session` plugin): SoLoud
+  /// then leaves usage/contentType unset so they don't fight your
+  /// configuration. Either way the choice is preserved across output-device
+  /// changes. (Note these are the *stream's* attributes; `audio_session`
+  /// controls the *focus request* — for correct ducking they should match.)
+  /// Ignored when `lowLatency` is true, on non-Android platforms, and on web.
   Future<void> init({
     PlaybackDevice? device,
     bool automaticCleanup = false,
     int sampleRate = 44100,
     int bufferSize = 2048,
     Channels channels = Channels.stereo,
+    bool lowLatency = false,
+    AndroidAAudioAttributes androidAAudioAttributes =
+        AndroidAAudioAttributes.mediaMusic,
   }) async {
     final nativeIsInitialized = _controller.soLoudFFI.isInited();
     _log.finest('init() called');
 
+    // Removing these asserts because they could not be true after a
+    // hot restart or after calling deinit(). Discussed in #452.
     // Making extra sure no state is dangling after a hot-restart.
-    assert(
-      voiceEndedCompleters.isEmpty,
-      'voiceEndedCompleters is not empty. '
-      'Probably the developer forgot to call deinit().',
-    );
-    assert(
-      loadedFileCompleters.isEmpty,
-      'loadedFileCompleters is not empty. '
-      'Probably the developer forgot to call deinit().',
-    );
-    assert(
-      _activeSounds.isEmpty,
-      '_activeSounds is not empty. '
-      'Probably the developer forgot to call deinit().',
-    );
+    // assert(
+    //   voiceEndedCompleters.isEmpty,
+    //   'voiceEndedCompleters is not empty. '
+    //   'Probably the developer forgot to call deinit().',
+    // );
+    // assert(
+    //   loadedFileCompleters.isEmpty,
+    //   'loadedFileCompleters is not empty. '
+    //   'Probably the developer forgot to call deinit().',
+    // );
+    // assert(
+    //   _activeSounds.isEmpty,
+    //   '_activeSounds is not empty. '
+    //   'Probably the developer forgot to call deinit().',
+    // );
     voiceEndedCompleters.clear();
     loadedFileCompleters.clear();
     _activeSounds.clear();
@@ -308,11 +426,18 @@ interface class SoLoud {
       deinit();
     }
 
+    // Must be set before the engine opens the device so the backend picks it
+    // up at stream creation (and re-applies it on device changes).
+    _controller.soLoudFFI.setAndroidAAudioAttributes(
+      androidAAudioAttributes == AndroidAAudioAttributes.mediaMusic,
+    );
+
     final error = _controller.soLoudFFI.initEngine(
       device?.id ?? -1,
       sampleRate,
       bufferSize,
       channels,
+      lowLatency,
     );
     _logPlayerError(error, from: 'initialize() result');
     if (error == PlayerErrors.noError) {
@@ -320,6 +445,10 @@ interface class SoLoud {
       /// Eventually we can set this as a parameter during the
       /// initialization with some other parameters like `sampleRate`
       _isVisualizationEnabled = _controller.soLoudFFI.getVisualizationEnabled();
+
+      // Store the initialization parameters for later use.
+      _sampleRate = sampleRate;
+      _channels = channels;
 
       // Initialize [SoLoudLoader]
       _loader.automaticCleanup = automaticCleanup;
@@ -647,11 +776,19 @@ interface class SoLoud {
     final counter = _currentLoadCounter++;
     loadedFileCompleters.addAll({'$path-$counter': completer});
 
-    final ret = await compute(_loadMem, {
-      'path': path,
-      'buffer': buffer,
-      'mode': mode.index,
-    });
+    final ret = kIsWeb
+        ? await _loadMemWeb(
+            path: path,
+            buffer: buffer,
+            mode: mode,
+            sampleRate: _sampleRate,
+            channels: _channels,
+          )
+        : await compute(_loadMem, {
+            'path': path,
+            'buffer': buffer,
+            'mode': mode.index,
+          });
 
     /// There is not a callback in cpp that is supposed to add the
     /// "load file event". Manually send this event to have only one
@@ -1301,7 +1438,7 @@ interface class SoLoud {
 
     _logPlayerError(ret.error, from: 'speechText() result');
     if (ret.error == PlayerErrors.noError) {
-      final newSound = AudioSource(SoundHash.random());
+      final newSound = AudioSource(SoundHash(ret.handle.id));
       _activeSounds.add(newSound);
       return newSound;
     }

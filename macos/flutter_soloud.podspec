@@ -15,6 +15,11 @@ Flutter audio plugin using SoLoud library and FFI
 
   s.source           = { :path => '.' }
   s.source_files     = 'flutter_soloud/Sources/flutter_soloud/*.{h,mm}'
+    # flutter_soloud.mm is the SwiftPM wrapper that includes the full C++
+  # implementation. CocoaPods builds the same implementation through the
+  # CMake script phase below, so compiling the wrapper here defines duplicate
+  # symbols when the app also force-loads libflutter_soloud_plugin.a.
+  s.exclude_files = 'flutter_soloud/Sources/flutter_soloud/flutter_soloud.mm'
   s.dependency 'FlutterMacOS'
   s.platform = :osx, '10.15'
 
@@ -97,7 +102,7 @@ Flutter audio plugin using SoLoud library and FFI
   xiph_flags = disable_xiph_libs ? '' : '-logg -lopus -lvorbis -lvorbisfile -lFLAC'
 
   s.user_target_xcconfig = {
-    'OTHER_LDFLAGS' => "$(inherited) #{force_load_lib} #{xiph_flags}",
+    'OTHER_LDFLAGS' => "$(inherited) #{force_load_lib} #{xiph_flags} -lc++",
     'LIBRARY_SEARCH_PATHS' => "$(inherited) \"#{plugin_root}/cmake_build/macosx\" \"#{plugin_root}/flutter_soloud/libs\"",
     # Fix for FFI symbol stripping on macOS Release builds
     'STRIP_STYLE' => 'debugging',
