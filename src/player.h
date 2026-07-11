@@ -8,6 +8,8 @@
 #include "audiobuffer/buffer.h"
 #include "audiobuffer/metadata_ffi.h"
 #include "enums.h"
+#include "dsp/ducker.h"
+#include "dsp/master_limiter.h"
 #include "filters/filters.h"
 #include "soloud/include/soloud.h"
 #include "soloud/include/soloud_speech.h"
@@ -373,6 +375,40 @@ public:
                               int attributeId);
   PlayerErrors loadBusConvolutionIR(unsigned int busId, const char *irPath);
   void annexSoundToBus(unsigned int busId, unsigned int voiceHandle);
+
+  /////////////////////////////////////////
+  /// DSP: per-bus metering, sidechain ducker, master brickwall limiter
+  /// See docs/DSP_Metering_Ducking_Limiter.md
+  /////////////////////////////////////////
+
+  // Metering (linear amplitude; Dart converts to dBFS).
+  float getBusPeak(unsigned int busId);
+  float getBusRms(unsigned int busId);
+  void setBusMeterHold(float holdSeconds, float decayDbPerSec);
+  void setBusMeterBypass(unsigned int busId, bool bypass);
+
+  // Ducker.
+  void setDuckerKeyBus(unsigned int busId); // 0 = disable
+  void setDuckerParams(float thresholdDb, float ratio, float kneeDb,
+                       float attackSec, float releaseSec, float maxDepthDb);
+  void setDuckerBypass(bool bypass);
+  void setBusDuckOptOut(unsigned int busId, bool optOut);
+  float getDuckerKeyEnvelope();
+
+  // Master limiter.
+  void setLimiterParams(float ceilingDb, float lookaheadMs, float releaseSec);
+  void setLimiterBypass(bool bypass);
+  float getLimiterGainReduction();
+
+  /// Global DSP units. Ducker is shared by all buses (via BusDsp::ducker);
+  /// the limiter runs on the master mix bus via Soloud::mMasterDspHook.
+  fsdsp::Ducker ducker;
+  fsdsp::MasterLimiter limiter;
+
+  /// Trampoline registered as Soloud::mMasterDspHook (ctx = &limiter).
+  static void masterDspTrampoline(void *ctx, float *buffer,
+                                  unsigned int samples, unsigned int stride,
+                                  unsigned int channels);
 
 public:
   /// all the sounds loaded

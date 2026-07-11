@@ -240,6 +240,22 @@ PlayerErrors Player::init(unsigned int sampleRate, unsigned int bufferSize, unsi
         mSampleRate = sampleRate;
         mBufferSize = bufferSize;
         mChannels = channels;
+
+        // FORK PATCH (DSP): CLIP_ROUNDOFF is SoLoud's default cubic waveshaper
+        // (0.87x - 0.1x^3) applied in clip_internal. It adds harmonic
+        // distortion above ~0.6 linear, which this design forbids. Clearing it
+        // makes clip_internal a pure hard clamp (a NaN/overflow safety net that
+        // the master limiter guarantees never engages). init() is already
+        // called with flags = 0, but clear it explicitly so the invariant
+        // survives future upstream merges that might restore the default.
+        soloud.mFlags &= ~SoLoud::Soloud::CLIP_ROUNDOFF;
+
+        // FORK PATCH (DSP): size the master limiter for this engine and register
+        // it as the master DSP hook. Bypassed by default.
+        limiter.init((float)mSampleRate, MAX_CHANNELS, mBufferSize);
+        soloud.mMasterDspCtx = &limiter;
+        soloud.mMasterDspHook = &Player::masterDspTrampoline;
+
         // Start the deferred-pause scheduler now that the engine is in use.
         startPauseEngineScheduler();
     }
@@ -1746,7 +1762,13 @@ void Player::set3dSourceDopplerFactor(
 
 unsigned int Player::createBus() {
     unsigned int id = ++busIdCounter;
-    busMap.try_emplace(id, id, &soloud);
+    auto res = busMap.try_emplace(id, id, &soloud);
+    // FORK PATCH (DSP): wire the per-bus DSP state to the shared ducker and
+    // expose it to SoLoud core via the opaque Bus::mDspHook pointer. busMap is
+    // a std::map (node-based), so &dsp is stable for the bus's lifetime.
+    BusData &bd = res.first->second;
+    bd.dsp.ducker = &ducker;
+    bd.bus.mDspHook = &bd.dsp;
     return id;
 }
 
@@ -1971,3 +1993,87 @@ void Player::annexSoundToBus(unsigned int busId, unsigned int voiceHandle) {
     if (it == busMap.end()) return;
     it->second.bus.annexSound(voiceHandle);
 }
+
+/////////////////////////////////////////
+/// DSP: metering, ducker, master limiter
+/////////////////////////////////////////
+
+void Player::masterDspTrampoline(void *ctx, float *buffer, unsigned int samples,
+                                 unsigned int stride, unsigned int channels) {
+    static_cast<fsdsp::MasterLimiter *>(ctx)->process(buffer, samples, stride,
+                                                      channels);
+}
+
+// ---- Metering ----
+
+float Player::getBusPeak(unsigned int busId) {
+    auto it = busMap.find(busId);
+    if (it == busMap.end()) return 0.0f;
+    return it->second.dsp.meter.peak();
+}
+
+float Player::getBusRms(unsigned int busId) {
+    auto it = busMap.find(busId);
+    if (it == busMap.end()) return 0.0f;
+    return it->second.dsp.meter.rms();
+}
+
+void Player::setBusMeterHold(float holdSeconds, float decayDbPerSec) {
+    // Applies to every bus meter (shared config).
+    for (auto &kv : busMap) {
+        kv.second.dsp.meter.holdSeconds.store(holdSeconds,
+                                              std::memory_order_relaxed);
+        kv.second.dsp.meter.decayDbPerSec.store(decayDbPerSec,
+                                                std::memory_order_relaxed);
+    }
+}
+
+void Player::setBusMeterBypass(unsigned int busId, bool bypass) {
+    auto it = busMap.find(busId);
+    if (it == busMap.end()) return;
+    it->second.dsp.meter.bypass.store(bypass, std::memory_order_relaxed);
+}
+
+// ---- Ducker ----
+
+void Player::setDuckerKeyBus(unsigned int busId) {
+    ducker.keyBusId.store(busId, std::memory_order_relaxed);
+}
+
+void Player::setDuckerParams(float thresholdDb, float ratio, float kneeDb,
+                             float attackSec, float releaseSec,
+                             float maxDepthDb) {
+    ducker.thresholdDb.store(thresholdDb, std::memory_order_relaxed);
+    ducker.ratio.store(ratio, std::memory_order_relaxed);
+    ducker.kneeDb.store(kneeDb, std::memory_order_relaxed);
+    ducker.attackSec.store(attackSec, std::memory_order_relaxed);
+    ducker.releaseSec.store(releaseSec, std::memory_order_relaxed);
+    ducker.maxDepthDb.store(maxDepthDb, std::memory_order_relaxed);
+}
+
+void Player::setDuckerBypass(bool bypass) {
+    ducker.bypass.store(bypass, std::memory_order_relaxed);
+}
+
+void Player::setBusDuckOptOut(unsigned int busId, bool optOut) {
+    auto it = busMap.find(busId);
+    if (it == busMap.end()) return;
+    it->second.dsp.duckOptOut.store(optOut, std::memory_order_relaxed);
+}
+
+float Player::getDuckerKeyEnvelope() { return ducker.currentKeyEnv(); }
+
+// ---- Master limiter ----
+
+void Player::setLimiterParams(float ceilingDb, float lookaheadMs,
+                              float releaseSec) {
+    limiter.ceilingDb.store(ceilingDb, std::memory_order_relaxed);
+    limiter.lookaheadMs.store(lookaheadMs, std::memory_order_relaxed);
+    limiter.releaseSec.store(releaseSec, std::memory_order_relaxed);
+}
+
+void Player::setLimiterBypass(bool bypass) {
+    limiter.bypass.store(bypass, std::memory_order_relaxed);
+}
+
+float Player::getLimiterGainReduction() { return limiter.gainReduction(); }
