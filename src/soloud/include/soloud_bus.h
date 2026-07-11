@@ -88,6 +88,10 @@ namespace SoLoud
 		// Set the resampler for this bus
 		void setResampler(unsigned int aResampler);
 	public:
+		// FORK PATCH (DSP): opaque pointer to the plugin's per-bus DSP state
+		// (fsdsp::BusDsp). Set by Player::createBus. SoLoud core stays ignorant
+		// of the concrete type; BusInstance::getAudio casts and calls it.
+		void *mDspHook = nullptr;
 		BusInstance *mInstance;
 		unsigned int mChannelHandle;
 		unsigned int mResampler;
