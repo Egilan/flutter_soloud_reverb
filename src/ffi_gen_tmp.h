@@ -67,3 +67,35 @@ FFI_PLUGIN_EXPORT float busGetApproximateVolume(unsigned int busId, unsigned int
 
 /// Get the number of voices currently playing through this bus.
 FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId);
+
+// --- DSP: metering, ducker, master limiter ---
+
+/// Get the held+decayed peak level of this bus (linear amplitude). 0 if unknown.
+FFI_PLUGIN_EXPORT float getBusPeak(unsigned int busId);
+/// Get the last-block RMS level of this bus (linear amplitude). 0 if unknown.
+FFI_PLUGIN_EXPORT float getBusRms(unsigned int busId);
+/// Set peak-hold time and decay rate for all bus meters.
+FFI_PLUGIN_EXPORT void setBusMeterHold(float holdSeconds, float decayDbPerSec);
+/// Enable/disable a single bus meter.
+FFI_PLUGIN_EXPORT void setBusMeterBypass(unsigned int busId, int bypass);
+
+/// Set the ducker key (sidechain) bus. 0 disables the ducker.
+FFI_PLUGIN_EXPORT void setDuckerKeyBus(unsigned int busId);
+/// Set ducker gain-computer + envelope parameters.
+FFI_PLUGIN_EXPORT void setDuckerParams(float thresholdDb, float ratio,
+                                       float kneeDb, float attackSec,
+                                       float releaseSec, float maxDepthDb);
+/// Enable/disable the ducker (smoother keeps running toward unity).
+FFI_PLUGIN_EXPORT void setDuckerBypass(int bypass);
+/// Exclude a bus from being ducked.
+FFI_PLUGIN_EXPORT void setBusDuckOptOut(unsigned int busId, int optOut);
+/// Get the current ducker key envelope (linear, debug).
+FFI_PLUGIN_EXPORT float getDuckerKeyEnvelope(void);
+
+/// Set master limiter parameters (ceiling dBFS, lookahead ms, release s).
+FFI_PLUGIN_EXPORT void setLimiterParams(float ceilingDb, float lookaheadMs,
+                                        float releaseSec);
+/// Enable/disable the master limiter (delay line keeps running).
+FFI_PLUGIN_EXPORT void setLimiterBypass(int bypass);
+/// Get the master limiter's current gain reduction (linear, <= 1.0).
+FFI_PLUGIN_EXPORT float getLimiterGainReduction(void);

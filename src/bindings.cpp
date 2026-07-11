@@ -2124,6 +2124,93 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         return player.get()->loadBusConvolutionIR(busHandle, irPath);
     }
 
+    /////////////////////////////////////////
+    /// DSP: metering, ducker, master limiter
+    /// See docs/DSP_Metering_Ducking_Limiter.md
+    /////////////////////////////////////////
+
+    // --- Metering (linear amplitude; Dart converts to dBFS) ---
+
+    FFI_PLUGIN_EXPORT float getBusPeak(unsigned int busId)
+    {
+        if (player.get() == nullptr) return 0.0f;
+        return player.get()->getBusPeak(busId);
+    }
+
+    FFI_PLUGIN_EXPORT float getBusRms(unsigned int busId)
+    {
+        if (player.get() == nullptr) return 0.0f;
+        return player.get()->getBusRms(busId);
+    }
+
+    FFI_PLUGIN_EXPORT void setBusMeterHold(float holdSeconds, float decayDbPerSec)
+    {
+        if (player.get() == nullptr) return;
+        player.get()->setBusMeterHold(holdSeconds, decayDbPerSec);
+    }
+
+    FFI_PLUGIN_EXPORT void setBusMeterBypass(unsigned int busId, int bypass)
+    {
+        if (player.get() == nullptr) return;
+        player.get()->setBusMeterBypass(busId, bypass != 0);
+    }
+
+    // --- Ducker ---
+
+    FFI_PLUGIN_EXPORT void setDuckerKeyBus(unsigned int busId)
+    {
+        if (player.get() == nullptr) return;
+        player.get()->setDuckerKeyBus(busId);
+    }
+
+    FFI_PLUGIN_EXPORT void setDuckerParams(float thresholdDb, float ratio,
+                                           float kneeDb, float attackSec,
+                                           float releaseSec, float maxDepthDb)
+    {
+        if (player.get() == nullptr) return;
+        player.get()->setDuckerParams(thresholdDb, ratio, kneeDb, attackSec,
+                                      releaseSec, maxDepthDb);
+    }
+
+    FFI_PLUGIN_EXPORT void setDuckerBypass(int bypass)
+    {
+        if (player.get() == nullptr) return;
+        player.get()->setDuckerBypass(bypass != 0);
+    }
+
+    FFI_PLUGIN_EXPORT void setBusDuckOptOut(unsigned int busId, int optOut)
+    {
+        if (player.get() == nullptr) return;
+        player.get()->setBusDuckOptOut(busId, optOut != 0);
+    }
+
+    FFI_PLUGIN_EXPORT float getDuckerKeyEnvelope(void)
+    {
+        if (player.get() == nullptr) return 0.0f;
+        return player.get()->getDuckerKeyEnvelope();
+    }
+
+    // --- Master limiter ---
+
+    FFI_PLUGIN_EXPORT void setLimiterParams(float ceilingDb, float lookaheadMs,
+                                            float releaseSec)
+    {
+        if (player.get() == nullptr) return;
+        player.get()->setLimiterParams(ceilingDb, lookaheadMs, releaseSec);
+    }
+
+    FFI_PLUGIN_EXPORT void setLimiterBypass(int bypass)
+    {
+        if (player.get() == nullptr) return;
+        player.get()->setLimiterBypass(bypass != 0);
+    }
+
+    FFI_PLUGIN_EXPORT float getLimiterGainReduction(void)
+    {
+        if (player.get() == nullptr) return 0.0f;
+        return player.get()->getLimiterGainReduction();
+    }
+
     FFI_PLUGIN_EXPORT enum PlayerErrors loadHrtfData(
         unsigned int soundHash,
         const char *path)
