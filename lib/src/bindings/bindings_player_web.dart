@@ -1333,6 +1333,53 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
+  double getBusPeak(BusHandle busHandle) => 0;
+
+  @override
+  double getBusRms(BusHandle busHandle) => 0;
+
+  @override
+  void setBusMeterHold(double holdSeconds, double decayDbPerSec) {}
+
+  @override
+  void setBusMeterBypass(BusHandle busHandle, bool bypass) {}
+
+  @override
+  void setDuckerKeyBus(BusHandle? busHandle) {}
+
+  @override
+  void setDuckerParams(
+    double thresholdDb,
+    double ratio,
+    double kneeDb,
+    double attackSec,
+    double releaseSec,
+    double maxDepthDb,
+  ) {}
+
+  @override
+  void setDuckerBypass(bool bypass) {}
+
+  @override
+  void setBusDuckOptOut(BusHandle busHandle, bool optOut) {}
+
+  @override
+  double getDuckerKeyEnvelope() => 0;
+
+  @override
+  void setLimiterParams(
+    double ceilingDb,
+    double lookaheadMs,
+    double releaseSec,
+  ) {}
+
+  @override
+  void setLimiterBypass(bool bypass) {}
+
+  @override
+  double getLimiterGainReduction() => 1;
+
+  @override
   PlayerErrors loadBusConvolutionIR({
     required BusHandle busHandle,
     required String irPath,

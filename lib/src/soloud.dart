@@ -11,6 +11,7 @@ import 'package:flutter_soloud/src/bindings/native_metadata_ffi.dart'
 import 'package:flutter_soloud/src/bindings/soloud_controller.dart';
 import 'package:flutter_soloud/src/enums.dart';
 import 'package:flutter_soloud/src/exceptions/exceptions.dart';
+import 'package:flutter_soloud/src/filters/dsp_params.dart';
 import 'package:flutter_soloud/src/filters/filters.dart';
 import 'package:flutter_soloud/src/helpers/playback_device.dart';
 import 'package:flutter_soloud/src/metadata.dart';
@@ -3475,6 +3476,153 @@ interface class SoLoud {
       _logPlayerError(error, from: 'loadBusHrtfData() result');
       throw SoLoudCppException.fromPlayerError(error);
     }
+  }
+
+  // ///////////////////////////////////////
+  //  DSP: bus metering, sidechain ducker, master limiter (fork)
+  //  See docs/DSP_Metering_Ducking_Limiter.md
+  // ///////////////////////////////////////
+
+  /// Get the held+decayed peak level of the bus, as linear amplitude.
+  ///
+  /// Returns 0 for an unknown or never-played bus (dBFS conversion —
+  /// `20*log10(x)`, with 0 shown as -inf — belongs in app code).
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  double getBusPeak(BusHandle busHandle) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    return _controller.soLoudFFI.getBusPeak(busHandle);
+  }
+
+  /// Get the last-block RMS level of the bus, as linear amplitude.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  double getBusRms(BusHandle busHandle) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    return _controller.soLoudFFI.getBusRms(busHandle);
+  }
+
+  /// Set the peak-hold time (seconds) and decay rate (dB/s) applied to all
+  /// bus meters.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setBusMeterHold(double holdSeconds, double decayDbPerSec) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setBusMeterHold(holdSeconds, decayDbPerSec);
+  }
+
+  /// Enable or disable the meter of a single bus.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setBusMeterBypass(BusHandle busHandle, {required bool bypass}) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setBusMeterBypass(busHandle, bypass);
+  }
+
+  /// Set the ducker key (sidechain) bus. All other buses (except those opted
+  /// out via [setBusDuckOptOut]) are attenuated when this bus has signal.
+  ///
+  /// Pass `null` to disable the ducker.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setDuckerKeyBus(BusHandle? busHandle) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setDuckerKeyBus(busHandle);
+  }
+
+  /// Set the ducker parameters. See [DuckerParams].
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setDuckerParams(DuckerParams params) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setDuckerParams(
+      params.thresholdDb,
+      params.ratio,
+      params.kneeDb,
+      params.attackSec,
+      params.releaseSec,
+      params.maxDepthDb,
+    );
+  }
+
+  /// Enable or disable the ducker. Un-bypassing is click-free (per-bus gain
+  /// smoothers keep running toward unity while bypassed).
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setDuckerBypass({required bool bypass}) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setDuckerBypass(bypass);
+  }
+
+  /// Exclude a bus from being ducked by the ducker.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setBusDuckOptOut(BusHandle busHandle, {required bool optOut}) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setBusDuckOptOut(busHandle, optOut);
+  }
+
+  /// Get the current ducker key envelope (linear amplitude, debug/metering).
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  double getDuckerKeyEnvelope() {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    return _controller.soLoudFFI.getDuckerKeyEnvelope();
+  }
+
+  /// Set the master brickwall limiter parameters. See [LimiterParams].
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setLimiterParams(LimiterParams params) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setLimiterParams(
+      params.ceilingDb,
+      params.lookaheadMs,
+      params.releaseSec,
+    );
+  }
+
+  /// Enable or disable the master limiter. The lookahead delay line keeps
+  /// running while bypassed, so latency is constant and toggling is
+  /// click-free.
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  void setLimiterBypass({required bool bypass}) {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    _controller.soLoudFFI.setLimiterBypass(bypass);
+  }
+
+  /// Get the master limiter's current gain reduction (linear, `<= 1.0`;
+  /// 1.0 means no reduction).
+  ///
+  /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
+  double getLimiterGainReduction() {
+    if (!isInitialized) {
+      throw const SoLoudNotInitializedException();
+    }
+    return _controller.soLoudFFI.getLimiterGainReduction();
   }
 
   /// Sets the HRTF filter's spatial position from world-space XYZ coordinates

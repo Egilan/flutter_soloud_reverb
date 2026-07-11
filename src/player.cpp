@@ -251,7 +251,8 @@ PlayerErrors Player::init(unsigned int sampleRate, unsigned int bufferSize, unsi
         soloud.mFlags &= ~SoLoud::Soloud::CLIP_ROUNDOFF;
 
         // FORK PATCH (DSP): size the master limiter for this engine and register
-        // it as the master DSP hook. Bypassed by default.
+        // it as the master DSP hook. Active by default (bypass flag = false),
+        // so |output| <= ceiling is guaranteed from the first block.
         limiter.init((float)mSampleRate, MAX_CHANNELS, mBufferSize);
         soloud.mMasterDspCtx = &limiter;
         soloud.mMasterDspHook = &Player::masterDspTrampoline;

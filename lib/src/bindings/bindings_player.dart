@@ -962,6 +962,69 @@ abstract class FlutterSoLoud {
   /// Annex an already playing voice to the bus.
   @mustBeOverridden
   void annexSoundToBus(BusHandle busHandle, SoundHandle voiceHandle);
+
+  // ///////////////////////////////////////
+  //  DSP: bus metering, sidechain ducker, master limiter (fork)
+  // ///////////////////////////////////////
+
+  /// Get the held+decayed peak level of the bus (linear amplitude).
+  @mustBeOverridden
+  double getBusPeak(BusHandle busHandle);
+
+  /// Get the last-block RMS level of the bus (linear amplitude).
+  @mustBeOverridden
+  double getBusRms(BusHandle busHandle);
+
+  /// Set peak-hold time and decay rate for all bus meters.
+  @mustBeOverridden
+  void setBusMeterHold(double holdSeconds, double decayDbPerSec);
+
+  /// Enable or disable the meter of a single bus.
+  @mustBeOverridden
+  void setBusMeterBypass(BusHandle busHandle, bool bypass);
+
+  /// Set the ducker key (sidechain) bus. Pass `null` to disable the ducker.
+  @mustBeOverridden
+  void setDuckerKeyBus(BusHandle? busHandle);
+
+  /// Set the ducker's gain-computer and envelope parameters.
+  @mustBeOverridden
+  void setDuckerParams(
+    double thresholdDb,
+    double ratio,
+    double kneeDb,
+    double attackSec,
+    double releaseSec,
+    double maxDepthDb,
+  );
+
+  /// Enable or disable the ducker.
+  @mustBeOverridden
+  void setDuckerBypass(bool bypass);
+
+  /// Exclude a bus from being ducked.
+  @mustBeOverridden
+  void setBusDuckOptOut(BusHandle busHandle, bool optOut);
+
+  /// Get the current ducker key envelope (linear, debug/metering).
+  @mustBeOverridden
+  double getDuckerKeyEnvelope();
+
+  /// Set master limiter parameters.
+  @mustBeOverridden
+  void setLimiterParams(
+    double ceilingDb,
+    double lookaheadMs,
+    double releaseSec,
+  );
+
+  /// Enable or disable the master limiter.
+  @mustBeOverridden
+  void setLimiterBypass(bool bypass);
+
+  /// Get the master limiter's current gain reduction (linear, <= 1.0).
+  @mustBeOverridden
+  double getLimiterGainReduction();
   @mustBeOverridden
   PlayerErrors setFilterParams(
     FilterType filterType,
