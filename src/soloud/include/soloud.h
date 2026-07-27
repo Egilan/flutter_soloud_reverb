@@ -550,6 +550,14 @@ namespace SoLoud
 		unsigned int mBufferSize;
 		// Flags; see Soloud::FLAGS
 		unsigned int mFlags;
+		// FORK PATCH (DSP): master DSP hook, invoked in mix_internal after the
+		// global filter loop and before clip_internal, on the planar
+		// mOutputScratch buffer (sample i, channel ch at [i + ch * aStride]).
+		// Used by the fork's master brickwall limiter. Default null = no-op.
+		typedef void (*MasterDspHook)(void *aCtx, float *aBuffer,
+			unsigned int aSamples, unsigned int aStride, unsigned int aChannels);
+		MasterDspHook mMasterDspHook = nullptr;
+		void *mMasterDspCtx = nullptr;
 		// Global volume. Applied before clipping.
 		float mGlobalVolume;
 		// Post-clip scaler. Applied after clipping.

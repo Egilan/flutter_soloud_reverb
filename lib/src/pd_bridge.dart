@@ -109,4 +109,41 @@ class PdBridge {
   bool sendBang({required String receiver}) {
     return _ffi.sendBang(receiver) == 0;
   }
+
+  /// Send a symbol to a named PD receiver.
+  ///
+  /// **Note:** PD receivers are global across ALL loaded patches.
+  /// See [sendFloat] for details.
+  ///
+  /// Returns true on success.
+  bool sendSymbol({required String receiver, required String symbol}) {
+    return _ffi.sendSymbol(receiver, symbol) == 0;
+  }
+
+  /// Send a list of floats to a named PD receiver, e.g. `[receive freqs]`
+  /// receiving `440 550 660`.
+  ///
+  /// **Note:** PD receivers are global across ALL loaded patches.
+  /// See [sendFloat] for details.
+  ///
+  /// Returns true on success.
+  bool sendList({required String receiver, required List<double> values}) {
+    return _ffi.sendList(receiver, values) == 0;
+  }
+
+  /// Send a typed message (a [selector] plus optional float [values]) to a
+  /// named PD receiver — the equivalent of the message box
+  /// `[; receiver selector value1 value2(`.
+  ///
+  /// **Note:** PD receivers are global across ALL loaded patches.
+  /// See [sendFloat] for details.
+  ///
+  /// Returns true on success.
+  bool sendMessage({
+    required String receiver,
+    required String selector,
+    List<double> values = const [],
+  }) {
+    return _ffi.sendMessage(receiver, selector, values) == 0;
+  }
 }

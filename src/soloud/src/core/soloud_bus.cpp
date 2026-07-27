@@ -26,6 +26,9 @@ freely, subject to the following restrictions:
 #include "soloud_fft.h"
 #include "soloud_internal.h"
 
+// FORK PATCH (DSP): per-bus DSP state reached via Bus::mDspHook.
+#include "dsp/bus_dsp.h"
+
 namespace SoLoud
 {
 	BusInstance::BusInstance(Bus *aParent)
@@ -55,6 +58,12 @@ namespace SoLoud
 		Soloud *s = mParent->mSoloud;
 		
 		s->mixBus_internal(aBuffer, aSamplesToRead, aBufferSize, mScratch.mData, handle, mSamplerate, mChannels, mParent->mResampler);
+
+		// FORK PATCH (DSP): per-bus ducking + metering, POST-mix (planar buffer:
+		// sample i, channel ch at [i + ch * aBufferSize]).
+		if (mParent->mDspHook)
+			static_cast<fsdsp::BusDsp *>(mParent->mDspHook)->process(
+				aBuffer, aSamplesToRead, aBufferSize, mChannels, mSamplerate);
 
 		int i;
 		if (mParent->mFlags & AudioSource::VISUALIZATION_DATA)

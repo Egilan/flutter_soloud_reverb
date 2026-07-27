@@ -99,6 +99,37 @@ EXPORT int pd_send_bang(const char* receiver) {
     return libpd_bang(receiver);
 }
 
+// Send a symbol to a named receiver. Returns 0 on success.
+EXPORT int pd_send_symbol(const char* receiver, const char* symbol) {
+    return libpd_symbol(receiver, symbol);
+}
+
+// Send a list of floats to a named receiver. Returns 0 on success.
+// libpd_start_message allocates the argument buffer and can fail — bail out
+// before touching libpd_add_* if it does.
+EXPORT int pd_send_list(const char* receiver, const float* values, int count) {
+    if (count < 0 || (count > 0 && !values)) return -1;
+    int result = libpd_start_message(count);
+    if (result != 0) return result;
+    for (int i = 0; i < count; ++i) {
+        libpd_add_float(values[i]);
+    }
+    return libpd_finish_list(receiver);
+}
+
+// Send a typed message (selector + float args) to a named receiver, i.e. the
+// equivalent of `[; receiver selector arg1 arg2(`. Returns 0 on success.
+EXPORT int pd_send_message(const char* receiver, const char* selector,
+                           const float* values, int count) {
+    if (count < 0 || (count > 0 && !values)) return -1;
+    int result = libpd_start_message(count);
+    if (result != 0) return result;
+    for (int i = 0; i < count; ++i) {
+        libpd_add_float(values[i]);
+    }
+    return libpd_finish_message(receiver, selector);
+}
+
 // ── Callbacks: PD → Dart ─────────────────────────────────────────────────────
 
 // Register a Dart NativeCallable to receive float outputs from patches.

@@ -8,6 +8,8 @@
 #include "../soloud/include/soloud.h"
 #include "../soloud/include/soloud_filter.h"
 
+#include "../dsp/bus_dsp.h"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -84,9 +86,15 @@ struct BusData {
   // here.
   SoLoud::handle handle; // set when bus is played on engine
   Filters filters;
+  // Per-bus DSP state (metering + ducking). Wired to Bus::mDspHook in
+  // Player::createBus. Non-movable (holds atomics), so BusData is stored in a
+  // std::map (node-based) which never relocates existing elements.
+  fsdsp::BusDsp dsp;
 
   explicit BusData(unsigned int busId, SoLoud::Soloud *soloud)
-      : id(busId), filters(soloud, nullptr, this) {}
+      : id(busId), filters(soloud, nullptr, this) {
+    dsp.busId = busId;
+  }
 };
 
 #endif // PLAYER_H

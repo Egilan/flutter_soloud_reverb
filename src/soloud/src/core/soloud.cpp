@@ -2225,8 +2225,13 @@ namespace SoLoud
 			}
 		}
 
+		// FORK PATCH (DSP): master DSP hook (brickwall limiter) runs after the
+		// global filters and before clip_internal, on the planar output buffer.
+		if (mMasterDspHook)
+			mMasterDspHook(mMasterDspCtx, mOutputScratch.mData, aSamples, aStride, mChannels);
+
 		unlockAudioMutex_internal();
-		
+
 		// Note: clipping channels*aStride, not channels*aSamples, so we're possibly clipping some unused data.
 		// The buffers should be large enough for it, we just may do a few bytes of unneccessary work.
 		clip_internal(mOutputScratch, mScratch, aStride, globalVolume[0], globalVolume[1]);

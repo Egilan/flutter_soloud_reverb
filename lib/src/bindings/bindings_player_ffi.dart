@@ -2701,6 +2701,162 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   late final _getBusFilterParameter = _getBusFilterParameterPtr
       .asFunction<double Function(int, int, int)>();
 
+  // ///////////////////////////////////////
+  //  DSP: bus metering, sidechain ducker, master limiter (fork)
+  // ///////////////////////////////////////
+
+  @override
+  double getBusPeak(BusHandle busHandle) => _getBusPeak(busHandle.id);
+
+  late final _getBusPeakPtr =
+      _lookup<ffi.NativeFunction<ffi.Float Function(ffi.UnsignedInt)>>(
+    'getBusPeak',
+  );
+  late final _getBusPeak = _getBusPeakPtr.asFunction<double Function(int)>();
+
+  @override
+  double getBusRms(BusHandle busHandle) => _getBusRms(busHandle.id);
+
+  late final _getBusRmsPtr =
+      _lookup<ffi.NativeFunction<ffi.Float Function(ffi.UnsignedInt)>>(
+    'getBusRms',
+  );
+  late final _getBusRms = _getBusRmsPtr.asFunction<double Function(int)>();
+
+  @override
+  void setBusMeterHold(double holdSeconds, double decayDbPerSec) {
+    _setBusMeterHold(holdSeconds, decayDbPerSec);
+  }
+
+  late final _setBusMeterHoldPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Float, ffi.Float)>>(
+    'setBusMeterHold',
+  );
+  late final _setBusMeterHold =
+      _setBusMeterHoldPtr.asFunction<void Function(double, double)>();
+
+  @override
+  void setBusMeterBypass(BusHandle busHandle, bool bypass) {
+    _setBusMeterBypass(busHandle.id, bypass ? 1 : 0);
+  }
+
+  late final _setBusMeterBypassPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Int)>>(
+    'setBusMeterBypass',
+  );
+  late final _setBusMeterBypass =
+      _setBusMeterBypassPtr.asFunction<void Function(int, int)>();
+
+  @override
+  void setDuckerKeyBus(BusHandle? busHandle) {
+    _setDuckerKeyBus(busHandle?.id ?? 0);
+  }
+
+  late final _setDuckerKeyBusPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt)>>(
+    'setDuckerKeyBus',
+  );
+  late final _setDuckerKeyBus =
+      _setDuckerKeyBusPtr.asFunction<void Function(int)>();
+
+  @override
+  void setDuckerParams(
+    double thresholdDb,
+    double ratio,
+    double kneeDb,
+    double attackSec,
+    double releaseSec,
+    double maxDepthDb,
+  ) {
+    _setDuckerParams(
+      thresholdDb,
+      ratio,
+      kneeDb,
+      attackSec,
+      releaseSec,
+      maxDepthDb,
+    );
+  }
+
+  late final _setDuckerParamsPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Float, ffi.Float, ffi.Float, ffi.Float,
+              ffi.Float, ffi.Float)>>('setDuckerParams');
+  late final _setDuckerParams = _setDuckerParamsPtr.asFunction<
+      void Function(double, double, double, double, double, double)>();
+
+  @override
+  void setDuckerBypass(bool bypass) {
+    _setDuckerBypass(bypass ? 1 : 0);
+  }
+
+  late final _setDuckerBypassPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>(
+    'setDuckerBypass',
+  );
+  late final _setDuckerBypass =
+      _setDuckerBypassPtr.asFunction<void Function(int)>();
+
+  @override
+  void setBusDuckOptOut(BusHandle busHandle, bool optOut) {
+    _setBusDuckOptOut(busHandle.id, optOut ? 1 : 0);
+  }
+
+  late final _setBusDuckOptOutPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Int)>>(
+    'setBusDuckOptOut',
+  );
+  late final _setBusDuckOptOut =
+      _setBusDuckOptOutPtr.asFunction<void Function(int, int)>();
+
+  @override
+  double getDuckerKeyEnvelope() => _getDuckerKeyEnvelope();
+
+  late final _getDuckerKeyEnvelopePtr =
+      _lookup<ffi.NativeFunction<ffi.Float Function()>>(
+    'getDuckerKeyEnvelope',
+  );
+  late final _getDuckerKeyEnvelope =
+      _getDuckerKeyEnvelopePtr.asFunction<double Function()>();
+
+  @override
+  void setLimiterParams(
+    double ceilingDb,
+    double lookaheadMs,
+    double releaseSec,
+  ) {
+    _setLimiterParams(ceilingDb, lookaheadMs, releaseSec);
+  }
+
+  late final _setLimiterParamsPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(
+              ffi.Float, ffi.Float, ffi.Float)>>('setLimiterParams');
+  late final _setLimiterParams =
+      _setLimiterParamsPtr.asFunction<void Function(double, double, double)>();
+
+  @override
+  void setLimiterBypass(bool bypass) {
+    _setLimiterBypass(bypass ? 1 : 0);
+  }
+
+  late final _setLimiterBypassPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>(
+    'setLimiterBypass',
+  );
+  late final _setLimiterBypass =
+      _setLimiterBypassPtr.asFunction<void Function(int)>();
+
+  @override
+  double getLimiterGainReduction() => _getLimiterGainReduction();
+
+  late final _getLimiterGainReductionPtr =
+      _lookup<ffi.NativeFunction<ffi.Float Function()>>(
+    'getLimiterGainReduction',
+  );
+  late final _getLimiterGainReduction =
+      _getLimiterGainReductionPtr.asFunction<double Function()>();
+
   @override
   PlayerErrors loadBusConvolutionIR({
     required BusHandle busHandle,
