@@ -21,7 +21,7 @@ A minor AAudio stability fix adds a 200ms settle delay before stream reinit on d
 On the reverb side, the Dattorro plate reverb is exposed as a first-class `DattorroFilter` with a full Dart API covering all parameters — `preDelay`, `decay`, `damping`, `wet`, `dry`, plus the newer `bandwidth`, `inputDiffusion`, `lfoRate`, and `lfoDepth`.
 The demo app uses a `DattorroParams` value object and a preset picker with grouped controls. IR convolution normalization was corrected from peak-norm to L2-norm so long-tail impulse responses don't blow up output gain.
 
-LibPD is embedded in the plugin itself (`pd_bridge.cpp` compiled into `libflutter_soloud_plugin.so`), exposing a `PdBridge` Dart singleton for multi-patch lifecycle and float/bang messaging.
+LibPD is embedded in the plugin itself (`pd_bridge.cpp` compiled into `libflutter_soloud_plugin.so`), exposing a `PdBridge` Dart singleton for multi-patch lifecycle and messaging — floats, bangs, symbols, float lists, and typed messages (selector + float args).
 iOS ships pre-built vendored `.a` libraries (device + simulator) built via CMake, mirroring the opus/ogg pattern, with a `scripts/build_libpd_ios.sh` build script.
 
 ## Upstream merge — April 2026 (upstream v4.0.2)

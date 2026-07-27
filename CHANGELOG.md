@@ -1,3 +1,6 @@
+#### Unreleased (fork)
+- `PdBridge`: extend Dart → PD messaging beyond floats and bangs. Added `sendList()` (float list), `sendMessage()` (selector + float args) and `sendSymbol()`, backed by new `pd_send_list` / `pd_send_message` / `pd_send_symbol` exports in `src/synth/pd_bridge.cpp`
+
 #### 4.0.12 (30 Jun 2026)
 - add `lowLatency` init option to allow recordable Android output #492. Thanks to @MjnMixael
 - added WAV to Buffer streams supported formats. Fixes loading wav files from web #494

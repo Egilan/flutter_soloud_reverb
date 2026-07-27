@@ -32,6 +32,24 @@ class PdBridgeFfi {
                 ffi.NativeFunction<
                     ffi.Int32 Function(ffi.Pointer<Utf8>)>>('pd_send_bang')
             .asFunction(),
+        _pdSendSymbol = lookup<
+                ffi.NativeFunction<
+                    ffi.Int32 Function(ffi.Pointer<Utf8>,
+                        ffi.Pointer<Utf8>)>>('pd_send_symbol')
+            .asFunction(),
+        _pdSendList = lookup<
+                ffi.NativeFunction<
+                    ffi.Int32 Function(ffi.Pointer<Utf8>,
+                        ffi.Pointer<ffi.Float>, ffi.Int32)>>('pd_send_list')
+            .asFunction(),
+        _pdSendMessage = lookup<
+                ffi.NativeFunction<
+                    ffi.Int32 Function(
+                        ffi.Pointer<Utf8>,
+                        ffi.Pointer<Utf8>,
+                        ffi.Pointer<ffi.Float>,
+                        ffi.Int32)>>('pd_send_message')
+            .asFunction(),
         _pdSetFloatHook = lookup<
                 ffi.NativeFunction<
                     ffi.Void Function(
@@ -56,6 +74,12 @@ class PdBridgeFfi {
   final void Function() _pdCloseAllPatches;
   final int Function(ffi.Pointer<Utf8>, double) _pdSendFloat;
   final int Function(ffi.Pointer<Utf8>) _pdSendBang;
+  final int Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>) _pdSendSymbol;
+  final int Function(ffi.Pointer<Utf8>, ffi.Pointer<ffi.Float>, int)
+      _pdSendList;
+  final int Function(
+          ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, ffi.Pointer<ffi.Float>, int)
+      _pdSendMessage;
   final void Function(
       ffi.Pointer<
           ffi.NativeFunction<
@@ -105,6 +129,55 @@ class PdBridgeFfi {
     final result = _pdSendBang(cRecv);
     calloc.free(cRecv);
     return result;
+  }
+
+  /// Send a symbol to a named PD receiver. Returns 0 on success.
+  int sendSymbol(String receiver, String symbol) {
+    final cRecv = receiver.toNativeUtf8();
+    final cSym = symbol.toNativeUtf8();
+    final result = _pdSendSymbol(cRecv, cSym);
+    calloc.free(cRecv);
+    calloc.free(cSym);
+    return result;
+  }
+
+  /// Send a list of floats to a named PD receiver. Returns 0 on success.
+  int sendList(String receiver, List<double> values) {
+    final cRecv = receiver.toNativeUtf8();
+    final cValues = _allocFloats(values);
+    try {
+      return _pdSendList(cRecv, cValues, values.length);
+    } finally {
+      calloc.free(cRecv);
+      if (cValues != ffi.nullptr) calloc.free(cValues);
+    }
+  }
+
+  /// Send a typed message (selector + float args) to a named PD receiver.
+  /// Returns 0 on success.
+  int sendMessage(String receiver, String selector, List<double> values) {
+    final cRecv = receiver.toNativeUtf8();
+    final cSel = selector.toNativeUtf8();
+    final cValues = _allocFloats(values);
+    try {
+      return _pdSendMessage(cRecv, cSel, cValues, values.length);
+    } finally {
+      calloc.free(cRecv);
+      calloc.free(cSel);
+      if (cValues != ffi.nullptr) calloc.free(cValues);
+    }
+  }
+
+  /// Allocates a native float array holding [values]. Returns `nullptr` for an
+  /// empty list — the native side accepts a null pointer when count is 0.
+  /// The caller owns the memory and must free it.
+  static ffi.Pointer<ffi.Float> _allocFloats(List<double> values) {
+    if (values.isEmpty) return ffi.nullptr;
+    final ptr = calloc<ffi.Float>(values.length);
+    for (var i = 0; i < values.length; i++) {
+      ptr[i] = values[i];
+    }
+    return ptr;
   }
 
   /// Set the native float hook callback.
