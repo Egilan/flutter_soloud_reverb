@@ -11,6 +11,23 @@ set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../src")
 # Include common plugin sources and SoLoud configuration
 include(${SRC_DIR}/CMakeLists.txt)
 
+# Fork-specific sources (buses, reverbs, HRTF, LibPD)
+list(APPEND PLUGIN_SOURCES
+  "${SRC_DIR}/synth/soloud_libpd.cpp"
+  "${SRC_DIR}/synth/pd_bridge.cpp"
+  "${SRC_DIR}/filters/dattorro.cpp"
+  "${SRC_DIR}/filters/soloud_reverbsc.cpp"
+  "${SRC_DIR}/filters/soloud_convolutionfilter.cpp"
+  "${SRC_DIR}/filters/soloud_dattorro_filter.cpp"
+  "${SRC_DIR}/filters/soloud_hrtf_filter.cpp"
+  "${SRC_DIR}/filters/fftconvolver/AudioFFT.cpp"
+  "${SRC_DIR}/filters/fftconvolver/Utilities.cpp"
+  "${SRC_DIR}/filters/fftconvolver/FFTConvolver.cpp"
+)
+
+# libpd is linked as a pre-built static library by the podspec; only its headers are needed here
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/libpd)
+
 # Build a STATIC library (will be linked into the app)
 add_library(${PLUGIN_NAME} STATIC
   ${PLUGIN_SOURCES}
