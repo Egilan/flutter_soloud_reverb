@@ -3496,6 +3496,8 @@ interface class SoLoud {
     final error = _controller.soLoudFFI.loadBusHrtfData(
       busHandle: busHandle,
       path: path,
+      sampleRate: sampleRate,
+      targetSampleRate: targetSampleRate,
     );
     if (error != PlayerErrors.noError) {
       _logPlayerError(error, from: 'loadBusHrtfData() result');
