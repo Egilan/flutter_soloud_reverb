@@ -1,36 +1,19 @@
 #include "soloud_libpd.h"
-#include "z_libpd.h"
-
-#include <mutex>
+#include "pd_runtime.h"
 
 LibPDInstance::LibPDInstance(LibPDAudioSource *aParent)
+    : mParent(aParent)
 {
-    mParent = aParent;
 }
 
-unsigned int LibPDInstance::getAudio(float *aBuffer, unsigned int aSamplesToRead, unsigned int aBufferSize)
+unsigned int LibPDInstance::getAudio(float *aBuffer, unsigned int aSamplesToRead,
+                                    unsigned int aBufferSize)
 {
-    const int blockSize = libpd_blocksize();
-    const int channels = mParent->mChannels;
-
-    // Zero-filled input buffer (no audio input needed for DSP-only patches)
-    float inBuf[128] = {};  // blockSize(64) * maxChannels(2)
-    float outBuf[128] = {}; // libpd writes interleaved output here per block
-
-    unsigned int frames = 0;
-    while (frames + (unsigned int)blockSize <= aSamplesToRead)
-    {
-        libpd_process_float(1, inBuf, outBuf);
-        for (int i = 0; i < blockSize; i++)
-        {
-            for (int ch = 0; ch < channels; ch++)
-            {
-                aBuffer[ch * aSamplesToRead + frames + i] = outBuf[i * channels + ch];
-            }
-        }
-        frames += blockSize;
-    }
-    return frames;
+    // No audio input is needed for DSP-only patches; pd_bridge_init configures zero inputs.
+    // PdRenderer sizes scratch for blockSize * outChannels.
+    // libpd writes interleaved output per block into the shared renderer.
+    return mParent->mRenderer->read(mParent->mSourceId, aBuffer,
+                                    aSamplesToRead, aBufferSize);
 }
 
 bool LibPDInstance::hasEnded()
@@ -38,29 +21,36 @@ bool LibPDInstance::hasEnded()
     return false;
 }
 
-LibPDAudioSource::LibPDAudioSource(unsigned int sampleRate, unsigned int channels)
+LibPDAudioSource::LibPDAudioSource(unsigned int sampleRate, unsigned int channels,
+                                 unsigned int firstChannel)
 {
-    static std::once_flag initFlag;
-    std::call_once(initFlag, [&]() {
-        libpd_init();
-        libpd_init_audio(0, (int)channels, (int)sampleRate);
-        // Turn DSP on
-        libpd_start_message(1);
-        libpd_add_float(1.0f);
-        libpd_finish_message("pd", "dsp");
-    });
-
-    mBaseSamplerate = (float)sampleRate;
+    // Audio initialization and DSP enablement happen only in pd_bridge_init.
+    auto &runtime = pdRuntime();
+    {
+        std::lock_guard<std::mutex> lock(runtime.mutex);
+        if (sampleRate != runtime.sampleRate || !runtime.renderer ||
+            (channels != 1 && channels != 2 && channels != 4 &&
+             channels != 6 && channels != 8) || channels > MAX_CHANNELS)
+            return;
+        mRenderer = runtime.renderer.get();
+    }
+    mSourceId = mRenderer->registerSource(firstChannel, channels);
+    mBaseSamplerate = static_cast<float>(sampleRate);
     mChannels = channels;
     mVolume = 1.0f;
+    setSingleInstance(true);
 }
 
 LibPDAudioSource::~LibPDAudioSource()
 {
     stop();
+    if (mRenderer && mSourceId)
+        mRenderer->unregisterSource(mSourceId);
 }
 
 SoLoud::AudioSourceInstance *LibPDAudioSource::createInstance()
 {
+    if (!isValid())
+        return nullptr;
     return new LibPDInstance(this);
 }

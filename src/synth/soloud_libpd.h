@@ -2,6 +2,7 @@
 #define SOLOUD_LIBPD_H
 
 #include "soloud.h"
+#include "pd_renderer.h"
 
 class LibPDAudioSource;
 
@@ -18,9 +19,18 @@ public:
 class LibPDAudioSource : public SoLoud::AudioSource
 {
 public:
-    LibPDAudioSource(unsigned int sampleRate, unsigned int channels);
+    LibPDAudioSource(unsigned int sampleRate, unsigned int channels,
+                     unsigned int firstChannel = 0);
+    LibPDAudioSource(const LibPDAudioSource &) = delete;
+    LibPDAudioSource &operator=(const LibPDAudioSource &) = delete;
     virtual ~LibPDAudioSource();
     virtual SoLoud::AudioSourceInstance *createInstance();
+    bool isValid() const { return mSourceId != 0; }
+
+private:
+    friend class LibPDInstance;
+    PdRenderer *mRenderer = nullptr;
+    PdRenderer::SourceId mSourceId = 0;
 };
 
 #endif // SOLOUD_LIBPD_H
