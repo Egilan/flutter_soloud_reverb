@@ -322,6 +322,8 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   PlayerErrors loadHrtfData({
     required int soundHash,
     required String path,
+    double sampleRate = 44100,
+    double? targetSampleRate,
   }) {
     return PlayerErrors.notImplemented;
   }
@@ -1178,6 +1180,11 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   }
 
   @override
+  void set3dSourcePanEnabled(SoundHandle handle, bool enabled) {
+    wasmSet3dSourcePanEnabled(handle.id, enabled ? 1 : 0);
+  }
+
+  @override
   void set3dSourceDopplerFactor(SoundHandle handle, double dopplerFactor) {
     return wasmSet3dSourceDopplerFactor(handle.id, dopplerFactor);
   }
@@ -1392,6 +1399,8 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   PlayerErrors loadBusHrtfData({
     required BusHandle busHandle,
     required String path,
+    double sampleRate = 44100,
+    double? targetSampleRate,
   }) {
     return PlayerErrors.notImplemented;
   }

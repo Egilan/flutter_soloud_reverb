@@ -6,6 +6,8 @@
 #include <array>
 #include <vector>
 #include <atomic>
+#include <memory>
+#include <string>
 
 namespace SoLoud
 {
@@ -20,9 +22,25 @@ namespace SoLoud
         std::array<float, HRTF_IR_SIZE> right;
     };
 
+    struct HrirTable {
+        std::string path;
+        float sourceSampleRate;
+        float sampleRate;
+        std::vector<HrirEntry> entries;
+    };
+
+    struct HrirDataState {
+        std::shared_ptr<const HrirTable> source;
+    };
+
+    bool hrtfPositionAngles(float x, float y, float z,
+                            float &azimuth, float &elevation);
+
     class HrtfFilterInstance : public FilterInstance
     {
-        HrtfFilter *mParent;
+        std::shared_ptr<HrirDataState> mDataState;
+        std::shared_ptr<const HrirTable> mSource, mTable;
+        bool mHaveIr;
         bool mInited;
         float mSamplerate;
 
@@ -81,7 +99,7 @@ namespace SoLoud
         float mWet;
         float mCrossoverFreq;
 
-        std::vector<HrirEntry> mHrirData;
+        std::shared_ptr<HrirDataState> mDataState;
         std::atomic<bool> mDataReady;
 
         HrtfFilter();
@@ -89,12 +107,19 @@ namespace SoLoud
 
         // Load KEMAR binary file (27 azimuths × 52 elevations × 200+200 floats).
         // Returns 0 on success, negative on error.
-        int loadKemarBinary(const char *path);
+        int loadKemarBinary(const char *path, float sampleRate = 44100.0f,
+                            float targetSampleRate = 0.0f);
+
+        std::shared_ptr<const HrirTable> tableForRate(float sampleRate = 0.0f) const;
+        static std::shared_ptr<const HrirTable> resampledTable(
+            const std::shared_ptr<const HrirTable> &source, float sampleRate);
 
         // Interpolate an HRIR for the given azimuth/elevation using
         // inverse-distance weighting over the 3 nearest measurements.
         void interpolate(float azimuth, float elevation,
                          float *irL, float *irR) const;
+        static void interpolateTable(const HrirTable &table, float azimuth,
+                                     float elevation, float *irL, float *irR);
 
         FilterInstance *createInstance() override;
         int getParamCount() override;

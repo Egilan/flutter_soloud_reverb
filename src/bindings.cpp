@@ -1842,6 +1842,12 @@ FFI_PLUGIN_EXPORT void set3dSourceAttenuation(unsigned int handle,
   player.get()->update3dAudio();
 }
 
+FFI_PLUGIN_EXPORT void set3dSourcePanEnabled(unsigned int handle, bool enabled) {
+  if (player.get() == nullptr || !player.get()->isInited()) return;
+  player.get()->set3dSourcePanEnabled(handle, enabled);
+  player.get()->update3dAudio();
+}
+
 /// You can change the doppler factor of a live 3d audio source
 FFI_PLUGIN_EXPORT void set3dSourceDopplerFactor(unsigned int handle,
                                                 float dopplerFactor) {
@@ -2213,9 +2219,9 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         return player.get()->getLimiterGainReduction();
     }
 
-    FFI_PLUGIN_EXPORT enum PlayerErrors loadHrtfData(
+    FFI_PLUGIN_EXPORT enum PlayerErrors loadHrtfDataWithRates(
         unsigned int soundHash,
-        const char *path)
+        const char *path, float sampleRate, float targetSampleRate)
     {
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
@@ -2240,15 +2246,20 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         if (hrtfFilter == nullptr)
             return filterNotFound;
 
-        if (hrtfFilter->loadKemarBinary(path) != 0)
+        if (hrtfFilter->loadKemarBinary(path, sampleRate, targetSampleRate) != 0)
             return fileLoadFailed;
 
         return noError;
     }
 
-    FFI_PLUGIN_EXPORT enum PlayerErrors loadBusHrtfData(
+    FFI_PLUGIN_EXPORT enum PlayerErrors loadHrtfData(unsigned int soundHash, const char *path)
+    {
+        return loadHrtfDataWithRates(soundHash, path, 44100.0f, 0.0f);
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors loadBusHrtfDataWithRates(
         unsigned int busHandle,
-        const char *path)
+        const char *path, float sampleRate, float targetSampleRate)
     {
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
@@ -2264,10 +2275,15 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         if (hrtfFilter == nullptr)
             return filterNotFound;
 
-        if (hrtfFilter->loadKemarBinary(path) != 0)
+        if (hrtfFilter->loadKemarBinary(path, sampleRate, targetSampleRate) != 0)
             return fileLoadFailed;
 
         return noError;
+    }
+
+    FFI_PLUGIN_EXPORT enum PlayerErrors loadBusHrtfData(unsigned int busHandle, const char *path)
+    {
+        return loadBusHrtfDataWithRates(busHandle, path, 44100.0f, 0.0f);
     }
 
     FFI_PLUGIN_EXPORT enum PlayerErrors setHrtfSourcePosition(
@@ -2277,12 +2293,8 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
 
-        float len = sqrtf(x*x + y*y + z*z);
-        if (len < 1e-6f) return noError;
-        x /= len; y /= len; z /= len;
-
-        float az = asinf(fmaxf(-1.f, fminf(1.f, x))) * 180.f / M_PI;
-        float el = atan2f(z, y) * 180.f / M_PI;
+        float az, el;
+        if (!SoLoud::hrtfPositionAngles(x, y, z, az, el)) return noError;
 
         SoLoud::HrtfFilter *hrtfFilter = nullptr;
 
@@ -2356,12 +2368,8 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
 
-        float len = sqrtf(x*x + y*y + z*z);
-        if (len < 1e-6f) return noError;
-        x /= len; y /= len; z /= len;
-
-        float az = asinf(fmaxf(-1.f, fminf(1.f, x))) * 180.f / M_PI;
-        float el = atan2f(z, y) * 180.f / M_PI;
+        float az, el;
+        if (!SoLoud::hrtfPositionAngles(x, y, z, az, el)) return noError;
 
         auto const &s = player.get()->findByHandle(voiceHandle);
         if (s == nullptr)
@@ -2402,12 +2410,8 @@ FFI_PLUGIN_EXPORT unsigned int busGetActiveVoiceCount(unsigned int busId) {
         if (player.get() == nullptr || !player.get()->isInited())
             return backendNotInited;
 
-        float len = sqrtf(x*x + y*y + z*z);
-        if (len < 1e-6f) return noError;
-        x /= len; y /= len; z /= len;
-
-        float az = asinf(fmaxf(-1.f, fminf(1.f, x))) * 180.f / M_PI;
-        float el = atan2f(z, y) * 180.f / M_PI;
+        float az, el;
+        if (!SoLoud::hrtfPositionAngles(x, y, z, az, el)) return noError;
 
         BusData *bd = player.get()->findBusData(busHandle);
         if (!bd)

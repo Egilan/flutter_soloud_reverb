@@ -121,7 +121,8 @@ namespace SoLoud
 			// If inaudible, should still be ticked (default = pause)
 			INAUDIBLE_TICK = 128,
 			// Don't auto-stop sound
-			DISABLE_AUTOSTOP = 256
+			DISABLE_AUTOSTOP = 256,
+			PAN_3D_DISABLED = 512
 		};
 		// Ctor
 		AudioSourceInstance();

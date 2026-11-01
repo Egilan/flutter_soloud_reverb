@@ -335,6 +335,7 @@ public:
                               unsigned int attenuationModel,
                               float attenuationRolloffFactor);
   void set3dSourceDopplerFactor(unsigned int handle, float dopplerFactor);
+  void set3dSourcePanEnabled(unsigned int handle, bool enabled);
 
   /////////////////////////////////////////
   /// Mixing Bus

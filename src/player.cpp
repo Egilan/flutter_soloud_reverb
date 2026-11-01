@@ -1758,6 +1758,11 @@ void Player::set3dSourceAttenuation(
     soloud.set3dSourceAttenuation(aVoiceHandle, aAttenuationModel, aAttenuationRolloffFactor);
 }
 
+void Player::set3dSourcePanEnabled(unsigned int handle, bool enabled)
+{
+    soloud.set3dSourcePanEnabled(handle, enabled);
+}
+
 void Player::set3dSourceDopplerFactor(
     unsigned int aVoiceHandle,
     float aDopplerFactor)

@@ -279,6 +279,12 @@ namespace SoLoud
 			// panning
 			pos = m.mul(pos);
 			pos.normalize();
+            if (v->mFlags & AudioSourceInstance::PAN_3D_DISABLED)
+            {
+                pos.mX = 0;
+                pos.mY = 0;
+                pos.mZ = 1;
+            }
 
 			// Apply volume to channels based on speaker vectors
 			int j;
@@ -625,6 +631,17 @@ namespace SoLoud
 	}
 
 	
+    void Soloud::set3dSourcePanEnabled(handle aVoiceHandle, bool aEnabled)
+    {
+        FOR_ALL_VOICES_PRE
+            if (aEnabled)
+                mVoice[ch]->mFlags &= ~AudioSourceInstance::PAN_3D_DISABLED;
+            else
+                mVoice[ch]->mFlags |= AudioSourceInstance::PAN_3D_DISABLED;
+            m3dData[ch].mFlags = mVoice[ch]->mFlags;
+        FOR_ALL_VOICES_POST
+    }
+
 	void Soloud::set3dSourceDopplerFactor(handle aVoiceHandle, float aDopplerFactor)
 	{
 		FOR_ALL_VOICES_PRE_3D

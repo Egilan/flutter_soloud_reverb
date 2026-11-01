@@ -635,9 +635,16 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   PlayerErrors loadHrtfData({
     required int soundHash,
     required String path,
+    double sampleRate = 44100,
+    double? targetSampleRate,
   }) {
     final ffi.Pointer<Utf8> cString = path.toNativeUtf8();
-    final e = _loadHrtfData(soundHash, cString);
+    final e = _loadHrtfData(
+      soundHash,
+      cString,
+      sampleRate,
+      targetSampleRate ?? 0,
+    );
     calloc.free(cString);
     return PlayerErrors.values[e];
   }
@@ -647,9 +654,11 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
           ffi.Int32 Function(
             ffi.UnsignedInt,
             ffi.Pointer<Utf8>,
-          )>>('loadHrtfData');
-  late final _loadHrtfData =
-      _loadHrtfDataPtr.asFunction<int Function(int, ffi.Pointer<Utf8>)>();
+            ffi.Float,
+            ffi.Float,
+          )>>('loadHrtfDataWithRates');
+  late final _loadHrtfData = _loadHrtfDataPtr
+      .asFunction<int Function(int, ffi.Pointer<Utf8>, double, double)>();
 
   @override
   ({PlayerErrors error, double value}) getStreamTimeConsumed(
@@ -2337,6 +2346,16 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
       .asFunction<void Function(int, int, double)>();
 
   @override
+  void set3dSourcePanEnabled(SoundHandle handle, bool enabled) {
+    _set3dSourcePanEnabled(handle.id, enabled);
+  }
+
+  late final _set3dSourcePanEnabled = _lookup<
+      ffi.NativeFunction<ffi.Void Function(ffi.UnsignedInt, ffi.Bool)>>(
+    'set3dSourcePanEnabled',
+  ).asFunction<void Function(int, bool)>();
+
+  @override
   void set3dSourceDopplerFactor(SoundHandle handle, double dopplerFactor) {
     return _set3dSourceDopplerFactor(handle.id, dopplerFactor);
   }
@@ -2883,9 +2902,16 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   PlayerErrors loadBusHrtfData({
     required BusHandle busHandle,
     required String path,
+    double sampleRate = 44100,
+    double? targetSampleRate,
   }) {
     final ffi.Pointer<Utf8> cString = path.toNativeUtf8();
-    final e = _loadBusHrtfData(busHandle.id, cString);
+    final e = _loadBusHrtfData(
+      busHandle.id,
+      cString,
+      sampleRate,
+      targetSampleRate ?? 0,
+    );
     calloc.free(cString);
     return PlayerErrors.values[e];
   }
@@ -2895,9 +2921,11 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
           ffi.Int32 Function(
             ffi.UnsignedInt,
             ffi.Pointer<Utf8>,
-          )>>('loadBusHrtfData');
+            ffi.Float,
+            ffi.Float,
+          )>>('loadBusHrtfDataWithRates');
   late final _loadBusHrtfData = _loadBusHrtfDataPtr
-      .asFunction<int Function(int, ffi.Pointer<Utf8>)>();
+      .asFunction<int Function(int, ffi.Pointer<Utf8>, double, double)>();
 
   @override
   PlayerErrors setHrtfSourcePosition({

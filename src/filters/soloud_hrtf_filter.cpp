@@ -24,6 +24,10 @@
 #include <fstream>
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
+#include <map>
+#include <mutex>
+#include <tuple>
 
 #if defined(__ANDROID__)
   #include <android/log.h>
@@ -66,59 +70,152 @@ static float kemarElevationDeg(int idx)
 
 HrtfFilter::HrtfFilter()
     : mAzimuth(0.0f), mElevation(0.0f), mWet(1.0f), mCrossoverFreq(150.0f),
-      mDataReady(false)
+      mDataState(std::make_shared<HrirDataState>()), mDataReady(false)
 {
 }
 
 HrtfFilter::~HrtfFilter() {}
 
-int HrtfFilter::loadKemarBinary(const char *path)
+using TableKey = std::tuple<std::string, float, float>;
+static std::mutex hrirCacheMutex;
+static std::map<TableKey, std::shared_ptr<const HrirTable>> hrirCache;
+
+static void normalizeEntry(HrirEntry &entry)
 {
-    std::ifstream f(path, std::ios::binary);
-    if (!f.is_open())
-        return -1;
-
-    std::vector<HrirEntry> data;
-    data.reserve(KEMAR_NUM_AZIMUTHS * KEMAR_NUM_ELEVATIONS);
-
-    for (int a = 0; a < KEMAR_NUM_AZIMUTHS; a++) {
-        for (int e = 0; e < KEMAR_NUM_ELEVATIONS; e++) {
-            HrirEntry entry;
-            entry.azimuth   = (float)KEMAR_AZIMUTHS[a];
-            entry.elevation = kemarElevationDeg(e);
-
-            f.read(reinterpret_cast<char *>(entry.left.data()),
-                   HRTF_IR_SIZE * sizeof(float));
-            f.read(reinterpret_cast<char *>(entry.right.data()),
-                   HRTF_IR_SIZE * sizeof(float));
-
-            if (!f)
-                return -2;
-
-            // Normalize so the louder ear has unit peak, preserving ITD/ILD ratio.
-            float peak = 0.0f;
-            for (int k = 0; k < HRTF_IR_SIZE; k++) {
-                float al = fabsf(entry.left[k]);
-                float ar = fabsf(entry.right[k]);
-                if (al > peak) peak = al;
-                if (ar > peak) peak = ar;
-            }
-            if (peak > 1e-9f) {
-                for (int k = 0; k < HRTF_IR_SIZE; k++) {
-                    entry.left[k]  /= peak;
-                    entry.right[k] /= peak;
-                }
-            }
-
-            data.push_back(std::move(entry));
+    // Normalize so the louder ear has unit peak, preserving ITD/ILD ratio.
+    float peak = 0.0f;
+    for (int k = 0; k < HRTF_IR_SIZE; ++k) {
+        peak = std::max(peak, std::fabs(entry.left[k]));
+        peak = std::max(peak, std::fabs(entry.right[k]));
+    }
+    if (peak > 1e-9f) {
+        for (int k = 0; k < HRTF_IR_SIZE; ++k) {
+            entry.left[k] /= peak;
+            entry.right[k] /= peak;
         }
     }
+}
 
-    // Publish data before setting the flag (memory_order_release ensures
-    // the audio thread sees the complete write when it reads mDataReady).
-    mHrirData = std::move(data);
+int HrtfFilter::loadKemarBinary(const char *path, float sampleRate,
+                               float targetSampleRate)
+{
+    if (!path || !std::isfinite(sampleRate) || sampleRate <= 0 ||
+        !std::isfinite(targetSampleRate) || targetSampleRate < 0)
+        return -3;
+    std::error_code error;
+    auto canonical = std::filesystem::weakly_canonical(path, error);
+    if (error) return -1;
+    const std::string keyPath = canonical.generic_string();
+    std::shared_ptr<const HrirTable> source;
+    {
+        std::lock_guard<std::mutex> lock(hrirCacheMutex);
+        const TableKey key{keyPath, sampleRate, sampleRate};
+        auto found = hrirCache.find(key);
+        if (found != hrirCache.end()) {
+            source = found->second;
+        } else {
+            std::ifstream f(path, std::ios::binary);
+            if (!f.is_open()) return -1;
+            auto data = std::make_shared<HrirTable>();
+            data->path = keyPath;
+            data->sourceSampleRate = data->sampleRate = sampleRate;
+            data->entries.reserve(KEMAR_NUM_AZIMUTHS * KEMAR_NUM_ELEVATIONS);
+            for (int a = 0; a < KEMAR_NUM_AZIMUTHS; ++a) {
+                for (int e = 0; e < KEMAR_NUM_ELEVATIONS; ++e) {
+                    HrirEntry entry;
+                    entry.azimuth = (float)KEMAR_AZIMUTHS[a];
+                    entry.elevation = kemarElevationDeg(e);
+                    f.read(reinterpret_cast<char *>(entry.left.data()),
+                           HRTF_IR_SIZE * sizeof(float));
+                    f.read(reinterpret_cast<char *>(entry.right.data()),
+                           HRTF_IR_SIZE * sizeof(float));
+                    if (!f) return -2;
+                    for (int k = 0; k < HRTF_IR_SIZE; ++k)
+                        if (!std::isfinite(entry.left[k]) || !std::isfinite(entry.right[k]))
+                            return -2;
+                    normalizeEntry(entry);
+                    data->entries.push_back(std::move(entry));
+                }
+                auto &below = data->entries[a * KEMAR_NUM_ELEVATIONS];
+                auto &seam = data->entries[a * KEMAR_NUM_ELEVATIONS + 51];
+                for (int k = 0; k < HRTF_IR_SIZE; ++k) {
+                    below.left[k] = 0.5f * (below.left[k] + seam.left[k]);
+                    below.right[k] = 0.5f * (below.right[k] + seam.right[k]);
+                }
+                normalizeEntry(below);
+                seam.left = below.left;
+                seam.right = below.right;
+            }
+            source = data;
+            hrirCache.emplace(key, source);
+        }
+    }
+    if (targetSampleRate > 0) resampledTable(source, targetSampleRate);
+    // Publish data atomically so running voices retain their previous immutable
+    // table until they acquire the complete replacement on their next block.
+    std::atomic_store_explicit(&mDataState->source, source, std::memory_order_release);
     mDataReady.store(true, std::memory_order_release);
     return 0;
+}
+
+std::shared_ptr<const HrirTable> HrtfFilter::resampledTable(
+    const std::shared_ptr<const HrirTable> &source, float sampleRate)
+{
+    if (!source || !std::isfinite(sampleRate) || sampleRate <= 0) return {};
+    if (sampleRate == source->sampleRate) return source;
+    std::lock_guard<std::mutex> lock(hrirCacheMutex);
+    const TableKey key{source->path, source->sourceSampleRate, sampleRate};
+    auto found = hrirCache.find(key);
+    if (found != hrirCache.end()) return found->second;
+    auto data = std::make_shared<HrirTable>(*source);
+    data->sampleRate = sampleRate;
+    const double ratio = sampleRate / (double)source->sampleRate;
+    const double cutoff = std::min(1.0, ratio);
+    const double radius = 32.0 / cutoff;
+    for (size_t e = 0; e < data->entries.size(); ++e) {
+        auto &out = data->entries[e];
+        const auto &in = source->entries[e];
+        out.left.fill(0);
+        out.right.fill(0);
+        for (int n = 0; n < HRTF_IR_SIZE; ++n) {
+            const double time = n / ratio;
+            if (time >= HRTF_IR_SIZE) continue;
+            const int first = (int)std::max(0.0, std::ceil(time - radius));
+            const int last = (int)std::min((double)HRTF_IR_SIZE - 1, std::floor(time + radius));
+            double left = 0, right = 0;
+            for (int k = first; k <= last; ++k) {
+                const double delta = time - k;
+                const double phase = M_PI * delta * cutoff;
+                const double sinc = std::fabs(phase) < 1e-12 ? 1.0 : std::sin(phase) / phase;
+                const double window = 0.42 + 0.5 * std::cos(M_PI * delta / radius)
+                                    + 0.08 * std::cos(2 * M_PI * delta / radius);
+                const double weight = cutoff * sinc * window;
+                left += weight * in.left[k];
+                right += weight * in.right[k];
+            }
+            out.left[n] = (float)left;
+            out.right[n] = (float)right;
+        }
+        normalizeEntry(out);
+    }
+    hrirCache.emplace(key, data);
+    return data;
+}
+
+std::shared_ptr<const HrirTable> HrtfFilter::tableForRate(float sampleRate) const
+{
+    auto source = std::atomic_load_explicit(&mDataState->source, std::memory_order_acquire);
+    return sampleRate == 0 ? source : resampledTable(source, sampleRate);
+}
+
+bool hrtfPositionAngles(float x, float y, float z, float &azimuth, float &elevation)
+{
+    const double length = std::sqrt((double)x*x + (double)y*y + (double)z*z);
+    if (!std::isfinite(length) || length < 1e-6) return false;
+    azimuth = (float)(std::asin(std::clamp(x / length, -1.0, 1.0)) * 180.0 / M_PI);
+    elevation = (float)(std::atan2((double)z, (double)y) * 180.0 / M_PI);
+    if (elevation < -90.0f) elevation += 360.0f;
+    return true;
 }
 
 // Angular distance in degrees between two directions on the unit sphere.
@@ -127,22 +224,29 @@ int HrtfFilter::loadKemarBinary(const char *path)
 // This avoids the standard-spherical pole degeneracy where all (az, ±90°) collapse to one point.
 static float angularDistDeg(float az1, float el1, float az2, float el2)
 {
-    const float deg2rad = (float)M_PI / 180.0f;
-    float a1 = az1 * deg2rad, e1 = el1 * deg2rad;
-    float a2 = az2 * deg2rad, e2 = el2 * deg2rad;
-
-    float x1 = sinf(a1), y1 = cosf(a1) * cosf(e1), z1 = cosf(a1) * sinf(e1);
-    float x2 = sinf(a2), y2 = cosf(a2) * cosf(e2), z2 = cosf(a2) * sinf(e2);
-
-    float dot = x1*x2 + y1*y2 + z1*z2;
-    dot = (dot < -1.0f) ? -1.0f : (dot > 1.0f ? 1.0f : dot);
-    return acosf(dot) * 180.0f / (float)M_PI;
+    const double deg2rad = M_PI / 180.0;
+    const double a1 = az1 * deg2rad, e1 = el1 * deg2rad;
+    const double a2 = az2 * deg2rad, e2 = el2 * deg2rad;
+    const double x1 = std::sin(a1), y1 = std::cos(a1) * std::cos(e1), z1 = std::cos(a1) * std::sin(e1);
+    const double x2 = std::sin(a2), y2 = std::cos(a2) * std::cos(e2), z2 = std::cos(a2) * std::sin(e2);
+    const double cx = y1*z2 - z1*y2, cy = z1*x2 - x1*z2, cz = x1*y2 - y1*x2;
+    return (float)(std::atan2(std::sqrt(cx*cx + cy*cy + cz*cz),
+                             x1*x2 + y1*y2 + z1*z2) / deg2rad);
 }
 
 void HrtfFilter::interpolate(float azimuth, float elevation,
                               float *irL, float *irR) const
 {
-    if (mHrirData.empty()) {
+    auto table = tableForRate();
+    static const HrirTable empty{};
+    interpolateTable(table ? *table : empty, azimuth, elevation, irL, irR);
+}
+
+void HrtfFilter::interpolateTable(const HrirTable &table, float azimuth,
+                                 float elevation, float *irL, float *irR)
+{
+    const auto &data = table.entries;
+    if (data.empty()) {
         // Identity (dirac) passthrough
         memset(irL, 0, HRTF_IR_SIZE * sizeof(float));
         memset(irR, 0, HRTF_IR_SIZE * sizeof(float));
@@ -152,17 +256,21 @@ void HrtfFilter::interpolate(float azimuth, float elevation,
 
     // Clamp to practical range
     azimuth   = (azimuth   < -90.0f) ? -90.0f : (azimuth   > 90.0f ? 90.0f : azimuth);
-    elevation = (elevation < -90.0f) ? -90.0f : (elevation > 90.0f ? 90.0f : elevation);
+    elevation = (elevation < -90.0f) ? -90.0f : (elevation > 270.0f ? 270.0f : elevation);
 
-    // Find 3 nearest grid points
+    if (elevation == 270.0f) elevation = -90.0f;
+
+    // Find 3 nearest grid points across the circular elevation seam, counting
+    // the equivalent -90/270 endpoint only once
     struct Neighbor { float dist; int idx; };
     const int K = 3;
     Neighbor nearest[K];
     for (int i = 0; i < K; i++) nearest[i] = {1e9f, 0};
 
-    for (int i = 0; i < (int)mHrirData.size(); i++) {
+    for (int i = 0; i < (int)data.size(); i++) {
+        if (data[i].elevation == 270.0f) continue;
         float d = angularDistDeg(azimuth, elevation,
-                                  mHrirData[i].azimuth, mHrirData[i].elevation);
+                                  data[i].azimuth, data[i].elevation);
         if (d < nearest[K-1].dist) {
             nearest[K-1] = {d, i};
             // Insertion sort (K=3, tiny)
@@ -173,8 +281,8 @@ void HrtfFilter::interpolate(float azimuth, float elevation,
 
     // Exact match
     if (nearest[0].dist < 0.001f) {
-        memcpy(irL, mHrirData[nearest[0].idx].left.data(),  HRTF_IR_SIZE * sizeof(float));
-        memcpy(irR, mHrirData[nearest[0].idx].right.data(), HRTF_IR_SIZE * sizeof(float));
+        memcpy(irL, data[nearest[0].idx].left.data(),  HRTF_IR_SIZE * sizeof(float));
+        memcpy(irR, data[nearest[0].idx].right.data(), HRTF_IR_SIZE * sizeof(float));
         return;
     }
 
@@ -190,7 +298,7 @@ void HrtfFilter::interpolate(float azimuth, float elevation,
 
     for (int i = 0; i < K; i++) {
         float w = weights[i] / totalWeight;
-        const HrirEntry &e = mHrirData[nearest[i].idx];
+        const HrirEntry &e = data[nearest[i].idx];
         for (int k = 0; k < HRTF_IR_SIZE; k++) {
             irL[k] += w * e.left[k];
             irR[k] += w * e.right[k];
@@ -225,7 +333,7 @@ float HrtfFilter::getParamMax(unsigned int aParamIndex)
 {
     switch (aParamIndex) {
         case AZIMUTH:        return 90.0f;
-        case ELEVATION:      return 90.0f;
+        case ELEVATION:      return 270.0f;
         case WET:            return 1.0f;
         case CROSSOVER_FREQ: return 2000.0f;
     }
@@ -248,16 +356,16 @@ float HrtfFilter::getParamMin(unsigned int aParamIndex)
 // --------------------------------------------------------------------------
 
 HrtfFilterInstance::HrtfFilterInstance(HrtfFilter *aParent)
-    : mParent(aParent), mInited(false), mSamplerate(44100.0f),
-      mHistPos(0), mCrossfadePos(CROSSFADE_SAMPLES),
-      mLastAzimuth(9999.0f), mLastElevation(9999.0f),
+    : mDataState(aParent->mDataState), mHaveIr(false), mInited(false), mSamplerate(44100.0f),
+      mHistPos(0), mLastAzimuth(9999.0f), mLastElevation(9999.0f),
+      mCrossfadePos(CROSSFADE_SAMPLES),
       mLastCrossoverFreq(0.0f)
 {
     initParams(4);
-    mParam[HrtfFilter::AZIMUTH]        = mParent->mAzimuth;
-    mParam[HrtfFilter::ELEVATION]      = mParent->mElevation;
-    mParam[HrtfFilter::WET]            = mParent->mWet;
-    mParam[HrtfFilter::CROSSOVER_FREQ] = mParent->mCrossoverFreq;
+    mParam[HrtfFilter::AZIMUTH]        = aParent->mAzimuth;
+    mParam[HrtfFilter::ELEVATION]      = aParent->mElevation;
+    mParam[HrtfFilter::WET]            = aParent->mWet;
+    mParam[HrtfFilter::CROSSOVER_FREQ] = aParent->mCrossoverFreq;
 
     mHistory.fill(0.0f);
 
@@ -335,9 +443,11 @@ void HrtfFilterInstance::filter(
     float aSamplerate,
     double aTime)
 {
+    if (!std::isfinite(aSamplerate) || aSamplerate <= 0) return;
     updateParams(aTime);
 
-    if (!mInited) {
+    const bool rateChanged = !mInited || mSamplerate != aSamplerate;
+    if (rateChanged) {
         mSamplerate = aSamplerate;
         updateCrossover(mParam[HrtfFilter::CROSSOVER_FREQ], aSamplerate);
         mInited = true;
@@ -352,42 +462,44 @@ void HrtfFilterInstance::filter(
         updateCrossover(crossoverFreq, aSamplerate);
 
     // Wait until HRTF data is loaded
-    if (!mParent->mDataReady.load(std::memory_order_acquire))
+    auto source = std::atomic_load_explicit(&mDataState->source, std::memory_order_acquire);
+    if (!source)
         return;
+    const bool dataChanged = source != mSource || rateChanged;
+    if (dataChanged) {
+        mSource = source;
+        mTable = HrtfFilter::resampledTable(source, aSamplerate);
+    }
 
     // Position changed → look up new HRIR and start crossfade
     float posThresh = 0.05f;
-    if (fabsf(azimuth - mLastAzimuth) > posThresh ||
-        fabsf(elevation - mLastElevation) > posThresh)
+    if (dataChanged || !mHaveIr || fabsf(azimuth - mLastAzimuth) > posThresh ||
+        fabsf(std::remainder(elevation - mLastElevation, 360.0f)) > posThresh)
     {
-        mParent->interpolate(azimuth, elevation, mTargetIrL.data(), mTargetIrR.data());
-        // If already crossfading, let it restart from 0 with the new target
+        // If already crossfading, restart from the current blend with the new target
+        if (mHaveIr) {
+            blendIr(std::min(1.0f, (float)mCrossfadePos / CROSSFADE_SAMPLES));
+            mCurrentIrL = mWorkIrL;
+            mCurrentIrR = mWorkIrR;
+        }
+        HrtfFilter::interpolateTable(*mTable, azimuth, elevation,
+                                     mTargetIrL.data(), mTargetIrR.data());
         mCrossfadePos = 0;
-        mLastAzimuth  = azimuth;
+        mLastAzimuth = azimuth;
         mLastElevation = elevation;
 
         // On first position set, also initialize current so we don't
         // crossfade from the identity dirac
-        if (mCurrentIrL[0] == 1.0f && mCurrentIrL[1] == 0.0f) {
+        if (!mHaveIr) {
             mCurrentIrL = mTargetIrL;
             mCurrentIrR = mTargetIrR;
             mCrossfadePos = CROSSFADE_SAMPLES; // skip crossfade on first set
+            mHaveIr = true;
         }
     }
 
-    // Compute blend for this block (use midpoint to reduce zipper noise)
-    bool crossfading = (mCrossfadePos < CROSSFADE_SAMPLES);
-    if (crossfading) {
-        int mid = mCrossfadePos + (int)aSamples / 2;
-        float blend = (float)mid / (float)CROSSFADE_SAMPLES;
-        if (blend > 1.0f) blend = 1.0f;
-        blendIr(blend);
-        mCrossfadePos += (int)aSamples;
-        if (mCrossfadePos >= CROSSFADE_SAMPLES) {
-            mCurrentIrL = mTargetIrL;
-            mCurrentIrR = mTargetIrR;
-        }
-    } else {
+    // Compute blend per sample to keep changes continuous across block boundaries
+    if (mCrossfadePos >= CROSSFADE_SAMPLES) {
         mWorkIrL = mCurrentIrL;
         mWorkIrR = mCurrentIrR;
     }
@@ -399,6 +511,13 @@ void HrtfFilterInstance::filter(
     float *bufR = aBuffer + aSamples;
 
     for (unsigned int i = 0; i < aSamples; i++) {
+        if (mCrossfadePos < CROSSFADE_SAMPLES) {
+            blendIr((float)++mCrossfadePos / CROSSFADE_SAMPLES);
+            if (mCrossfadePos == CROSSFADE_SAMPLES) {
+                mCurrentIrL = mTargetIrL;
+                mCurrentIrR = mTargetIrR;
+            }
+        }
         float mono = bufL[i];
         if (aChannels >= 2) mono = (mono + bufR[i]) * 0.5f;
 

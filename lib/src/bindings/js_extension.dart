@@ -523,6 +523,9 @@ external void wasmSet3dSourceAttenuation(
   double attenuationRolloffFactor,
 );
 
+@JS('Module_soloud._set3dSourcePanEnabled')
+external void wasmSet3dSourcePanEnabled(int handle, int enabled);
+
 @JS('Module_soloud._set3dSourceDopplerFactor')
 external void wasmSet3dSourceDopplerFactor(int handle, double dopplerFactor);
 

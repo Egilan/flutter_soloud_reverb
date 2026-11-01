@@ -3013,6 +3013,15 @@ interface class SoLoud {
     );
   }
 
+  /// Enables speaker panning for a 3D voice (enabled by default).
+  ///
+  /// Disable this when a per-voice HRTF filter supplies binaural panning.
+  /// Each speaker then uses its straight-ahead gain, with distance attenuation,
+  /// colliders and Doppler preserved. Also applies to [play3dOnBus] voices.
+  void set3dSourcePanEnabled(SoundHandle handle, bool enabled) {
+    _controller.soLoudFFI.set3dSourcePanEnabled(handle, enabled);
+  }
+
   /// Sets the doppler factor of a live 3D audio source.
   /// 0 = disable, 1 = normal, >1 = exaggerated
   void set3dSourceDopplerFactor(SoundHandle handle, double dopplerFactor) {
@@ -3473,7 +3482,14 @@ interface class SoLoud {
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
   ///
   /// Throws [SoLoudCppException] if the file could not be loaded.
-  void loadBusHrtfData(BusHandle busHandle, String path) {
+  /// [sampleRate] is the file's rate. [targetSampleRate] prebuilds the table
+  /// for the bus's processing rate to avoid first-block resampling.
+  void loadBusHrtfData(
+    BusHandle busHandle,
+    String path, {
+    double sampleRate = 44100,
+    double? targetSampleRate,
+  }) {
     if (!isInitialized) {
       throw const SoLoudNotInitializedException();
     }
@@ -3634,20 +3650,23 @@ interface class SoLoud {
     return _controller.soLoudFFI.getLimiterGainReduction();
   }
 
-  /// Sets the HRTF filter's spatial position from world-space XYZ coordinates
-  /// for a sound identified by [handle].
+  /// Sets the HRTF filter's spatial position from listener-relative XYZ
+  /// for the loaded [source] and all its playing voices.
   ///
   /// The XYZ position is relative to the listener at the origin.
   /// Azimuth and elevation are derived automatically via:
-  ///   az = asin(x), el = atan2(z, y) (KEMAR interaural coordinates).
+  ///   az = asin(x), el = atan2(z, y), wrapped to -90..270
+  ///   (KEMAR interaural coordinates).
   ///
-  /// Pass a [SoundHandle] with hash 0 to target the global HRTF filter.
+  /// Use the source's sound hash; individual voice handles belong to
+  /// [setHrtfVoicePosition]. The global filter exposes angle parameters through
+  /// [filters].
   ///
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
   ///
   /// Throws [SoLoudCppException] on error.
   PlayerErrors setHrtfSourcePosition(
-    SoundHandle handle,
+    AudioSource source,
     double x,
     double y,
     double z,
@@ -3656,7 +3675,7 @@ interface class SoLoud {
       throw const SoLoudNotInitializedException();
     }
     final error = _controller.soLoudFFI.setHrtfSourcePosition(
-      soundHash: handle.id,
+      soundHash: source.soundHash.hash,
       x: x,
       y: y,
       z: z,
@@ -3697,7 +3716,7 @@ interface class SoLoud {
   /// X=right, Z=up. Units: meters.
   ///
   /// The XYZ vector is normalised internally. Azimuth and elevation are derived
-  /// via az=asin(x), el=atan2(z,y) (KEMAR interaural coordinates).
+  /// via az=asin(x), el=atan2(z,y), wrapped to -90..270.
   ///
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
   ///
@@ -3739,12 +3758,13 @@ interface class SoLoud {
     return error;
   }
 
-  /// Sets the HRTF filter's spatial position from world-space XYZ coordinates
+  /// Sets the HRTF filter's spatial position from listener-relative XYZ
   /// for a bus identified by [busHandle].
   ///
   /// The XYZ position is relative to the listener at the origin.
   /// Azimuth and elevation are derived automatically via:
-  ///   az = asin(x), el = atan2(z, y) (KEMAR interaural coordinates).
+  ///   az = asin(x), el = atan2(z, y), wrapped to -90..270
+  ///   (KEMAR interaural coordinates).
   ///
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
   ///

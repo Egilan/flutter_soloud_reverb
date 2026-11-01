@@ -464,6 +464,7 @@ namespace SoLoud
 		void set3dSourceAttenuation(handle aVoiceHandle, unsigned int aAttenuationModel, float aAttenuationRolloffFactor);
 		// Set 3d audio source doppler factor to reduce or enhance doppler effect. Default = 1.0
 		void set3dSourceDopplerFactor(handle aVoiceHandle, float aDopplerFactor);
+		void set3dSourcePanEnabled(handle aVoiceHandle, bool aEnabled);
 
 		// Rest of the stuff is used internally.
 

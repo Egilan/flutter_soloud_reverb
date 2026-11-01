@@ -187,6 +187,8 @@ abstract class FlutterSoLoud {
   PlayerErrors loadHrtfData({
     required int soundHash,
     required String path,
+    double sampleRate = 44100,
+    double? targetSampleRate,
   });
 
   /// Get the current stream time consumed in seconds of this sound of
@@ -920,6 +922,8 @@ abstract class FlutterSoLoud {
   PlayerErrors loadBusHrtfData({
     required BusHandle busHandle,
     required String path,
+    double sampleRate = 44100,
+    double? targetSampleRate,
   });
 
   /// Sets HRTF azimuth/elevation from a 3D world-space position.
@@ -1190,6 +1194,10 @@ abstract class FlutterSoLoud {
   /// You can change the doppler factor of a live 3d audio source.
   @mustBeOverridden
   void set3dSourceDopplerFactor(SoundHandle handle, double dopplerFactor);
+
+  /// Toggle speaker panning while preserving the voice's 3D attenuation.
+  @mustBeOverridden
+  void set3dSourcePanEnabled(SoundHandle handle, bool enabled);
 
   // ///////////////////////////////////////
   // waveform audio data

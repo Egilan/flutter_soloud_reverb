@@ -15,7 +15,7 @@ enum HrtfEnum {
   crossoverFreq;
 
   final List<double> _mins = const [-90.0, -90.0, 0.0, 20.0];
-  final List<double> _maxs = const [90.0, 90.0, 1.0, 2000.0];
+  final List<double> _maxs = const [90.0, 270.0, 1.0, 2000.0];
   final List<double> _defs = const [0.0, 0.0, 1.0, 150.0];
 
   double get min => _mins[index];
@@ -40,7 +40,13 @@ abstract class _HrtfInternal extends FilterBase {
   /// Load a KEMAR binary HRTF file from [path].
   /// The filter must be active before calling this.
   /// Throws [SoLoudCppException] on failure.
-  void loadHrtfData(String path) {
+  /// [sampleRate] is the file's rate. [targetSampleRate] prebuilds the table
+  /// for the voice's processing rate to avoid first-block resampling.
+  void loadHrtfData(
+    String path, {
+    double sampleRate = 44100,
+    double? targetSampleRate,
+  }) {
     if (!isActive) {
       Logger('flutter_soloud.hrtfFilter')
           .severe(() => 'loadHrtfData: filter is not active');
@@ -49,6 +55,8 @@ abstract class _HrtfInternal extends FilterBase {
     final error = SoLoudController().soLoudFFI.loadHrtfData(
           soundHash: soundHash?.hash ?? 0,
           path: path,
+          sampleRate: sampleRate,
+          targetSampleRate: targetSampleRate,
         );
     if (error != PlayerErrors.noError) {
       Logger('flutter_soloud.hrtfFilter')
