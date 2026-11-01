@@ -15,6 +15,12 @@ class PdBridgeFfi {
                     ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>,
                         ffi.Pointer<Utf8>)>>('pd_open_patch')
             .asFunction(),
+        _pdOpenPatchRouted = lookup<
+                ffi.NativeFunction<
+                    ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>,
+                        ffi.Pointer<Utf8>, ffi.Int32, ffi.Int32)>>(
+                'pd_open_patch_routed')
+            .asFunction(),
         _pdGetDollarZero = lookup<
                 ffi.NativeFunction<
                     ffi.Int32 Function(ffi.Pointer<Utf8>)>>(
@@ -75,6 +81,9 @@ class PdBridgeFfi {
   final int Function(int, int) _pdBridgeInit;
   final int Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, ffi.Pointer<Utf8>)
       _pdOpenPatch;
+  final int Function(
+      ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, int, int)
+      _pdOpenPatchRouted;
   final int Function(ffi.Pointer<Utf8>) _pdGetDollarZero;
   final void Function(ffi.Pointer<Utf8>) _pdClosePatch;
   final void Function() _pdCloseAllPatches;
@@ -110,6 +119,24 @@ class PdBridgeFfi {
     calloc.free(cDir);
     calloc.free(cFile);
     return result;
+  }
+
+  /// Open a PD patch and route its `$0-dac` output to [channels] channels
+  /// starting at zero-based [firstChannel], atomically with the open.
+  /// Returns 0 on success, 1 if already open, -1 on failure, -2 if the patch
+  /// has no `$0-dac` receiver.
+  int openPatchRouted(String patchId, String dir, String filename,
+      int firstChannel, int channels) {
+    final cId = patchId.toNativeUtf8();
+    final cDir = dir.toNativeUtf8();
+    final cFile = filename.toNativeUtf8();
+    try {
+      return _pdOpenPatchRouted(cId, cDir, cFile, firstChannel, channels);
+    } finally {
+      calloc.free(cId);
+      calloc.free(cDir);
+      calloc.free(cFile);
+    }
   }
 
   /// Returns the patch's $0, or -1 if [patchId] is unknown or closed.

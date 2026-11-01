@@ -90,6 +90,38 @@ EXPORT int pd_open_patch(const char* patch_id, const char* dir, const char* file
     return 0;
 }
 
+// Opens a patch and routes its output in one step: sends `set <first+1> ... <first+channels>` to the
+// patch's `$0-dac` receiver while the shared mutex is held, so no audio block runs with the patch on
+// its default dac~ channels. first_channel is zero-based; Pd channel numbers are one-based.
+// Returns 0 on success, 1 if already open with that ID, -1 on failure, -2 if the patch has no
+// `$0-dac` receiver (the patch is closed again).
+EXPORT int pd_open_patch_routed(const char* patch_id, const char* dir, const char* filename,
+                                int first_channel, int channels) {
+    auto &runtime = pdRuntime();
+    std::lock_guard<std::mutex> lock(runtime.mutex);
+    if (!runtime.renderer || !patch_id || !dir || !filename) return -1;
+    if (first_channel < 0 || channels <= 0 ||
+        static_cast<unsigned int>(first_channel + channels) > runtime.outChannels) return -1;
+    std::string id(patch_id);
+    if (g_patches.count(id)) return 1;
+    void* handle = libpd_openfile(filename, dir);
+    if (!handle) return -1;
+    const std::string receiver = std::to_string(libpd_getdollarzero(handle)) + "-dac";
+    if (libpd_start_message(channels) != 0) {
+        libpd_closefile(handle);
+        return -1;
+    }
+    for (int i = 0; i < channels; ++i) {
+        libpd_add_float(static_cast<float>(first_channel + i + 1));
+    }
+    if (libpd_finish_message(receiver.c_str(), "set") != 0) {
+        libpd_closefile(handle);
+        return -2;
+    }
+    g_patches[id] = handle;
+    return 0;
+}
+
 // Returns the stored patch handle's $0, or -1 for an unknown or closed patch ID.
 EXPORT int pd_get_dollar_zero(const char* patch_id) {
     std::lock_guard<std::mutex> lock(pdRuntime().mutex);

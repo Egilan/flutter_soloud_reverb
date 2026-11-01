@@ -81,6 +81,39 @@ class PdBridge {
     return false;
   }
 
+  /// Open a PD patch whose output ends in `[r $0-dac] -> [dac~]`, and route
+  /// that output to [channels] engine channels starting at zero-based
+  /// [firstChannel] (the same range given to `loadLibPDSource`).
+  ///
+  /// The open and the `set` message happen under one lock, so no audio block
+  /// runs with the patch on its default `dac~` channels.
+  ///
+  /// Returns false if the patch could not be opened, is already open, or has
+  /// no `$0-dac` receiver (it is closed again in that case).
+  bool openPatchRouted({
+    required String patchId,
+    required String dir,
+    required String filename,
+    required int firstChannel,
+    required int channels,
+  }) {
+    final result =
+        _ffi.openPatchRouted(patchId, dir, filename, firstChannel, channels);
+    switch (result) {
+      case 0:
+        _log.fine('Opened patch "$patchId" on channels '
+            '$firstChannel..${firstChannel + channels - 1}: $dir/$filename');
+        return true;
+      case 1:
+        _log.warning('Patch "$patchId" is already open');
+      case -2:
+        _log.severe('Patch "$patchId" has no \$0-dac receiver: $dir/$filename');
+      default:
+        _log.severe('Failed to open patch "$patchId": $dir/$filename');
+    }
+    return false;
+  }
+
   /// Returns the patch's $0, or null if [patchId] is unknown or closed.
   int? getDollarZero(String patchId) {
     final result = _ffi.getDollarZero(patchId);
