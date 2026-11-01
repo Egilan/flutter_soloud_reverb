@@ -6,8 +6,8 @@ import 'package:logging/logging.dart';
 ///
 /// This class provides FFI access to libpd's patch open/close and
 /// messaging functions. Audio processing is handled separately by
-/// SoLoud's LibPDAudioSource (via `libpd_process_float()` on the
-/// audio thread).
+/// the shared PdRenderer on the audio thread. The shared mutex also covers
+/// messaging and patch lifecycle calls.
 ///
 /// Usage:
 /// ```dart
@@ -32,12 +32,17 @@ class PdBridge {
   /// Whether libpd has been initialized.
   bool get isInitialized => _initialized;
 
-  /// Initialize libpd with the given sample rate and channel count.
-  /// Must be called before opening patches. Safe to call multiple times
-  /// (only the first call has effect).
+  /// Initialize libpd with zero inputs and [channels] outputs, and enable DSP.
+  /// Must precede opening patches and loading sources. Identical repeated calls
+  /// succeed without resetting DSP; different parameters return false
+  /// (the native pd_bridge_init returns -1).
   ///
   /// Returns true on success.
   bool init({required int sampleRate, required int channels}) {
+    if (sampleRate <= 0 || sampleRate > 0x7fffffff ||
+        channels <= 0 || channels > 0x7fffffff) {
+      return false;
+    }
     final result = _ffi.init(sampleRate, channels);
     if (result != 0) {
       _log.severe('pd_bridge_init failed with code $result');
@@ -76,6 +81,12 @@ class PdBridge {
     return false;
   }
 
+  /// Returns the patch's $0, or null if [patchId] is unknown or closed.
+  int? getDollarZero(String patchId) {
+    final result = _ffi.getDollarZero(patchId);
+    return result < 0 ? null : result;
+  }
+
   /// Close the patch identified by [patchId]. No-op if not found.
   void closePatch({required String patchId}) {
     _ffi.closePatch(patchId);
@@ -93,7 +104,8 @@ class PdBridge {
   /// **Note:** PD receivers are global across ALL loaded patches. Any
   /// `[receive <name>]` object in any loaded patch will receive this
   /// message. There is no per-patch targeting — use unique receiver
-  /// names in your patches to avoid conflicts.
+  /// names in your patches to avoid conflicts. Use [getDollarZero] to obtain
+  /// a patch's $0 and address its $0-prefixed receivers.
   ///
   /// Returns true on success.
   bool sendFloat({required String receiver, required double value}) {

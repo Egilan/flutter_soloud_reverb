@@ -242,15 +242,18 @@ abstract class FlutterSoLoud {
 
   /// Load a LibPD audio source for real-time DSP processing.
   ///
-  /// LibPD's processFloat() is called directly inside SoLoud's audio callback.
+  /// Audio comes from the shared PdRenderer on SoLoud's audio thread.
+  /// The shared mutex serializes audio, messaging, and patch calls.
   /// [sampleRate] must match SoLoud's initialized sample rate.
-  /// [channels] 1=mono, 2=stereo.
+  /// [channels] is the source count (1..8; supported: 1, 2, 4, 6, 8).
+  /// [firstChannel] is the zero-based offset into initialized PD outputs.
   /// `soundHash` return hash of the sound.
   /// Returns [PlayerErrors.noError] if success.
   @mustBeOverridden
   ({PlayerErrors error, SoundHash soundHash}) loadLibPDSource({
     required int sampleRate,
     required int channels,
+    int firstChannel = 0,
   });
 
   /// Set the scale of an already loaded waveform identified by [hash].

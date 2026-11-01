@@ -788,10 +788,11 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
   ({PlayerErrors error, SoundHash soundHash}) loadLibPDSource({
     required int sampleRate,
     required int channels,
+    int firstChannel = 0,
   }) {
     final ffi.Pointer<ffi.UnsignedInt> h =
         calloc(ffi.sizeOf<ffi.UnsignedInt>());
-    final e = _loadLibPDSource(sampleRate, channels, h);
+    final e = _loadLibPDSource(sampleRate, channels, firstChannel, h);
     final soundHash = SoundHash(h.value);
     final ret = (error: PlayerErrors.values[e], soundHash: soundHash);
     calloc.free(h);
@@ -803,9 +804,10 @@ class FlutterSoLoudFfi extends FlutterSoLoud {
           ffi.Int32 Function(
               ffi.UnsignedInt,
               ffi.UnsignedInt,
+              ffi.UnsignedInt,
               ffi.Pointer<ffi.UnsignedInt>)>>('loadLibPDSource');
   late final _loadLibPDSource = _loadLibPDSourcePtr.asFunction<
-      int Function(int, int, ffi.Pointer<ffi.UnsignedInt>)>();
+      int Function(int, int, int, ffi.Pointer<ffi.UnsignedInt>)>();
 
   @override
   void setWaveformScale(SoundHash hash, double newScale) {

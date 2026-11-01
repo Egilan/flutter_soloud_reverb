@@ -1328,12 +1328,14 @@ interface class SoLoud {
 
   /// Load a LibPD audio source for real-time DSP processing.
   ///
-  /// LibPD's processFloat() is called directly inside SoLoud's audio callback
-  /// on the native audio thread. This is real-time safe provided no messages
-  /// are sent to PD during playback.
+  /// The shared PdRenderer advances libpd once for all sources on the audio
+  /// thread, serialized with patch and message calls.
   ///
   /// [sampleRate] must match SoLoud's initialized sample rate.
-  /// [channels] number of channels (1=mono, 2=stereo).
+  /// [channels] is the source channel count (1..8; supported: 1, 2, 4, 6, 8).
+  /// [firstChannel] is a zero-based offset into PdBridge's output channels.
+  /// Initialize PdBridge first with the same rate. Ranges must not overlap;
+  /// dispose a source to release its range. Replaying replaces its voice.
   ///
   /// Throws [SoLoudNotInitializedException] if the engine is not initialized.
   ///
@@ -1341,13 +1343,20 @@ interface class SoLoud {
   Future<AudioSource> loadLibPDSource({
     required int sampleRate,
     required int channels,
+    int firstChannel = 0,
   }) async {
     if (!isInitialized) {
       throw const SoLoudNotInitializedException();
     }
+    if (sampleRate <= 0 || sampleRate > 0x7fffffff ||
+        channels <= 0 || channels > 8 ||
+        firstChannel < 0 || firstChannel > 0xffffffff) {
+      throw ArgumentError('Invalid PD sample rate or channel range');
+    }
     final ret = _controller.soLoudFFI.loadLibPDSource(
       sampleRate: sampleRate,
       channels: channels,
+      firstChannel: firstChannel,
     );
     if (ret.error == PlayerErrors.noError) {
       final newSound = AudioSource(ret.soundHash);

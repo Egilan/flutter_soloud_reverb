@@ -1,4 +1,5 @@
 #### Unreleased (fork)
+- LibPD now renders one shared engine into bounded per-channel rings for concurrent, non-overlapping SoLoud sources. Added zero-based `firstChannel` (default 0), mono routing, exact partial reads, serialized patch/messages/audio, explicit init-once output configuration, and `PdBridge.getDollarZero(patchId)` (null for unknown/closed patches).
 - `PdBridge`: extend Dart → PD messaging beyond floats and bangs. Added `sendList()` (float list), `sendMessage()` (selector + float args) and `sendSymbol()`, backed by new `pd_send_list` / `pd_send_message` / `pd_send_symbol` exports in `src/synth/pd_bridge.cpp`
 
 #### 4.0.12 (30 Jun 2026)

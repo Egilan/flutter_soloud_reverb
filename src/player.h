@@ -111,7 +111,7 @@ public:
 
   /// @brief Load a LibPD audio source for real-time DSP processing.
   PlayerErrors loadLibPDSource(unsigned int sampleRate, unsigned int channels,
-                               unsigned int &hash);
+                               unsigned int &hash, unsigned int firstChannel = 0);
 
   /// @brief If this sound is you can change the scale at runtime.
   void setWaveformScale(unsigned int soundHash, float newScale);

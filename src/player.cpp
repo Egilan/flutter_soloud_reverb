@@ -725,26 +725,34 @@ PlayerErrors Player::loadWaveform(
 PlayerErrors Player::loadLibPDSource(
     unsigned int sampleRate,
     unsigned int channels,
-    unsigned int &hash)
+    unsigned int &hash,
+    unsigned int firstChannel)
 {
+    hash = 0;
     if (!mInited)
         return backendNotInited;
 
-    hash = 0;
+    auto source = std::make_unique<LibPDAudioSource>(sampleRate, channels, firstChannel);
+    if (!source->isValid())
+        return invalidParameter;
 
+    std::lock_guard<std::recursive_mutex> lock(sounds_mutex);
     std::random_device rd;
     std::mt19937 g(rd());
-    std::uniform_int_distribution<unsigned int> dist(0, INT32_MAX);
+    std::uniform_int_distribution<unsigned int> dist(1, INT32_MAX);
+    do {
+        hash = dist(g);
+    } while (std::any_of(sounds.begin(), sounds.end(), [hash](const auto &sound) {
+        return sound->soundHash == hash;
+    }));
 
-    hash = dist(g);
-
-    sounds.push_back(std::make_unique<ActiveSound>());
-    sounds.back().get()->completeFileName = "";
-    sounds.back().get()->soundHash = hash;
-    sounds.back().get()->sound = std::make_unique<LibPDAudioSource>(sampleRate, channels);
-    sounds.back().get()->soundType = TYPE_LIBPD;
-    sounds.back().get()->filters = std::make_unique<Filters>(&soloud, sounds.back().get(), nullptr);
-
+    auto sound = std::make_unique<ActiveSound>();
+    sound->completeFileName = "";
+    sound->soundHash = hash;
+    sound->sound = std::move(source);
+    sound->soundType = TYPE_LIBPD;
+    sound->filters = std::make_unique<Filters>(&soloud, sound.get(), nullptr);
+    sounds.push_back(std::move(sound));
     return noError;
 }
 

@@ -15,6 +15,11 @@ class PdBridgeFfi {
                     ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>,
                         ffi.Pointer<Utf8>)>>('pd_open_patch')
             .asFunction(),
+        _pdGetDollarZero = lookup<
+                ffi.NativeFunction<
+                    ffi.Int32 Function(ffi.Pointer<Utf8>)>>(
+                'pd_get_dollar_zero')
+            .asFunction(),
         _pdClosePatch = lookup<
                 ffi.NativeFunction<
                     ffi.Void Function(ffi.Pointer<Utf8>)>>('pd_close_patch')
@@ -70,6 +75,7 @@ class PdBridgeFfi {
   final int Function(int, int) _pdBridgeInit;
   final int Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, ffi.Pointer<Utf8>)
       _pdOpenPatch;
+  final int Function(ffi.Pointer<Utf8>) _pdGetDollarZero;
   final void Function(ffi.Pointer<Utf8>) _pdClosePatch;
   final void Function() _pdCloseAllPatches;
   final int Function(ffi.Pointer<Utf8>, double) _pdSendFloat;
@@ -89,7 +95,8 @@ class PdBridgeFfi {
               ffi.NativeFunction<ffi.Void Function(ffi.Pointer<Utf8>)>>)
       _pdSetBangHook;
 
-  /// Initialize libpd. Returns 0 on success.
+  /// Initialize libpd audio and DSP. Identical re-init is a no-op;
+  /// different parameters return -1. Returns 0 on success.
   int init(int sampleRate, int channels) => _pdBridgeInit(sampleRate, channels);
 
   /// Open a PD patch tracked by [patchId].
@@ -103,6 +110,16 @@ class PdBridgeFfi {
     calloc.free(cDir);
     calloc.free(cFile);
     return result;
+  }
+
+  /// Returns the patch's $0, or -1 if [patchId] is unknown or closed.
+  int getDollarZero(String patchId) {
+    final cId = patchId.toNativeUtf8();
+    try {
+      return _pdGetDollarZero(cId);
+    } finally {
+      calloc.free(cId);
+    }
   }
 
   /// Close the patch identified by [patchId].

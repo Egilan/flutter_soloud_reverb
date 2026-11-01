@@ -408,6 +408,7 @@ class FlutterSoLoudWeb extends FlutterSoLoud {
   ({PlayerErrors error, SoundHash soundHash}) loadLibPDSource({
     required int sampleRate,
     required int channels,
+    int firstChannel = 0,
   }) {
     return (
       error: PlayerErrors.notImplemented,
